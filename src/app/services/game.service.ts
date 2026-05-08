@@ -67,7 +67,7 @@ export class GameService implements OnDestroy {
         this.pollInterval && clearInterval(this.pollInterval);
         this.pollInterval = setInterval(() => {
             void this.refreshRoom(roomId);
-        }, 5000);
+        }, 2000);
     }
 
     /** Arrête l'abonnement Realtime de la room courante et le polling de secours. */
@@ -354,8 +354,35 @@ export class GameService implements OnDestroy {
             const room = await this.supabaseService.getRoomById(roomId);
             this.currentRoom.set(room);
             void this.launchReplayIfReady(roomId, room);
+            void this.launchSelectingIfBothReady(roomId, room);
         } catch {
             // ignore les erreurs de rafraîchissement
+        }
+    }
+
+    /**
+     * Filet de sécurité contre la race condition de setReady() :
+     * si le polling détecte les deux joueurs prêts en phase 'selecting' mais que personne
+     * n'a encore déclenché la partie, Player 1 prend en charge le lancement.
+     */
+    private launchSelectingInProgress = false;
+    private async launchSelectingIfBothReady(roomId: string, room: Room): Promise<void> {
+        const user = this.supabaseService.getCurrentUser();
+        if (!user || user.id !== room.player1_id) return;
+        if (this.launchSelectingInProgress || room.status !== 'selecting' || !room.p1_ready || !room.p2_ready) return;
+
+        this.launchSelectingInProgress = true;
+        try {
+            await this.supabaseService.updateRoom(roomId, {
+                status: 'playing',
+                current_turn: this.resolveFirstTurn(room),
+            });
+            const finalRoom = await this.supabaseService.getRoomById(roomId);
+            this.currentRoom.set(finalRoom);
+        } catch {
+            // ignore — l'autre joueur a peut-être déjà lancé entre temps
+        } finally {
+            this.launchSelectingInProgress = false;
         }
     }
 

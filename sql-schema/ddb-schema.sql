@@ -358,7 +358,7 @@ BEGIN
   -- Seul player1 peut modifier les settings, et uniquement en phase waiting/selecting
   IF p_patch ? 'settings' THEN
     IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_change_settings'; END IF;
-    IF v_room.status NOT IN ('waiting', 'selecting') THEN RAISE EXCEPTION 'settings_locked_during_play'; END IF;
+    IF v_room.status NOT IN ('waiting', 'ready', 'selecting') THEN RAISE EXCEPTION 'settings_locked_during_play'; END IF;
   END IF;
 
   -- winner_id : seul le joueur dont c'est le tour peut se déclarer gagnant ; seul player1 peut le remettre à null
@@ -390,7 +390,13 @@ BEGIN
   END IF;
 
   IF p_patch ? 'player2_id' AND NOT (v_user = v_room.player1_id AND p_patch->>'player2_id' IS NULL AND v_room.status IN ('waiting','ready')) THEN RAISE EXCEPTION 'forbidden_player2_update'; END IF;
-  IF (p_patch ? 'pokemon_p1' OR p_patch ? 'p1_ready') AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_player1_fields'; END IF;
+  IF p_patch ? 'pokemon_p1' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_player1_fields'; END IF;
+  IF p_patch ? 'p1_ready' AND v_user <> v_room.player1_id THEN
+    -- Exception : player2 peut remettre p1_ready à false quand il se déclare vainqueur dans le même appel
+    IF NOT ((p_patch->>'p1_ready')::boolean = false AND p_patch ? 'winner_id' AND NULLIF(p_patch->>'winner_id','')::uuid = v_user) THEN
+      RAISE EXCEPTION 'forbidden_player1_fields';
+    END IF;
+  END IF;
   IF (p_patch ? 'pokemon_p2' OR p_patch ? 'p2_ready') AND v_user IS DISTINCT FROM v_room.player2_id AND v_user IS DISTINCT FROM v_room.player1_id THEN RAISE EXCEPTION 'forbidden_player2_fields'; END IF;
 
   UPDATE public.guess_pokemon_rooms
