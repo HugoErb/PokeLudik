@@ -20,6 +20,7 @@ export class GameService implements OnDestroy {
             if (!a || !b) return false;
             return (
                 a.status === b.status &&
+                a.player2_id === b.player2_id &&
                 a.current_turn === b.current_turn &&
                 a.winner_id === b.winner_id &&
                 a.p1_ready === b.p1_ready &&

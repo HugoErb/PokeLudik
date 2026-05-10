@@ -65,4 +65,18 @@ describe('GameService', () => {
       status: 'finished',
     }));
   });
+
+  it("met a jour la room quand l'adversaire rejoint une invitation", () => {
+    service.currentRoom.set(room({
+      player2_id: null,
+      status: 'waiting',
+    }));
+
+    service.currentRoom.set(room({
+      player2_id: 'player-2',
+      status: 'waiting',
+    }));
+
+    expect(service.currentRoom()?.player2_id).toBe('player-2');
+  });
 });

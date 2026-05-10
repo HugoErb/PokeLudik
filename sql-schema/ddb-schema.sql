@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1884JYz1nq4BdhxZihRzA6x9HuEKEMpRhAxUwOzV7esvUzGxBF94PT5LrkEMAC8
+\restrict lyOccG4mqsEfqNSxf0uP6vAUDAco5m00lX5O5K5gg31XIuMcHYJHnyME1ggqxH0
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 18.3
@@ -68,8 +68,10 @@ BEGIN
   IF p_column = 'p1_picks' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_picks'; END IF;
   IF p_column = 'p2_picks' AND v_user IS DISTINCT FROM v_room.player2_id AND NOT (v_user = v_room.player1_id AND v_room.player2_id IS NULL) THEN RAISE EXCEPTION 'forbidden_p2_picks'; END IF;
   IF jsonb_typeof(p_pick) <> 'object' OR NOT (p_pick ? 'stat') OR NOT (p_pick ? 'value') THEN RAISE EXCEPTION 'invalid_pick'; END IF;
+  -- Validation de la clé de stat
   v_stat := p_pick->>'stat';
   IF v_stat NOT IN ('pv','attaque','defense','atq_spe','def_spe','vitesse') THEN RAISE EXCEPTION 'invalid_stat_key'; END IF;
+  -- Validation de la plage de valeur (base stats Pokémon : 1–999)
   v_value := (p_pick->>'value')::numeric;
   IF v_value IS NULL OR v_value < 1 OR v_value > 999 THEN RAISE EXCEPTION 'invalid_stat_value'; END IF;
   IF p_column = 'p1_picks' THEN
@@ -84,38 +86,14 @@ $$;
 
 
 --
--- Name: delete_old_rooms(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.delete_old_rooms() RETURNS void
-    LANGUAGE sql
-    AS $$
-  delete from public.guess_pokemon_rooms
-  where created_at <= now() - interval '3 hours';
-$$;
-
-
---
--- Name: delete_old_stat_duel_rooms(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.delete_old_stat_duel_rooms() RETURNS void
-    LANGUAGE sql
-    AS $$
-  delete from public.stat_duel_rooms
-  where created_at <= now() - interval '3 hours';
-$$;
-
-
---
 -- Name: delete_old_draft_duo_rooms(); Type: FUNCTION; Schema: public; Owner: -
 --
 
 CREATE FUNCTION public.delete_old_draft_duo_rooms() RETURNS void
     LANGUAGE sql
     AS $$
-  delete from public.draft_duo_rooms
-  where created_at <= now() - interval '3 hours';
+  DELETE FROM public.draft_duo_rooms
+  WHERE created_at <= now() - interval '3 hours';
 $$;
 
 
@@ -126,8 +104,32 @@ $$;
 CREATE FUNCTION public.delete_old_game_invites() RETURNS void
     LANGUAGE sql
     AS $$
-  delete from public.game_invites
-  where created_at <= now() - interval '24 hours';
+  DELETE FROM public.game_invites
+  WHERE created_at <= now() - interval '24 hours';
+$$;
+
+
+--
+-- Name: delete_old_rooms(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.delete_old_rooms() RETURNS void
+    LANGUAGE sql
+    AS $$
+  DELETE FROM public.guess_pokemon_rooms
+  WHERE created_at <= now() - interval '3 hours';
+$$;
+
+
+--
+-- Name: delete_old_stat_duel_rooms(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.delete_old_stat_duel_rooms() RETURNS void
+    LANGUAGE sql
+    AS $$
+  DELETE FROM public.stat_duel_rooms
+  WHERE created_at <= now() - interval '3 hours';
 $$;
 
 
@@ -291,25 +293,25 @@ BEGIN
   WHERE key <> ALL (ARRAY['status','p1_team','p2_team','winner','p1_ready','p2_ready','player2_id']);
   IF v_bad_keys IS NOT NULL THEN RAISE EXCEPTION 'forbidden_fields: %', v_bad_keys; END IF;
 
-  -- Taille des équipes limitée à 6
+  -- Équipes : propriétaires respectifs + limite de 6 Pokémon
   IF p_patch ? 'p1_team' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_team'; END IF;
   IF p_patch ? 'p1_team' AND jsonb_array_length(p_patch->'p1_team') > 6 THEN RAISE EXCEPTION 'p1_team_too_large'; END IF;
   IF p_patch ? 'p2_team' AND v_user IS DISTINCT FROM v_room.player2_id AND NOT (v_user = v_room.player1_id AND p_patch->'p2_team' = '[]'::jsonb) THEN RAISE EXCEPTION 'forbidden_p2_team'; END IF;
   IF p_patch ? 'p2_team' AND jsonb_array_length(p_patch->'p2_team') > 6 THEN RAISE EXCEPTION 'p2_team_too_large'; END IF;
 
-  -- winner : les deux joueurs peuvent le définir, mais seulement quand les deux équipes font 6
+  -- winner : les deux joueurs peuvent le définir, mais seulement quand les deux équipes ont 6 Pokémon
   IF p_patch ? 'winner' THEN
     IF NULLIF(p_patch->>'winner', '') IS NOT NULL THEN
       IF v_room.status <> 'playing' THEN RAISE EXCEPTION 'room_not_playing_for_winner'; END IF;
       IF COALESCE(array_length(v_room.p1_team, 1), 0) < 6 OR COALESCE(array_length(v_room.p2_team, 1), 0) < 6 THEN RAISE EXCEPTION 'teams_incomplete'; END IF;
       IF p_patch->>'winner' NOT IN ('player1','player2','draw') THEN RAISE EXCEPTION 'invalid_winner_value'; END IF;
     ELSE
-      -- Effacement du winner (revanche) : seul player1
+      -- Effacement (revanche) : seul player1
       IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_clear_winner'; END IF;
     END IF;
   END IF;
 
-  -- status = 'finished' exige que winner soit positionné dans le même appel
+  -- status = 'finished' exige winner dans le même appel
   IF p_patch ? 'status' AND p_patch->>'status' = 'finished' THEN
     IF NOT (p_patch ? 'winner') OR NULLIF(p_patch->>'winner', '') IS NULL THEN RAISE EXCEPTION 'finished_requires_winner'; END IF;
   END IF;
@@ -355,13 +357,11 @@ BEGIN
   WHERE key <> ALL (ARRAY['settings','pokemon_p1','pokemon_p2','p1_ready','p2_ready','current_turn','status','winner_id','last_guess','player2_id']);
   IF v_bad_keys IS NOT NULL THEN RAISE EXCEPTION 'forbidden_fields: %', v_bad_keys; END IF;
 
-  -- Seul player1 peut modifier les settings, et uniquement en phase waiting/selecting
   IF p_patch ? 'settings' THEN
     IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_change_settings'; END IF;
     IF v_room.status NOT IN ('waiting', 'ready', 'selecting') THEN RAISE EXCEPTION 'settings_locked_during_play'; END IF;
   END IF;
 
-  -- winner_id : seul le joueur dont c'est le tour peut se déclarer gagnant ; seul player1 peut le remettre à null
   IF p_patch ? 'winner_id' THEN
     IF NULLIF(p_patch->>'winner_id', '') IS NOT NULL THEN
       IF NULLIF(p_patch->>'winner_id', '')::uuid <> v_user THEN RAISE EXCEPTION 'forbidden_winner_id'; END IF;
@@ -372,14 +372,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- status = 'finished' exige que winner_id soit positionné dans le même appel
   IF p_patch ? 'status' AND p_patch->>'status' = 'finished' THEN
     IF NOT (p_patch ? 'winner_id') OR NULLIF(p_patch->>'winner_id', '') IS NULL THEN
       RAISE EXCEPTION 'finished_requires_winner';
     END IF;
   END IF;
 
-  -- current_turn doit être l'un des deux joueurs de la room (ou null)
   IF p_patch ? 'current_turn' AND NULLIF(p_patch->>'current_turn', '') IS NOT NULL THEN
     IF NOT (
       NULLIF(p_patch->>'current_turn', '')::uuid = v_room.player1_id OR
@@ -390,6 +388,7 @@ BEGIN
   END IF;
 
   IF p_patch ? 'player2_id' AND NOT (v_user = v_room.player1_id AND p_patch->>'player2_id' IS NULL AND v_room.status IN ('waiting','ready')) THEN RAISE EXCEPTION 'forbidden_player2_update'; END IF;
+
   IF p_patch ? 'pokemon_p1' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_player1_fields'; END IF;
   IF p_patch ? 'p1_ready' AND v_user <> v_room.player1_id THEN
     -- Exception : player2 peut remettre p1_ready à false quand il se déclare vainqueur dans le même appel
@@ -397,6 +396,7 @@ BEGIN
       RAISE EXCEPTION 'forbidden_player1_fields';
     END IF;
   END IF;
+
   IF (p_patch ? 'pokemon_p2' OR p_patch ? 'p2_ready') AND v_user IS DISTINCT FROM v_room.player2_id AND v_user IS DISTINCT FROM v_room.player1_id THEN RAISE EXCEPTION 'forbidden_player2_fields'; END IF;
 
   UPDATE public.guess_pokemon_rooms
@@ -441,7 +441,7 @@ BEGIN
 
   IF (p_patch ? 'pokemon_ids' OR p_patch ? 'round_start_at') AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_launch'; END IF;
 
-  -- p1_picks et p2_picks ne peuvent être remis qu'à [] (reset lancement/revanche), uniquement par player1
+  -- p1_picks / p2_picks : uniquement reset à [] par player1 (lancement / revanche)
   IF p_patch ? 'p1_picks' THEN
     IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_picks'; END IF;
     IF p_patch->'p1_picks' <> '[]'::jsonb THEN RAISE EXCEPTION 'p1_picks_must_be_empty_array'; END IF;
@@ -451,7 +451,7 @@ BEGIN
     IF p_patch->'p2_picks' <> '[]'::jsonb THEN RAISE EXCEPTION 'p2_picks_must_be_empty_array'; END IF;
   END IF;
 
-  -- winner : seul player1 peut le définir, uniquement quand les 6 manches sont complètes
+  -- winner : seul player1, uniquement quand les 6 manches sont terminées
   IF p_patch ? 'winner' THEN
     IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_set_winner'; END IF;
     IF NULLIF(p_patch->>'winner', '') IS NOT NULL THEN
@@ -461,7 +461,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- status = 'finished' exige que winner soit positionné dans le même appel
+  -- status = 'finished' exige winner dans le même appel
   IF p_patch ? 'status' AND p_patch->>'status' = 'finished' THEN
     IF NOT (p_patch ? 'winner') OR NULLIF(p_patch->>'winner', '') IS NULL THEN RAISE EXCEPTION 'finished_requires_winner'; END IF;
   END IF;
@@ -517,7 +517,8 @@ CREATE TABLE public.draft_duo_rooms (
     winner text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     p1_ready boolean DEFAULT false NOT NULL,
-    p2_ready boolean DEFAULT false NOT NULL
+    p2_ready boolean DEFAULT false NOT NULL,
+    CONSTRAINT draft_duo_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text])))
 );
 
 
@@ -600,7 +601,8 @@ CREATE TABLE public.stat_duel_rooms (
     winner text,
     created_at timestamp with time zone DEFAULT now(),
     p1_ready boolean DEFAULT false NOT NULL,
-    p2_ready boolean DEFAULT false NOT NULL
+    p2_ready boolean DEFAULT false NOT NULL,
+    CONSTRAINT stat_duel_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text])))
 );
 
 
@@ -685,19 +687,10 @@ ALTER TABLE ONLY public.stat_duel_rooms
 
 
 --
--- Name: stat_duel_rooms stat_duel_rooms_status_check; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: idx_draft_duo_rooms_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.stat_duel_rooms
-    ADD CONSTRAINT stat_duel_rooms_status_check CHECK ((status IN ('waiting', 'playing', 'finished')));
-
-
---
--- Name: draft_duo_rooms draft_duo_rooms_status_check; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.draft_duo_rooms
-    ADD CONSTRAINT draft_duo_rooms_status_check CHECK ((status IN ('waiting', 'playing', 'finished')));
+CREATE INDEX idx_draft_duo_rooms_created_at ON public.draft_duo_rooms USING btree (created_at);
 
 
 --
@@ -743,6 +736,13 @@ CREATE INDEX idx_friendships_requester_status ON public.friendships USING btree 
 
 
 --
+-- Name: idx_game_invites_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_game_invites_created_at ON public.game_invites USING btree (created_at);
+
+
+--
 -- Name: idx_game_invites_recipient_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -750,10 +750,24 @@ CREATE INDEX idx_game_invites_recipient_status ON public.game_invites USING btre
 
 
 --
+-- Name: idx_game_invites_room_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_game_invites_room_id ON public.game_invites USING btree (room_id);
+
+
+--
 -- Name: idx_game_invites_sender_status; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_game_invites_sender_status ON public.game_invites USING btree (sender_id, status);
+
+
+--
+-- Name: idx_guess_pokemon_rooms_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_guess_pokemon_rooms_created_at ON public.guess_pokemon_rooms USING btree (created_at);
 
 
 --
@@ -785,6 +799,13 @@ CREATE INDEX idx_rooms_status ON public.guess_pokemon_rooms USING btree (status)
 
 
 --
+-- Name: idx_stat_duel_rooms_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_duel_rooms_created_at ON public.stat_duel_rooms USING btree (created_at);
+
+
+--
 -- Name: idx_stat_duel_rooms_player1_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -803,41 +824,6 @@ CREATE INDEX idx_stat_duel_rooms_player2_id ON public.stat_duel_rooms USING btre
 --
 
 CREATE INDEX idx_stat_duel_rooms_status ON public.stat_duel_rooms USING btree (status);
-
-
---
--- Name: idx_guess_pokemon_rooms_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_guess_pokemon_rooms_created_at ON public.guess_pokemon_rooms USING btree (created_at);
-
-
---
--- Name: idx_stat_duel_rooms_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_stat_duel_rooms_created_at ON public.stat_duel_rooms USING btree (created_at);
-
-
---
--- Name: idx_draft_duo_rooms_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_draft_duo_rooms_created_at ON public.draft_duo_rooms USING btree (created_at);
-
-
---
--- Name: idx_game_invites_room_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_game_invites_room_id ON public.game_invites USING btree (room_id);
-
-
---
--- Name: idx_game_invites_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_game_invites_created_at ON public.game_invites USING btree (created_at);
 
 
 --
@@ -1005,6 +991,13 @@ ALTER TABLE public.defeated_trainers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.draft_duo_rooms ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: draft_duo_rooms draft_duo_rooms_delete_owner; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY draft_duo_rooms_delete_owner ON public.draft_duo_rooms FOR DELETE TO authenticated USING ((auth.uid() = player1_id));
+
+
+--
 -- Name: draft_duo_rooms draft_duo_rooms_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1081,7 +1074,6 @@ CREATE POLICY game_invites_update_recipient ON public.game_invites FOR UPDATE TO
 
 --
 -- Name: game_invites game_invites_update_sender; Type: POLICY; Schema: public; Owner: -
--- Corrigé : ajout de status = 'pending' dans USING pour empêcher de rouvrir une invite acceptée
 --
 
 CREATE POLICY game_invites_update_sender ON public.game_invites FOR UPDATE TO authenticated USING (((auth.uid() = sender_id) AND (status = 'pending'::text))) WITH CHECK (((auth.uid() = sender_id) AND (status = ANY (ARRAY['pending'::text, 'declined'::text]))));
@@ -1120,6 +1112,13 @@ CREATE POLICY profiles_insert_own ON public.profiles FOR INSERT TO authenticated
 ALTER TABLE public.stat_duel_rooms ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: stat_duel_rooms stat_duel_rooms_delete_owner; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY stat_duel_rooms_delete_owner ON public.stat_duel_rooms FOR DELETE TO authenticated USING ((auth.uid() = player1_id));
+
+
+--
 -- Name: stat_duel_rooms stat_duel_rooms_insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1134,22 +1133,8 @@ CREATE POLICY stat_duel_rooms_select ON public.stat_duel_rooms FOR SELECT TO aut
 
 
 --
--- Name: stat_duel_rooms stat_duel_rooms_delete_owner; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY stat_duel_rooms_delete_owner ON public.stat_duel_rooms FOR DELETE TO authenticated USING ((auth.uid() = player1_id));
-
-
---
--- Name: draft_duo_rooms draft_duo_rooms_delete_owner; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY draft_duo_rooms_delete_owner ON public.draft_duo_rooms FOR DELETE TO authenticated USING ((auth.uid() = player1_id));
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1884JYz1nq4BdhxZihRzA6x9HuEKEMpRhAxUwOzV7esvUzGxBF94PT5LrkEMAC8
+\unrestrict lyOccG4mqsEfqNSxf0uP6vAUDAco5m00lX5O5K5gg31XIuMcHYJHnyME1ggqxH0
 
