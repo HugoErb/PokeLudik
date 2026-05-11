@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, Output, EventEmitter, CUSTOM_ELEMENTS_SCH
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { SupabaseService } from '../../services/supabase.service';
-import { FriendStatus, FriendWithStatus, FriendRequest } from '../../models/room.model';
+import { FriendStatus, FriendWithStatus, FriendRequest, GameMode } from '../../models/room.model';
 import { ICONS } from '../../constants/icons';
 
 @Component({
@@ -21,7 +21,7 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 	protected readonly ICONS = ICONS;
 	private readonly supabaseService = inject(SupabaseService);
 
-	@Output() inviteRequested = new EventEmitter<{ friendId: string; username: string; gameMode: 'guess_my_pokemon' | 'stat_duel' | 'draft_duo' }>();
+	@Output() inviteRequested = new EventEmitter<{ friendId: string; username: string; gameMode: GameMode }>();
 
 	activeTab = signal<'friends' | 'requests' | 'add'>('friends');
 	friends = signal<FriendWithStatus[]>([]);
@@ -120,7 +120,7 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 	}
 
 	/** Emet une demande d'invitation de jeu pour un ami. */
-	inviteFriend(friend: FriendWithStatus, gameMode: 'guess_my_pokemon' | 'stat_duel' | 'draft_duo'): void {
+	inviteFriend(friend: FriendWithStatus, gameMode: GameMode): void {
 		if (friend.status !== 'online') return;
 		this.inviteRequested.emit({ friendId: friend.friendId, username: friend.username, gameMode });
 	}

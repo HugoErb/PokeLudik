@@ -32,6 +32,8 @@ export class InviteComponent implements OnInit, OnDestroy {
 			this.loadStatDuelRoom();
 		} else if (mode === 'draft_duo') {
 			this.loadDraftDuoRoom();
+		} else if (mode === 'who_that_pokemon') {
+			this.loadWhoPokemonRoom();
 		} else {
 			this.loadRoom();
 		}
@@ -104,6 +106,41 @@ export class InviteComponent implements OnInit, OnDestroy {
 			try {
 				await this.supabaseService.joinDraftDuoRoom(this.roomId());
 				await this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'draft_duo' } });
+			} catch {
+				this.state = 'error';
+				this.errorMessage = 'Impossible de rejoindre la partie.';
+			}
+		} catch {
+			this.state = 'error';
+			this.errorMessage = "Cette invitation n'est plus valide.";
+		}
+	}
+
+	private async loadWhoPokemonRoom(): Promise<void> {
+		try {
+			const room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
+
+			if (room?.status !== 'waiting') {
+				this.state = 'error';
+				this.errorMessage = "Cette invitation n'est plus valide.";
+				return;
+			}
+
+			if (room.player2_id) {
+				this.state = 'full';
+				this.errorMessage = 'Cette partie est déjà complète.';
+				return;
+			}
+
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			if (currentUser?.id === room.player1_id) {
+				this.router.navigate(['/who-that-pokemon', this.roomId()]);
+				return;
+			}
+
+			try {
+				await this.supabaseService.joinWhoPokemonRoom(this.roomId());
+				await this.router.navigate(['/who-that-pokemon', this.roomId()]);
 			} catch {
 				this.state = 'error';
 				this.errorMessage = 'Impossible de rejoindre la partie.';

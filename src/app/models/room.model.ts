@@ -20,6 +20,18 @@ export const DEFAULT_SETTINGS: GameSettings = {
   randomPokemon: false,
 };
 
+export interface WhoGameSettings {
+  generations: number[];
+  categories: string[];
+  initialHint: 'silhouette' | 'cry' | 'pokedex_number' | 'description';
+}
+
+export const DEFAULT_WHO_SETTINGS: WhoGameSettings = {
+  generations: [],
+  categories: [],
+  initialHint: 'silhouette',
+};
+
 export interface Room {
   id: string;
   player1_id: string;
@@ -53,7 +65,7 @@ export interface Friendship {
   created_at: string;
 }
 
-export type GameMode = 'guess_my_pokemon' | 'stat_duel' | 'draft_duo';
+export type GameMode = 'guess_my_pokemon' | 'stat_duel' | 'draft_duo' | 'who_that_pokemon';
 
 export interface GameInvite {
   id: string;
@@ -93,6 +105,25 @@ export interface DraftDuoRoom {
   status: 'waiting' | 'playing' | 'finished';
   p1_team: number[];
   p2_team: number[];
+  winner: 'player1' | 'player2' | 'draw' | null;
+  p1_ready: boolean;
+  p2_ready: boolean;
+  created_at: string;
+}
+
+export interface WhoPokemonRoom {
+  id: string;
+  player1_id: string;
+  player2_id: string | null;
+  status: 'waiting' | 'playing' | 'finished';
+  settings: WhoGameSettings | null;
+  round: number;
+  target_pokemon_id: number | null;
+  used_pokemon_ids: number[];
+  p1_score: number;
+  p2_score: number;
+  p1_lives: number;
+  p2_lives: number;
   winner: 'player1' | 'player2' | 'draw' | null;
   p1_ready: boolean;
   p2_ready: boolean;

@@ -20,6 +20,10 @@ export const ICONS = {
   pokedex: 'mdi:book-open-page-variant',
   timer: 'mdi:timer-sand',      // animé : animate-pulse
   guess: 'ri:question-fill',
+  whoPokemon: 'mdi:incognito',
+  sound: 'mdi:volume-high',
+  play: 'mdi:play',
+  pause: 'mdi:pause',
 
   // Auth
   email: 'mdi:email-outline',

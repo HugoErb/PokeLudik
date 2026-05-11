@@ -3,7 +3,7 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { filter, map, skipUntil } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, GameSettings, Profile, Room, RoomPatch, StatDuelRoom, StatPick } from '../models/room.model';
+import { DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, GameSettings, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService implements OnDestroy {
@@ -485,6 +485,87 @@ export class SupabaseService implements OnDestroy {
     }
 
     /** Envoie une invitation à rejoindre une room existante (sans créer de nouvelle room). */
+    async createWhoPokemonRoom(settings?: WhoGameSettings): Promise<string> {
+        const user = this.userSubject.getValue();
+        if (!user) throw new Error('Utilisateur non connecté');
+
+        const { data, error } = await this.supabase
+            .from('who_that_pokemon_rooms')
+            .insert({ player1_id: user.id, settings: settings ?? null })
+            .select('id')
+            .single();
+
+        if (error) throw error;
+        return (data as { id: string }).id;
+    }
+
+    async getWhoPokemonRoom(roomId: string): Promise<WhoPokemonRoom> {
+        const { data, error } = await this.supabase
+            .from('who_that_pokemon_rooms')
+            .select('*')
+            .eq('id', roomId)
+            .single();
+
+        if (error) throw error;
+        return data as WhoPokemonRoom;
+    }
+
+    async joinWhoPokemonRoom(roomId: string): Promise<void> {
+        const user = this.userSubject.getValue();
+        if (!user) throw new Error('Utilisateur non connecté');
+
+        const room = await this.getWhoPokemonRoom(roomId);
+        if (room.player1_id === user.id) throw new Error('Le créateur ne peut pas rejoindre sa propre room');
+        if (room.player2_id) throw new Error('Room déjà complète');
+        if (room.status !== 'waiting') throw new Error('Room non joignable');
+
+        const { error } = await this.supabase.rpc('join_who_that_pokemon_room', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    async updateWhoPokemonRoom(roomId: string, patch: Partial<WhoPokemonRoom>): Promise<void> {
+        const { error } = await this.supabase.rpc('update_who_that_pokemon_room', { p_room_id: roomId, p_patch: patch });
+        if (error) throw error;
+    }
+
+    async submitWhoPokemonGuess(roomId: string, pokemonId: number, nextTargetPokemonId: number | null): Promise<void> {
+        const { error } = await this.supabase.rpc('submit_who_that_pokemon_guess', {
+            p_room_id: roomId,
+            p_pokemon_id: pokemonId,
+            p_next_target_pokemon_id: nextTargetPokemonId,
+        });
+        if (error) throw error;
+    }
+
+    subscribeToWhoPokemonRoom(roomId: string): Observable<WhoPokemonRoom> {
+        return new Observable<WhoPokemonRoom>((observer) => {
+            const user = this.getCurrentUser();
+            const channel = this.supabase
+                .channel(`who-that-pokemon-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'who_that_pokemon_rooms', filter: `id=eq.${roomId}` },
+                    (payload) => { observer.next(payload.new as WhoPokemonRoom); },
+                )
+                .on('broadcast', { event: '*' }, ({ event, payload }) => {
+                    this.broadcastSubject.next({ event, payload });
+                })
+                .on('presence', { event: 'leave' }, ({ key }) => {
+                    this.emitPlayerLeftIfOpponent(key);
+                })
+                .subscribe((status) => {
+                    if (status === 'CHANNEL_ERROR') observer.error(new Error(`Erreur canal who-that-pokemon-${roomId}`));
+                    if (status === 'SUBSCRIBED' && user) void channel.track({ user_id: user.id });
+                });
+
+            this.activeRoomChannel = channel;
+            return () => {
+                this.supabase.removeChannel(channel);
+                this.activeRoomChannel = null;
+            };
+        });
+    }
+
     async sendDirectGameInvite(recipientId: string, roomId: string, gameMode: GameMode): Promise<string> {
         const me = this.getCurrentUser();
         if (!me) throw new Error('Non connecté');
@@ -756,6 +837,8 @@ export class SupabaseService implements OnDestroy {
                 roomId = await this.createStatDuelRoom();
             } else if (gameMode === 'draft_duo') {
                 roomId = await this.createDraftDuoRoom();
+            } else if (gameMode === 'who_that_pokemon') {
+                roomId = await this.createWhoPokemonRoom();
             } else {
                 roomId = await this.createRoom();
             }
@@ -785,6 +868,8 @@ export class SupabaseService implements OnDestroy {
             joinFn = this.joinStatDuelRoom(roomId);
         } else if (gameMode === 'draft_duo') {
             joinFn = this.joinDraftDuoRoom(roomId);
+        } else if (gameMode === 'who_that_pokemon') {
+            joinFn = this.joinWhoPokemonRoom(roomId);
         } else {
             joinFn = this.joinRoom(roomId);
         }

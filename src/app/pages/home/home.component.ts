@@ -59,6 +59,15 @@ export class HomeComponent implements OnInit, OnDestroy {
       iconClass: 'text-purple-300',
       buttonClass: 'bg-purple-600 hover:bg-purple-500 focus-visible:ring-purple-400',
     },
+    who_that_pokemon: {
+      label: "Who's That Pokémon ?",
+      icon: ICONS.whoPokemon,
+      borderClass: 'border-cyan-500/60',
+      glowClass: 'shadow-cyan-950/50',
+      iconBoxClass: 'bg-cyan-500/20 border-cyan-500/30',
+      iconClass: 'text-cyan-300',
+      buttonClass: 'bg-cyan-600 hover:bg-cyan-500 focus-visible:ring-cyan-400',
+    },
   };
   showPasswordModal = signal(false);
   showUsernameModal = signal(false);
@@ -255,6 +264,8 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'stat_duel' } });
     } else if (invite.game_mode === 'draft_duo') {
       this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'draft_duo' } });
+    } else if (invite.game_mode === 'who_that_pokemon') {
+      this.router.navigate(['/who-that-pokemon', invite.room_id]);
     } else {
       this.router.navigate(['/lobby', invite.room_id]);
     }
@@ -276,7 +287,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   // ─── Invitation envoyée à un ami ─────────────────────────────────────────────
 
   /** Traite une demande d'invitation envoyee a un ami. */
-  async onInviteRequested(event: { friendId: string; username: string; gameMode: 'guess_my_pokemon' | 'stat_duel' | 'draft_duo' }): Promise<void> {
+  async onInviteRequested(event: { friendId: string; username: string; gameMode: GameMode }): Promise<void> {
     this.isCreating = true;
     this.createError = '';
     try {
@@ -285,6 +296,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'stat_duel', inviteId, friendName: event.username } });
       } else if (event.gameMode === 'draft_duo') {
         this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'draft_duo', inviteId, friendName: event.username } });
+      } else if (event.gameMode === 'who_that_pokemon') {
+        this.router.navigate(['/who-that-pokemon', roomId], { queryParams: { inviteId, friendName: event.username } });
       } else {
         this.router.navigate(['/lobby', roomId], { queryParams: { inviteId, friendName: event.username } });
       }
@@ -305,6 +318,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   /** Navigue vers le Duel de Base Stats. */
   startStatDuel(): void {
     void this.router.navigate(['/stat-duel']);
+  }
+
+  /** Navigue vers Who's That Pokemon. */
+  startWhoThatPokemon(): void {
+    void this.router.navigate(['/who-that-pokemon']);
   }
 
   /** Cree une nouvelle partie. */
