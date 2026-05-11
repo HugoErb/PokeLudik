@@ -21,6 +21,8 @@ import { ICONS } from '../../constants/icons';
 import { environment } from '../../../environments/environment';
 import confetti from 'canvas-confetti';
 
+type DuelIntroPlayer = { username: string; avatar_url?: string };
+
 @Component({
 	selector: 'app-game',
 	imports: [PokemonCardComponent, PokedexComponent, CancelModalComponent, EndGameModalComponent, GameSettingsModalComponent, HelpModalComponent, IncorrectGuessModalComponent, MyTurnModalComponent, DuelIntroComponent, AppHeaderComponent],
@@ -83,8 +85,8 @@ export class GameComponent implements OnInit, OnDestroy {
 	showHelpModal = signal(false);
 
 	showDuelIntro = signal(false);
-	duelPlayer1 = signal<{ username: string; avatar_url?: string } | null>(null);
-	duelPlayer2 = signal<{ username: string; avatar_url?: string } | null>(null);
+	duelPlayer1 = signal<DuelIntroPlayer | null>(null);
+	duelPlayer2 = signal<DuelIntroPlayer | null>(null);
 	private duelShown = false;
 
 	/** Ferme la modal "À ton tour" et réinitialise le dernier guess de l'adversaire. */
@@ -209,10 +211,16 @@ export class GameComponent implements OnInit, OnDestroy {
 	private async triggerDuelIntro(player1Id: string, player2Id: string | null): Promise<void> {
 		this.duelShown = true;
 		sessionStorage.setItem(`duel-intro-shown-${this.roomId()}`, '1');
-		const cached = this.readDuelIntroCache(`duel-intro-data-${this.roomId()}`);
-		this.duelPlayer1.set(cached?.[0] ?? { username: 'Joueur 1', avatar_url: undefined });
-		this.duelPlayer2.set(cached?.[1] ?? { username: player2Id ? 'Joueur 2' : 'Bot', avatar_url: undefined });
-		this.showDuelIntro.set(true);
+		const cached = this.readDuelIntroState() ?? this.readDuelIntroCache(`duel-intro-data-${this.roomId()}`);
+		if (cached) {
+			this.duelPlayer1.set(cached[0] ?? { username: 'Joueur 1', avatar_url: undefined });
+			this.duelPlayer2.set(cached[1] ?? { username: player2Id ? 'Joueur 2' : 'Bot', avatar_url: undefined });
+			this.showDuelIntro.set(true);
+			return;
+		}
+
+		this.duelPlayer1.set({ username: 'Joueur 1', avatar_url: undefined });
+		this.duelPlayer2.set({ username: player2Id ? 'Joueur 2' : 'Bot', avatar_url: undefined });
 		try {
 			const fetchProfile = (id: string | null) =>
 				id
@@ -227,10 +235,17 @@ export class GameComponent implements OnInit, OnDestroy {
 		} catch {
 			// L'intro reste visible avec les libellés de secours.
 		}
+		this.showDuelIntro.set(true);
+	}
+
+	/** Lit les donnees de l'intro depuis l'etat de navigation. */
+	private readDuelIntroState(): DuelIntroPlayer[] | null {
+		const players = history.state?.['duelIntroPlayers'];
+		return Array.isArray(players) ? players : null;
 	}
 
 	/** Lit les donnees de l'intro de duel depuis le cache local. */
-	private readDuelIntroCache(key: string): { username: string; avatar_url?: string }[] | null {
+	private readDuelIntroCache(key: string): DuelIntroPlayer[] | null {
 		try {
 			const cached = sessionStorage.getItem(key);
 			return cached ? JSON.parse(cached) : null;

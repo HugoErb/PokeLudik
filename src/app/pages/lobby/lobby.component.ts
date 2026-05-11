@@ -17,6 +17,8 @@ import { AppHeaderComponent } from '../../components/app-header/app-header.compo
 import { ICONS } from '../../constants/icons';
 import { modalAnimation } from '../../constants/animations';
 
+type DuelIntroPlayer = { username: string; avatar_url?: string };
+
 @Component({
 	selector: 'app-lobby',
 	imports: [FormsModule, PokemonCardComponent, CancelModalComponent, HelpModalComponent, AppHeaderComponent],
@@ -704,14 +706,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 	/** Navigue vers la page de jeu du mode courant. */
 	private async navigateToPlay(): Promise<void> {
-		await this.preloadDuelIntroForRoom();
-		void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
+		const duelIntroPlayers = await this.preloadDuelIntroForRoom();
+		void this.router.navigate([this.modeConfig.playRoute, this.roomId()], {
+			state: duelIntroPlayers ? { duelIntroPlayers } : undefined,
+		});
 	}
 
 	/** Precharge l'intro de duel pour la room courante. */
-	private async preloadDuelIntroForRoom(): Promise<void> {
+	private async preloadDuelIntroForRoom(): Promise<DuelIntroPlayer[] | null> {
 		const room = this.room();
-		if (!room || this.gameMode === 'draft_duo') return;
+		if (!room || this.gameMode === 'draft_duo') return null;
 
 		const key = this.gameMode === 'stat_duel'
 			? `stat-duel-intro-data-${this.roomId()}`
@@ -734,10 +738,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 		this.cacheDuelIntroData(key, players);
 		await this.preloadIntroImages(players);
+		return players;
 	}
 
 	/** Met en cache l'intro sans stocker les avatars base64 volumineux. */
-	private cacheDuelIntroData(key: string, players: { username: string; avatar_url?: string }[]): void {
+	private cacheDuelIntroData(key: string, players: DuelIntroPlayer[]): void {
 		const cachedPlayers = players.map(player => ({
 			username: player.username,
 			avatar_url: player.avatar_url?.startsWith('data:') ? undefined : player.avatar_url,
@@ -768,7 +773,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	}
 
 	/** Precharge les avatars de l'intro de duel. */
-	private preloadIntroImages(players: { avatar_url?: string }[]): Promise<void[]> {
+	private preloadIntroImages(players: DuelIntroPlayer[]): Promise<void[]> {
 		return Promise.all(
 			players
 				.filter(p => p.avatar_url)
