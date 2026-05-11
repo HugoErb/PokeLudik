@@ -7,6 +7,7 @@ export interface Pokemon {
   evolution_stage: string;
   _stage?: number;
   sprite: string;
+  cry?: string;
   stats: {
     pv: number;
     attaque: number;

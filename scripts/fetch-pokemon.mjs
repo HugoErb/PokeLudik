@@ -272,6 +272,9 @@ async function processPokemon(id, index, total) {
     // Sprite
     const sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 
+    // Cri
+    const cry = `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`;
+
     // Stats
     const stats = mapStats(pokemon.stats);
 
@@ -293,6 +296,7 @@ async function processPokemon(id, index, total) {
       category,
       evolution_stage: evolutionStage,
       sprite,
+      cry,
       stats,
       abilities,
       height,
