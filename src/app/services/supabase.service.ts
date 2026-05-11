@@ -241,8 +241,9 @@ export class SupabaseService implements OnDestroy {
      */
     subscribeToRoom(roomId: string): Observable<Room> {
         return new Observable<Room>((observer) => {
+            const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`room-${roomId}`)
+                .channel(`room-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     {
@@ -258,9 +259,15 @@ export class SupabaseService implements OnDestroy {
                 .on('broadcast', { event: '*' }, ({ event, payload }) => {
                     this.broadcastSubject.next({ event, payload });
                 })
+                .on('presence', { event: 'leave' }, ({ key }) => {
+                    this.emitPlayerLeftIfOpponent(key);
+                })
                 .subscribe((status) => {
                     if (status === 'CHANNEL_ERROR') {
                         observer.error(new Error(`Erreur canal room-${roomId}`));
+                    }
+                    if (status === 'SUBSCRIBED' && user) {
+                        void channel.track({ user_id: user.id });
                     }
                 });
 
@@ -352,8 +359,9 @@ export class SupabaseService implements OnDestroy {
     /** S'abonne aux mises à jour Realtime d'une room Duel de Base Stats. */
     subscribeToStatDuelRoom(roomId: string): Observable<StatDuelRoom> {
         return new Observable<StatDuelRoom>((observer) => {
+            const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`stat-duel-${roomId}`)
+                .channel(`stat-duel-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     {
@@ -369,9 +377,15 @@ export class SupabaseService implements OnDestroy {
                 .on('broadcast', { event: '*' }, ({ event, payload }) => {
                     this.broadcastSubject.next({ event, payload });
                 })
+                .on('presence', { event: 'leave' }, ({ key }) => {
+                    this.emitPlayerLeftIfOpponent(key);
+                })
                 .subscribe((status) => {
                     if (status === 'CHANNEL_ERROR') {
                         observer.error(new Error(`Erreur canal stat-duel-${roomId}`));
+                    }
+                    if (status === 'SUBSCRIBED' && user) {
+                        void channel.track({ user_id: user.id });
                     }
                 });
 
@@ -438,8 +452,9 @@ export class SupabaseService implements OnDestroy {
     /** S'abonne aux mises à jour Realtime d'une room Draft Duo. */
     subscribeToDraftDuoRoom(roomId: string): Observable<DraftDuoRoom> {
         return new Observable<DraftDuoRoom>((observer) => {
+            const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`draft-duo-${roomId}`)
+                .channel(`draft-duo-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     { event: '*', schema: 'public', table: 'draft_duo_rooms', filter: `id=eq.${roomId}` },
@@ -448,9 +463,15 @@ export class SupabaseService implements OnDestroy {
                 .on('broadcast', { event: '*' }, ({ event, payload }) => {
                     this.broadcastSubject.next({ event, payload });
                 })
+                .on('presence', { event: 'leave' }, ({ key }) => {
+                    this.emitPlayerLeftIfOpponent(key);
+                })
                 .subscribe((status) => {
                     if (status === 'CHANNEL_ERROR') {
                         observer.error(new Error(`Erreur canal draft-duo-${roomId}`));
+                    }
+                    if (status === 'SUBSCRIBED' && user) {
+                        void channel.track({ user_id: user.id });
                     }
                 });
 
@@ -514,6 +535,13 @@ export class SupabaseService implements OnDestroy {
     }
 
     /** Retourne l'utilisateur courant ou null s'il n'est pas connecté. */
+    /** Signale localement le depart d'un autre joueur detecte par Presence. */
+    private emitPlayerLeftIfOpponent(leftUserId: string): void {
+        const currentUserId = this.getCurrentUser()?.id;
+        if (currentUserId && leftUserId === currentUserId) return;
+        this.broadcastSubject.next({ event: 'player_left', payload: {} });
+    }
+
     getCurrentUser(): User | null {
         return this.userSubject.getValue();
     }
