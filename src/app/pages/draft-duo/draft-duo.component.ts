@@ -29,6 +29,7 @@ import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card
 import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft-help-modal.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
+import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import {
   computeDuoCoverageScore as computePokemonDuoCoverageScore,
   computeRating as computePokemonRating,
@@ -48,7 +49,7 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 
 @Component({
   selector: 'app-draft-duo',
-  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, EndGameActionsComponent, AppHeaderComponent],
+  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft-duo.component.html',
@@ -85,6 +86,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   readonly linkCopied = signal(false);
   readonly showHelpModal = signal(false);
   readonly selectedPokemon = signal<Pokemon | null>(null);
+  readonly showCancelModal = signal(false);
+  readonly isCancelling = signal(false);
 
   // ─── Draft local ────────────────────────────────────────────────────────────
   readonly slots = signal<(Pokemon | null)[]>([null, null, null, null, null, null]);
@@ -184,6 +187,10 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     try {
       const room = await this.supabaseService.getDraftDuoRoom(this.roomId());
       this.room.set(room);
+      if (room.status === 'finished' && room.winner === null) {
+        void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+        return;
+      }
 
       const currentUser = this.supabaseService.getCurrentUser();
       if (!currentUser) { this.router.navigate(['/login']); return; }
@@ -224,7 +231,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
       this.broadcastSub = this.supabaseService.broadcastEvents$.subscribe(({ event }) => {
         if (event === 'player_left') {
-          this.opponentLeft.set(true);
+          void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
         }
       });
     } catch {
@@ -247,6 +254,12 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   private async onRoomUpdated(updated: DraftDuoRoom): Promise<void> {
     const prev = this.room();
     this.room.set(updated);
+
+    if (updated.status === 'finished' && updated.winner === null) {
+      this.stopTimer();
+      void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+      return;
+    }
 
     if (await this.launchReplayIfReady(updated)) return;
 
@@ -604,6 +617,30 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   /** Navigue vers la page d'accueil. */
   async goHome(): Promise<void> {
     await this.supabaseService.broadcastPlayerLeft().catch(() => {});
+    void this.router.navigate(['/home']);
+  }
+
+  /** Affiche la confirmation de sortie. */
+  promptCancel(): void {
+    this.showCancelModal.set(true);
+  }
+
+  /** Ferme la confirmation de sortie. */
+  closeCancelModal(): void {
+    this.showCancelModal.set(false);
+  }
+
+  /** Confirme la sortie et termine la room pour l'adversaire. */
+  async confirmCancel(): Promise<void> {
+    if (this.isCancelling()) return;
+    this.isCancelling.set(true);
+    await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
+    await this.supabaseService.updateDraftDuoRoom(this.roomId(), {
+      status: 'finished',
+      winner: null,
+      p1_ready: false,
+      p2_ready: false,
+    }).catch(() => undefined);
     void this.router.navigate(['/home']);
   }
 

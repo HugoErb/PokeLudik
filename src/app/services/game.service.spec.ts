@@ -35,10 +35,12 @@ describe('GameService', () => {
       'getRoomById',
       'updateRoom',
       'broadcastGuess',
+      'broadcastPlayerLeft',
     ]);
     supabaseService.getCurrentUser.and.returnValue(user as any);
     supabaseService.updateRoom.and.resolveTo();
     supabaseService.broadcastGuess.and.resolveTo();
+    supabaseService.broadcastPlayerLeft.and.resolveTo();
     (supabaseService as any).currentUserSignal = jasmine.createSpy('currentUserSignal').and.returnValue(user);
     (supabaseService as any).broadcastEvents$ = { subscribe: () => ({ unsubscribe: () => undefined }) };
 
@@ -78,5 +80,20 @@ describe('GameService', () => {
     }));
 
     expect(service.currentRoom()?.player2_id).toBe('player-2');
+  });
+
+  it("signale l'abandon avant de terminer la room", async () => {
+    service.currentRoom.set(room({ status: 'playing', winner_id: 'player-1' }));
+
+    await service.cancelRoom('room-1');
+
+    expect(supabaseService.broadcastPlayerLeft).toHaveBeenCalled();
+    expect(supabaseService.updateRoom).toHaveBeenCalledWith('room-1', jasmine.objectContaining({
+      status: 'finished',
+      winner_id: null,
+      p1_ready: false,
+      p2_ready: false,
+    }));
+    expect(service.currentRoom()).toBeNull();
   });
 });

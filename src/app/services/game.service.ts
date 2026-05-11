@@ -83,8 +83,15 @@ export class GameService implements OnDestroy {
 
     /** Annule la room, arrête le watch et réinitialise l'état local. */
     async cancelRoom(roomId: string): Promise<void> {
+        await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
+        await this.supabaseService.updateRoom(roomId, {
+            status: 'finished',
+            winner_id: null,
+            p1_ready: false,
+            p2_ready: false,
+            last_guess: null,
+        });
         this.stopWatching();
-        await this.supabaseService.deleteRoom(roomId);
         this.currentRoom.set(null);
     }
 

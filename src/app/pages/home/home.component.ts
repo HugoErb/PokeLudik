@@ -161,6 +161,11 @@ export class HomeComponent implements OnInit, OnDestroy {
       void this.router.navigate(['/home'], { replaceUrl: true });
     }
 
+    if (this.route.snapshot.queryParams['gameEnded']) {
+      this.triggerToast('La partie est terminée.');
+      void this.router.navigate(['/home'], { replaceUrl: true });
+    }
+
     // Écoute les invitations de jeu entrantes
     this.invitesSub = this.supabaseService.subscribeToIncomingGameInvites().subscribe((invite) => {
       this.showGameInviteToast(invite);

@@ -49,6 +49,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 		effect(() => {
 			const r = this.room();
+			if (r?.status === 'finished' && (this.gameMode === 'guess_my_pokemon' || ('winner' in r && r.winner === null))) {
+				untracked(() => {
+					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+				});
+				return;
+			}
 			if (!this.isLoading && r === null) {
 				untracked(() => {
 					void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
@@ -347,6 +353,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			void this.gameService.cancelRoom(this.roomId()).catch(() => {
 				// ignore les erreurs d'annulation
 			});
+		} else if (this.gameMode === 'stat_duel') {
+			void this.cancelStatDuelRoom();
+		} else {
+			void this.cancelDraftDuoRoom();
 		}
 		void this.router.navigate(['/home']);
 	}
@@ -626,9 +636,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=stat_duel`;
 			this.supabaseService.trackPresence('in_game');
 			this.subscribeInviteDecline();
-			if (room.status !== 'waiting') void this.navigateToPlay();
+			if (room.status === 'finished' && room.winner === null) {
+				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+			} else if (room.status !== 'waiting') void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToStatDuelRoom(this.roomId()).subscribe((updated) => {
 				this.statDuelRoom.set(updated);
+				if (updated.status === 'finished' && updated.winner === null) {
+					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+					return;
+				}
 				if (updated.status !== 'waiting') void this.navigateToPlay();
 			});
 			this.startMultiPoll();
@@ -651,9 +667,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=draft_duo`;
 			this.supabaseService.trackPresence('in_game');
 			this.subscribeInviteDecline();
-			if (room.status !== 'waiting') void this.navigateToPlay();
+			if (room.status === 'finished' && room.winner === null) {
+				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+			} else if (room.status !== 'waiting') void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToDraftDuoRoom(this.roomId()).subscribe((updated) => {
 				this.draftDuoRoom.set(updated);
+				if (updated.status === 'finished' && updated.winner === null) {
+					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+					return;
+				}
 				if (updated.status !== 'waiting') void this.navigateToPlay();
 			});
 			this.startMultiPoll();
@@ -682,16 +704,46 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				if (this.gameMode === 'stat_duel') {
 					const room = await this.supabaseService.getStatDuelRoom(this.roomId());
 					this.statDuelRoom.set(room);
+					if (room.status === 'finished' && room.winner === null) {
+						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+						return;
+					}
 					if (room.status !== 'waiting') void this.navigateToPlay();
 				} else if (this.gameMode === 'draft_duo') {
 					const room = await this.supabaseService.getDraftDuoRoom(this.roomId());
 					this.draftDuoRoom.set(room);
+					if (room.status === 'finished' && room.winner === null) {
+						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+						return;
+					}
 					if (room.status !== 'waiting') void this.navigateToPlay();
 				}
 			} catch {
 				// ignore les erreurs de polling
 			}
 		}, 2000);
+	}
+
+	/** Termine une room Duel de Base Stats apres confirmation d'abandon. */
+	private async cancelStatDuelRoom(): Promise<void> {
+		await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
+		await this.supabaseService.updateStatDuelRoom(this.roomId(), {
+			status: 'finished',
+			winner: null,
+			p1_ready: false,
+			p2_ready: false,
+		}).catch(() => undefined);
+	}
+
+	/** Termine une room Draft Duo apres confirmation d'abandon. */
+	private async cancelDraftDuoRoom(): Promise<void> {
+		await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
+		await this.supabaseService.updateDraftDuoRoom(this.roomId(), {
+			status: 'finished',
+			winner: null,
+			p1_ready: false,
+			p2_ready: false,
+		}).catch(() => undefined);
 	}
 
 	/** Retourne une copie melangee du tableau donne. */

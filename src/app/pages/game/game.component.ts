@@ -133,6 +133,12 @@ export class GameComponent implements OnInit, OnDestroy {
 					this.syncDisplayedPokemon(r);
 				});
 			}
+			if (r?.status === 'finished' && r.winner_id === null) {
+				untracked(() => {
+					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+				});
+				return;
+			}
 			if (r?.status === 'finished' && !this.showEndModal) {
 				void this.handleGameFinished(r);
 			}
@@ -300,7 +306,7 @@ export class GameComponent implements OnInit, OnDestroy {
 
 		this.broadcastSub = this.gameService.broadcastEvents$.subscribe(({ event }) => {
 			if (event === 'player_left') {
-				this.opponentLeft.set(true);
+				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 			}
 		});
 	}
