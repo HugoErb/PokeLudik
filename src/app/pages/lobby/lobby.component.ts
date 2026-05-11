@@ -94,6 +94,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	selectError = '';
 	private displayedCount = 100;
 	private readonly PAGE_SIZE = 100;
+	private readonly INTRO_CACHE_PREFIXES = ['duel-intro-data-', 'stat-duel-intro-data-'];
 
 	// Détails du Pokémon
 	selectedPokemonDetails: Pokemon | null = null;
@@ -731,8 +732,39 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			{ username: p2.username, avatar_url: p2.avatar_url },
 		];
 
-		sessionStorage.setItem(key, JSON.stringify(players));
+		this.cacheDuelIntroData(key, players);
 		await this.preloadIntroImages(players);
+	}
+
+	/** Met en cache l'intro sans stocker les avatars base64 volumineux. */
+	private cacheDuelIntroData(key: string, players: { username: string; avatar_url?: string }[]): void {
+		const cachedPlayers = players.map(player => ({
+			username: player.username,
+			avatar_url: player.avatar_url?.startsWith('data:') ? undefined : player.avatar_url,
+		}));
+
+		try {
+			sessionStorage.setItem(key, JSON.stringify(cachedPlayers));
+		} catch (error) {
+			if (!(error instanceof DOMException) || error.name !== 'QuotaExceededError') return;
+
+			this.clearDuelIntroCache();
+			try {
+				sessionStorage.setItem(key, JSON.stringify(cachedPlayers));
+			} catch {
+				// Le cache d'intro est optionnel : la page de jeu rechargera les profils.
+			}
+		}
+	}
+
+	/** Supprime les anciens caches d'intro pour liberer le sessionStorage. */
+	private clearDuelIntroCache(): void {
+		for (let i = sessionStorage.length - 1; i >= 0; i--) {
+			const key = sessionStorage.key(i);
+			if (key && this.INTRO_CACHE_PREFIXES.some(prefix => key.startsWith(prefix))) {
+				sessionStorage.removeItem(key);
+			}
+		}
 	}
 
 	/** Precharge les avatars de l'intro de duel. */
