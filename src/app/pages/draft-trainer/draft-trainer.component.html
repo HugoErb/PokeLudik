@@ -12,7 +12,7 @@
 				<!-- Timer (phase playing uniquement) -->
 				@if (phase() === 'playing') {
 					<div class="flex items-center gap-1">
-						<iconify-icon [icon]="ICONS.timer" class="text-xl animate-pulse" [ngClass]="timerColor()"></iconify-icon>
+						<iconify-icon [icon]="ICONS.loading" class="text-xl animate-spin" [ngClass]="timerColor()"></iconify-icon>
 						<span class="text-xl font-black tabular-nums" [ngClass]="timerColor()">{{ timerValue() }}</span>
 						<span class="text-xl text-slate-500">s</span>
 					</div>

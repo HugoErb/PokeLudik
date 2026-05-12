@@ -9,7 +9,7 @@
 				<!-- Timer (phase playing uniquement) -->
 				@if (phase() === 'playing') {
 					<div class="flex items-center gap-1">
-						<iconify-icon [icon]="ICONS.timer" class="text-xl animate-pulse" [ngClass]="timerColor()"></iconify-icon>
+						<iconify-icon [icon]="ICONS.loading" class="text-xl animate-spin" [ngClass]="timerColor()"></iconify-icon>
 						<span class="text-xl font-black tabular-nums" [ngClass]="timerColor()">{{ timerValue() }}</span>
 						<span class="text-xl text-slate-500">s</span>
 					</div>
@@ -77,7 +77,7 @@
 				@if (room()?.player2_id) {
 					<iconify-icon [icon]="ICONS.checkCircle" class="text-5xl mb-1 text-green-400"></iconify-icon>
 				} @else {
-					<iconify-icon [icon]="ICONS.timer" class="text-4xl mb-4 text-red-500 animate-pulse"></iconify-icon>
+					<iconify-icon [icon]="ICONS.loading" class="text-4xl mb-4 text-red-500 animate-spin"></iconify-icon>
 				}
 
 				<!-- Titre de statut -->
@@ -133,7 +133,7 @@
 							class="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors flex items-center justify-center gap-2"
 						>
 							@if (isLaunching()) {
-								<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+								<iconify-icon [icon]="ICONS.loading" class="text-lg animate-spin"></iconify-icon>
 								Lancement…
 							} @else if (!room()?.player2_id) {
 								<iconify-icon [icon]="ICONS.loading" class="text-lg animate-spin"></iconify-icon>
@@ -262,7 +262,7 @@
 	@if (phase() === 'waiting-opponent') {
 		<main class="flex-1 flex flex-col items-center justify-center gap-6 md:gap-10 px-4 text-center">
 			<div class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-700 flex items-center justify-center">
-				<iconify-icon [icon]="ICONS.timer" class="text-3xl md:text-5xl text-yellow-400 animate-pulse"></iconify-icon>
+				<iconify-icon [icon]="ICONS.loading" class="text-3xl md:text-5xl text-yellow-400 animate-spin"></iconify-icon>
 			</div>
 			<div>
 				<p class="text-white font-bold text-lg md:text-3xl">Ton équipe est prête !</p>

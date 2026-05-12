@@ -12,13 +12,13 @@
 			<div class="flex items-center gap-4">
 				@if (nextRoundCountdown() === null) {
 					<div class="flex items-center gap-1">
-						<iconify-icon [icon]="ICONS.timer" class="text-xl animate-pulse" [ngClass]="getTimerColor()"></iconify-icon>
+						<iconify-icon [icon]="ICONS.loading" class="text-xl animate-spin" [ngClass]="getTimerColor()"></iconify-icon>
 						<span class="text-xl font-black tabular-nums" [ngClass]="getTimerColor()">{{ timerValue() }}</span>
 						<span class="text-xl text-slate-500">s</span>
 					</div>
 				} @else {
 					<div class="flex items-center gap-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg animate-pulse">
-						<iconify-icon [icon]="ICONS.timer" class="text-lg text-yellow-500"></iconify-icon>
+						<iconify-icon [icon]="ICONS.loading" class="text-lg text-yellow-500 animate-spin"></iconify-icon>
 						<span class="text-[10px] font-black text-yellow-500/80 uppercase tracking-widest hidden sm:inline">Prochaine manche</span>
 						<span class="text-sm font-black text-yellow-400 tabular-nums">{{ nextRoundCountdown() }}s</span>
 					</div>
@@ -118,7 +118,7 @@
 					@if (room()?.player2_id) {
 						<iconify-icon [icon]="ICONS.checkCircle" class="text-5xl mb-1 text-green-400"></iconify-icon>
 					} @else {
-						<iconify-icon [icon]="ICONS.timer" class="text-4xl mb-4 text-red-500 animate-pulse"></iconify-icon>
+						<iconify-icon [icon]="ICONS.loading" class="text-4xl mb-4 text-red-500 animate-spin"></iconify-icon>
 					}
 
 					<h2 class="text-2xl font-bold mb-4">
@@ -176,7 +176,7 @@
 								class="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors flex items-center justify-center gap-2"
 							>
 								@if (isLaunching()) {
-									<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+									<iconify-icon [icon]="ICONS.loading" class="text-lg animate-spin"></iconify-icon>
 									Lancement...
 								} @else if (!isDevMode() && !room()?.player2_id) {
 									<iconify-icon [icon]="ICONS.loading" class="text-lg animate-spin"></iconify-icon>

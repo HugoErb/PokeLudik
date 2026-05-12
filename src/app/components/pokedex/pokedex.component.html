@@ -425,7 +425,7 @@
           }
           @if (allPokemons().length === 0) {
             <div class="flex justify-center py-8">
-              <div class="w-8 h-8 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin"></div>
+              <iconify-icon [icon]="ICONS.loading" class="text-4xl text-blue-500 animate-spin"></iconify-icon>
             </div>
           }
         </div>

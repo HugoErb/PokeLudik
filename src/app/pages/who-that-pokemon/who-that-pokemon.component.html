@@ -169,7 +169,7 @@
   @if (phase() === 'waiting') {
     <main class="flex-1 flex items-center justify-center p-4">
       <section class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center shadow-xl">
-        <iconify-icon [icon]="room()?.player2_id ? ICONS.checkCircle : ICONS.timer" class="text-5xl mb-4" [class.text-green-400]="room()?.player2_id" [class.text-cyan-300]="!room()?.player2_id"></iconify-icon>
+        <iconify-icon [icon]="room()?.player2_id ? ICONS.checkCircle : ICONS.loading" class="text-5xl mb-4" [class.animate-spin]="!room()?.player2_id" [class.text-green-400]="room()?.player2_id" [class.text-cyan-300]="!room()?.player2_id"></iconify-icon>
         <h2 class="text-xl font-black mb-2">{{ room()?.player2_id ? 'Adversaire connecté' : 'En attente' }}</h2>
         @if (isPlayer1()) {
           <div class="flex gap-2 mb-4">
