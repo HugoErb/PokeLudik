@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict h9WfWLzH0cClFLsmJyZGheik38tavlum3URFgbqybTssZpgmk2HmuhTJ8wyMt62
+\restrict 9R0xZdA5nJ47f86ejs3dmkkf0AEmd3XKmjkgN288Ote1ZatYk92OXrGsqfRadtL
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 18.3
@@ -129,6 +129,18 @@ CREATE FUNCTION public.delete_old_stat_duel_rooms() RETURNS void
     LANGUAGE sql
     AS $$
   DELETE FROM public.stat_duel_rooms
+  WHERE created_at <= now() - interval '3 hours';
+$$;
+
+
+--
+-- Name: delete_old_who_that_pokemon_rooms(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.delete_old_who_that_pokemon_rooms() RETURNS void
+    LANGUAGE sql
+    AS $$
+  DELETE FROM public.who_that_pokemon_rooms
   WHERE created_at <= now() - interval '3 hours';
 $$;
 
@@ -1025,6 +1037,13 @@ CREATE INDEX idx_stat_duel_rooms_status ON public.stat_duel_rooms USING btree (s
 
 
 --
+-- Name: idx_who_that_pokemon_rooms_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_who_that_pokemon_rooms_created_at ON public.who_that_pokemon_rooms USING btree (created_at);
+
+
+--
 -- Name: defeated_trainers set_defeated_trainer_username_before_write; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1377,5 +1396,5 @@ CREATE POLICY who_that_pokemon_rooms_select ON public.who_that_pokemon_rooms FOR
 -- PostgreSQL database dump complete
 --
 
-\unrestrict h9WfWLzH0cClFLsmJyZGheik38tavlum3URFgbqybTssZpgmk2HmuhTJ8wyMt62
+\unrestrict 9R0xZdA5nJ47f86ejs3dmkkf0AEmd3XKmjkgN288Ote1ZatYk92OXrGsqfRadtL
 

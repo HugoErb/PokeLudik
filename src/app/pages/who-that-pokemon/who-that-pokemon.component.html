@@ -299,7 +299,7 @@
       <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-xl">
         <iconify-icon [icon]="ICONS.trophy" class="text-5xl text-yellow-400 mb-3"></iconify-icon>
         <h2 class="text-2xl font-black mb-2">{{ statusTitle() }}</h2>
-        <p class="text-slate-400 text-sm">Score : {{ myScore() }} @if (room()) { - {{ opponentScore() }} }</p>
+        <p class="text-slate-200 text-2xl font-black">Score : {{ myScore() }} @if (room()) { - {{ opponentScore() }} }</p>
       </div>
       <app-end-game-actions [replayMode]="room() ? 'multi' : 'solo'" [iWantReplay]="isPlayer1() ? !!room()?.p1_ready : !!room()?.p2_ready" [opponentWantsReplay]="isPlayer1() ? !!room()?.p2_ready : !!room()?.p1_ready" (replay)="replay()" (goHome)="goHome()" />
     </main>

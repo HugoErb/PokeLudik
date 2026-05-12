@@ -31,6 +31,7 @@ import { EndGameActionsComponent } from '../../components/end-game-actions/end-g
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import {
+  canUseRoomForDuoComplete,
   computeDuoCoverageScore as computePokemonDuoCoverageScore,
   computeRating as computePokemonRating,
   computeStatsScore as computePokemonStatsScore,
@@ -296,7 +297,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
       // L'adversaire a terminé → phase complete
       if (opponentTeamIds.length === 6 && this.lockedCount() === 6) {
-        await this.enterCompletePhase(updated);
+        const completeRoom = await this.getCompleteDraftRoom();
+        if (completeRoom) await this.enterCompletePhase(completeRoom);
       }
     }
 
@@ -574,6 +576,13 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
         this.launchConfetti();
       }
     }, 800);
+  }
+
+  /** Recharge la room et ne retourne un etat final que si les deux equipes sont completes. */
+  private async getCompleteDraftRoom(): Promise<DraftDuoRoom | null> {
+    const refreshed = await this.supabaseService.getDraftDuoRoom(this.roomId());
+    this.room.set(refreshed);
+    return canUseRoomForDuoComplete(refreshed) ? refreshed : null;
   }
 
   /** Enregistre le gagnant de la partie. */

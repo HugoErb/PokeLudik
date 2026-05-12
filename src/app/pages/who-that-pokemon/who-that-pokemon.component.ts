@@ -1,6 +1,7 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, OnDestroy, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import confetti from 'canvas-confetti';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
@@ -110,6 +111,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   private pollInterval?: ReturnType<typeof setInterval>;
   private toastTimeout?: ReturnType<typeof setTimeout>;
   private currentSilhouetteTargetId = 0;
+  private confettiFired = false;
 
   private readonly resetSilhouetteAnimation = effect(() => {
     const targetId = this.targetPokemon()?.id ?? 0;
@@ -135,6 +137,21 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       return iWin ? 'Victoire !' : 'Défaite';
     }
     return "Who's That Pokémon ?";
+  });
+
+  readonly isVictory = computed(() => {
+    const r = this.room();
+    if (!r) return this.soloState().status === 'won';
+    if (!r.winner || r.winner === 'draw') return false;
+    return (r.winner === 'player1' && this.isPlayer1()) || (r.winner === 'player2' && !this.isPlayer1());
+  });
+
+  private readonly victoryConfetti = effect(() => {
+    if (this.phase() !== 'complete') {
+      this.confettiFired = false;
+      return;
+    }
+    if (this.isVictory()) setTimeout(() => this.launchConfetti(), 300);
   });
 
   readonly myHintsRevealed = computed(() => {
@@ -525,5 +542,12 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       this.toastMessage.set('');
       this.toastPokemon.set(null);
     }, 3000);
+  }
+
+  private launchConfetti(): void {
+    if (this.confettiFired) return;
+    this.confettiFired = true;
+    const colors = ['#ef4444', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
+    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
   }
 }

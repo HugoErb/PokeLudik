@@ -1,5 +1,5 @@
 import { Pokemon } from '../models/pokemon.model';
-import { computeDuoCoverageScore } from './draft-utils';
+import { canUseRoomForDuoComplete, computeDuoCoverageScore } from './draft-utils';
 
 function pokemon(id: number, name: string, types: string[]): Pokemon {
   return {
@@ -24,5 +24,15 @@ describe('computeDuoCoverageScore', () => {
 
     expect(computeDuoCoverageScore([fightingPokemon], [arceus])).toBe(0);
     expect(computeDuoCoverageScore([arceus], [fightingPokemon])).toBe(10);
+  });
+});
+
+describe('canUseRoomForDuoComplete', () => {
+  it('refuse une room stale quand une des deux equipes a moins de 6 Pokemon', () => {
+    expect(canUseRoomForDuoComplete({ p1_team: [1, 2, 3, 4, 5], p2_team: [6, 7, 8, 9, 10, 11] })).toBeFalse();
+  });
+
+  it('accepte uniquement quand les deux equipes ont 6 Pokemon', () => {
+    expect(canUseRoomForDuoComplete({ p1_team: [1, 2, 3, 4, 5, 6], p2_team: [7, 8, 9, 10, 11, 12] })).toBeTrue();
   });
 });

@@ -8,6 +8,16 @@ export interface RatingRange {
   max: number;
 }
 
+export interface DraftDuoTeams {
+  p1_team: number[];
+  p2_team: number[];
+}
+
+/** Indique si une room contient les deux equipes completes du mode duo. */
+export function canUseRoomForDuoComplete(room: DraftDuoTeams): boolean {
+  return room.p1_team.length === 6 && room.p2_team.length === 6;
+}
+
 /** Calcule le total des statistiques d'un Pokemon. */
 export function computeTotal(pokemon: Pokemon): number {
   const stats = pokemon.stats;
