@@ -314,9 +314,11 @@
 					[class.border-slate-600]="winner() === 'draw'"
 				>
 					@if (winner() === 'me') {
-						<p class="text-2xl font-black text-yellow-400">🏆 Victoire !</p>
+						<iconify-icon [icon]="ICONS.trophy" class="text-6xl text-yellow-400 animate-bounce"></iconify-icon>
+						<p class="text-2xl font-black text-yellow-400">Victoire !</p>
 						<p class="text-slate-300 text-sm mt-1">Tu as remporté ce Team Builder.</p>
 					} @else if (winner() === 'opponent') {
+						<iconify-icon [icon]="ICONS.skull" class="text-6xl text-red-500 animate-pulse"></iconify-icon>
 						<p class="text-2xl font-black text-red-400">Défaite</p>
 						<p class="text-slate-300 text-sm mt-1">L'adversaire avait une meilleure équipe cette fois.</p>
 					} @else {

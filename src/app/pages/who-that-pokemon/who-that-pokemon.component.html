@@ -297,7 +297,11 @@
   @if (phase() === 'complete') {
     <main class="flex-1 flex flex-col items-center justify-center p-4 gap-5 text-center">
       <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-xl">
-        <iconify-icon [icon]="ICONS.trophy" class="text-5xl text-yellow-400 mb-3"></iconify-icon>
+        @if (isVictory()) {
+          <iconify-icon [icon]="ICONS.trophy" class="text-5xl text-yellow-400 mb-3 animate-bounce"></iconify-icon>
+        } @else if (statusTitle() === 'Défaite') {
+          <iconify-icon [icon]="ICONS.skull" class="text-5xl text-red-500 mb-3 animate-pulse"></iconify-icon>
+        }
         <h2 class="text-2xl font-black mb-2">{{ statusTitle() }}</h2>
         <p class="text-slate-200 text-2xl font-black">Score : {{ myScore() }} @if (room()) { - {{ opponentScore() }} }</p>
       </div>
