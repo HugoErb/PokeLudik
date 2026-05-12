@@ -228,8 +228,11 @@
 			</div>
 
 			<!-- Carte Amis -->
-			<div class="">
+			<div class="flex flex-col gap-2">
 				<app-friends-card class="w-full h-full flex flex-col" (inviteRequested)="onInviteRequested($event)" />
+				@if (inviteError) {
+					<p class="text-xs text-red-400 px-1">{{ inviteError }}</p>
+				}
 			</div>
 		</div>
 	</main>

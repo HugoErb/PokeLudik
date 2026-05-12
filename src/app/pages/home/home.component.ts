@@ -101,6 +101,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   avatarUrl = signal<string | null>(null);
   isCreating = false;
   createError = '';
+  inviteError = '';
   isLoadingProfile = true;
   isUpdatingPassword = false;
   isUpdatingUsername = false;
@@ -265,7 +266,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     } else if (invite.game_mode === 'draft_duo') {
       this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'draft_duo' } });
     } else if (invite.game_mode === 'who_that_pokemon') {
-      this.router.navigate(['/who-that-pokemon', invite.room_id]);
+      this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'who_that_pokemon' } });
     } else {
       this.router.navigate(['/lobby', invite.room_id]);
     }
@@ -290,6 +291,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   async onInviteRequested(event: { friendId: string; username: string; gameMode: GameMode }): Promise<void> {
     this.isCreating = true;
     this.createError = '';
+    this.inviteError = '';
     try {
       const { roomId, inviteId } = await this.supabaseService.sendGameInvite(event.friendId, event.gameMode);
       if (event.gameMode === 'stat_duel') {
@@ -297,13 +299,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       } else if (event.gameMode === 'draft_duo') {
         this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'draft_duo', inviteId, friendName: event.username } });
       } else if (event.gameMode === 'who_that_pokemon') {
-        this.router.navigate(['/who-that-pokemon', roomId], { queryParams: { inviteId, friendName: event.username } });
+        this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'who_that_pokemon', inviteId, friendName: event.username } });
       } else {
         this.router.navigate(['/lobby', roomId], { queryParams: { inviteId, friendName: event.username } });
       }
     } catch (err) {
       console.error('[onInviteRequested] erreur:', err);
-      this.createError = 'Impossible d\'inviter l\'ami. Réessaie.';
+      this.inviteError = 'Impossible d\'inviter l\'ami. Réessaie.';
       this.isCreating = false;
     }
   }
@@ -329,6 +331,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   async createGame(): Promise<void> {
     this.isCreating = true;
     this.createError = '';
+    this.inviteError = '';
     localStorage.removeItem('gmp:filters');
     try {
       const roomId = await this.supabaseService.createRoom();

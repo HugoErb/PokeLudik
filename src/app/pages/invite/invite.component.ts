@@ -134,13 +134,13 @@ export class InviteComponent implements OnInit, OnDestroy {
 
 			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
 			if (currentUser?.id === room.player1_id) {
-				this.router.navigate(['/who-that-pokemon', this.roomId()]);
+				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'who_that_pokemon' } });
 				return;
 			}
 
 			try {
 				await this.supabaseService.joinWhoPokemonRoom(this.roomId());
-				await this.router.navigate(['/who-that-pokemon', this.roomId()]);
+				await this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'who_that_pokemon' } });
 			} catch {
 				this.state = 'error';
 				this.errorMessage = 'Impossible de rejoindre la partie.';

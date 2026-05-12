@@ -257,7 +257,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     this.isBusy.set(true);
     try {
       const roomId = await this.supabaseService.createWhoPokemonRoom(this.settings());
-      await this.router.navigate(['/who-that-pokemon', roomId]);
+      await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'who_that_pokemon' } });
     } catch {
       this.feedback.set('Impossible de créer la partie.');
     } finally {
@@ -288,7 +288,6 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         p2_lives: 0,
         winner: null,
         p1_ready: false,
-        p2_ready: false,
       });
       this.phase.set('duo');
     } finally {
@@ -497,7 +496,6 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       p2_lives: 0,
       winner: null,
       p1_ready: false,
-      p2_ready: false,
     });
   }
 

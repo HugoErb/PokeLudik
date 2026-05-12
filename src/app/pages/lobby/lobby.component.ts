@@ -9,13 +9,14 @@ import { GameService } from '../../services/game.service';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
-import { DEFAULT_SETTINGS, DraftDuoRoom, FirstPlayer, GameMode, GameSettings, Room, StatDuelRoom } from '../../models/room.model';
+import { DEFAULT_SETTINGS, DEFAULT_WHO_SETTINGS, DraftDuoRoom, FirstPlayer, GameMode, GameSettings, Room, StatDuelRoom, WhoPokemonRoom } from '../../models/room.model';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { HelpModalComponent } from '../../components/help-modal/help-modal.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { ICONS } from '../../constants/icons';
 import { modalAnimation } from '../../constants/animations';
+import { buildWhoPokemonPool, pickWhoPokemonSequence } from '../../utils/who-that-pokemon-utils';
 
 type DuelIntroPlayer = { username: string; avatar_url?: string };
 
@@ -67,12 +68,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	gameMode: GameMode = 'guess_my_pokemon';
 	private readonly statDuelRoom = signal<StatDuelRoom | null>(null);
 	private readonly draftDuoRoom = signal<DraftDuoRoom | null>(null);
-	room = computed<Room | StatDuelRoom | DraftDuoRoom | null>(() => {
+	private readonly whoPokemonRoom = signal<WhoPokemonRoom | null>(null);
+	room = computed<Room | StatDuelRoom | DraftDuoRoom | WhoPokemonRoom | null>(() => {
 		const statRoom = this.statDuelRoom();
 		const draftRoom = this.draftDuoRoom();
+		const whoRoom = this.whoPokemonRoom();
 		const guessRoom = this.gameService.currentRoom();
 		if (this.gameMode === 'stat_duel') return statRoom;
 		if (this.gameMode === 'draft_duo') return draftRoom;
+		if (this.gameMode === 'who_that_pokemon') return whoRoom;
 		return guessRoom;
 	});
 	isPlayer1 = computed(() => {
@@ -218,6 +222,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			return;
 		}
 
+		if (this.gameMode === 'who_that_pokemon') {
+			await this.initWhoPokemonLobby();
+			return;
+		}
+
 		// 2. Watcher Realtime mis en place AVANT joinAndWatch pour éviter la race condition :
 		//    si la room passe à 'playing' pendant joinAndWatch, la navigation est garantie.
 		toObservable(this.room, { injector: this.injector })
@@ -356,8 +365,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			});
 		} else if (this.gameMode === 'stat_duel') {
 			void this.cancelStatDuelRoom();
-		} else {
+		} else if (this.gameMode === 'draft_duo') {
 			void this.cancelDraftDuoRoom();
+		} else {
+			void this.cancelWhoPokemonRoom();
 		}
 		void this.router.navigate(['/home']);
 	}
@@ -416,6 +427,30 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					winner: null,
 					p1_ready: false,
 					p2_ready: false,
+				});
+				void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
+			} else if (this.gameMode === 'who_that_pokemon') {
+				let pokemons = this.allPokemons;
+				if (pokemons.length === 0) {
+					pokemons = await firstValueFrom(this.pokemonService.loadAll());
+					this.allPokemons = pokemons;
+				}
+				const room = this.whoPokemonRoom();
+				const settings = room?.settings ?? DEFAULT_WHO_SETTINGS;
+				const target = pickWhoPokemonSequence(buildWhoPokemonPool(pokemons, settings), 1)[0];
+				if (!target) throw new Error('Aucun Pokémon disponible');
+				await this.supabaseService.updateWhoPokemonRoom(this.roomId(), {
+					status: 'playing',
+					settings,
+					round: 1,
+					target_pokemon_id: target.id,
+					used_pokemon_ids: [target.id],
+					p1_score: 0,
+					p2_score: 0,
+					p1_lives: 0,
+					p2_lives: 0,
+					winner: null,
+					p1_ready: false,
 				});
 				void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
 			} else {
@@ -619,7 +654,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	/** Resout le mode de jeu depuis les parametres de route. */
 	private resolveMode(): GameMode {
 		const mode = this.route.snapshot.queryParamMap.get('mode');
-		if (mode === 'stat_duel' || mode === 'draft_duo') return mode;
+		if (mode === 'stat_duel' || mode === 'draft_duo' || mode === 'who_that_pokemon') return mode;
 		return 'guess_my_pokemon';
 	}
 
@@ -685,6 +720,40 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		}
 	}
 
+	/** Initialise le lobby Who's That Pokemon. */
+	private async initWhoPokemonLobby(): Promise<void> {
+		try {
+			let room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
+			const user = this.supabaseService.getCurrentUser();
+			if (user && !room.player2_id && room.player1_id !== user.id) {
+				await this.supabaseService.joinWhoPokemonRoom(this.roomId());
+				room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
+			}
+			this.whoPokemonRoom.set(room);
+			this.isLoading = false;
+			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=who_that_pokemon`;
+			this.supabaseService.trackPresence('in_game');
+			this.subscribeInviteDecline();
+			if (room.status === 'finished' && room.winner === null) {
+				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+			} else if (room.status !== 'waiting') void this.navigateToPlay();
+			this.multiRoomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()).subscribe((updated) => {
+				this.whoPokemonRoom.set(updated);
+				if (updated.status === 'finished' && updated.winner === null) {
+					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+					return;
+				}
+				if (updated.status !== 'waiting') void this.navigateToPlay();
+			});
+			this.startMultiPoll();
+			this.pokemonsSub = this.pokemonService.loadAll().subscribe((pokemons) => {
+				this.allPokemons = pokemons;
+			});
+		} catch {
+			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+		}
+	}
+
 	/** S'abonne au refus d'invitation associe au lobby. */
 	private subscribeInviteDecline(): void {
 		const inviteId = this.route.snapshot.queryParamMap.get('inviteId');
@@ -718,6 +787,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 						return;
 					}
 					if (room.status !== 'waiting') void this.navigateToPlay();
+				} else if (this.gameMode === 'who_that_pokemon') {
+					const room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
+					this.whoPokemonRoom.set(room);
+					if (room.status === 'finished' && room.winner === null) {
+						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+						return;
+					}
+					if (room.status !== 'waiting') void this.navigateToPlay();
 				}
 			} catch {
 				// ignore les erreurs de polling
@@ -744,6 +821,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			winner: null,
 			p1_ready: false,
 			p2_ready: false,
+		}).catch(() => undefined);
+	}
+
+	/** Termine une room Who's That Pokemon apres confirmation d'abandon. */
+	private async cancelWhoPokemonRoom(): Promise<void> {
+		await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
+		await this.supabaseService.updateWhoPokemonRoom(this.roomId(), {
+			status: 'finished',
+			winner: null,
 		}).catch(() => undefined);
 	}
 

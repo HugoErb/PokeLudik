@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict lyOccG4mqsEfqNSxf0uP6vAUDAco5m00lX5O5K5gg31XIuMcHYJHnyME1ggqxH0
+\restrict h9WfWLzH0cClFLsmJyZGheik38tavlum3URFgbqybTssZpgmk2HmuhTJ8wyMt62
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 18.3
@@ -134,18 +134,6 @@ $$;
 
 
 --
--- Name: delete_old_who_that_pokemon_rooms(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.delete_old_who_that_pokemon_rooms() RETURNS void
-    LANGUAGE sql
-    AS $$
-  DELETE FROM public.who_that_pokemon_rooms
-  WHERE created_at <= now() - interval '3 hours';
-$$;
-
-
---
 -- Name: handle_new_user(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -231,6 +219,28 @@ $$;
 
 
 --
+-- Name: join_who_that_pokemon_room(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.join_who_that_pokemon_room(p_room_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_user uuid := auth.uid();
+  v_room public.who_that_pokemon_rooms;
+BEGIN
+  IF v_user IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+  SELECT * INTO v_room FROM public.who_that_pokemon_rooms WHERE id = p_room_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'room_not_found'; END IF;
+  IF v_room.player1_id = v_user THEN RAISE EXCEPTION 'creator_cannot_join'; END IF;
+  IF v_room.player2_id IS NOT NULL OR v_room.status <> 'waiting' THEN RAISE EXCEPTION 'room_not_joinable'; END IF;
+  UPDATE public.who_that_pokemon_rooms SET player2_id = v_user WHERE id = p_room_id;
+END;
+$$;
+
+
+--
 -- Name: rls_auto_enable(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -264,28 +274,6 @@ $$;
 
 
 --
--- Name: join_who_that_pokemon_room(uuid); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.join_who_that_pokemon_room(p_room_id uuid) RETURNS void
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-DECLARE
-  v_user uuid := auth.uid();
-  v_room public.who_that_pokemon_rooms;
-BEGIN
-  IF v_user IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
-  SELECT * INTO v_room FROM public.who_that_pokemon_rooms WHERE id = p_room_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'room_not_found'; END IF;
-  IF v_room.player1_id = v_user THEN RAISE EXCEPTION 'creator_cannot_join'; END IF;
-  IF v_room.player2_id IS NOT NULL OR v_room.status <> 'waiting' THEN RAISE EXCEPTION 'room_not_joinable'; END IF;
-  UPDATE public.who_that_pokemon_rooms SET player2_id = v_user WHERE id = p_room_id;
-END;
-$$;
-
-
---
 -- Name: set_defeated_trainer_username(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -300,6 +288,99 @@ begin
   where p.id = new.user_id;
 
   return new;
+end;
+$$;
+
+
+--
+-- Name: submit_who_that_pokemon_guess(uuid, integer, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.submit_who_that_pokemon_guess(p_room_id uuid, p_pokemon_id integer, p_next_target_pokemon_id integer) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_user uuid := auth.uid();
+  v_room public.who_that_pokemon_rooms;
+  v_is_p1 boolean;
+  v_p1_lives integer;
+  v_p2_lives integer;
+  v_p1_score integer;
+  v_p2_score integer;
+  v_round integer;
+  v_status text := 'playing';
+  v_winner text := null;
+  v_target integer;
+  v_used integer[];
+begin
+  if v_user is null then raise exception 'not_authenticated'; end if;
+
+  select * into v_room from public.who_that_pokemon_rooms where id = p_room_id for update;
+  if not found then raise exception 'room_not_found'; end if;
+  if v_room.status <> 'playing' then raise exception 'room_not_playing'; end if;
+
+  if v_user = v_room.player1_id then
+    v_is_p1 := true;
+  elsif v_user = v_room.player2_id then
+    v_is_p1 := false;
+  else
+    raise exception 'not_room_player';
+  end if;
+
+  v_p1_lives := v_room.p1_lives;
+  v_p2_lives := v_room.p2_lives;
+  v_p1_score := v_room.p1_score;
+  v_p2_score := v_room.p2_score;
+  v_round := v_room.round;
+  v_target := v_room.target_pokemon_id;
+  v_used := v_room.used_pokemon_ids;
+
+  if p_pokemon_id = v_room.target_pokemon_id then
+    if v_is_p1 then
+      v_p1_score := v_p1_score + greatest(0, 5 - v_p1_lives);
+    else
+      v_p2_score := v_p2_score + greatest(0, 5 - v_p2_lives);
+    end if;
+    v_round := v_round + 1;
+  else
+    if (v_is_p1 and v_p1_lives >= 3) or (not v_is_p1 and v_p2_lives >= 3) then
+      v_round := v_round + 1;
+    else
+      if v_is_p1 then
+        v_p1_lives := least(3, v_p1_lives + 1);
+      else
+        v_p2_lives := least(3, v_p2_lives + 1);
+      end if;
+    end if;
+  end if;
+
+  if v_round > 10 then
+    v_status := 'finished';
+    v_target := null;
+    if v_p1_score > v_p2_score then v_winner := 'player1';
+    elsif v_p2_score > v_p1_score then v_winner := 'player2';
+    else v_winner := 'draw';
+    end if;
+  elsif v_round <> v_room.round then
+    if p_next_target_pokemon_id is null then raise exception 'missing_next_target'; end if;
+    v_target := p_next_target_pokemon_id;
+    v_used := array_append(v_used, p_next_target_pokemon_id);
+    v_p1_lives := 0;
+    v_p2_lives := 0;
+  end if;
+
+  update public.who_that_pokemon_rooms
+  set round = v_round,
+      target_pokemon_id = v_target,
+      used_pokemon_ids = v_used,
+      p1_score = v_p1_score,
+      p2_score = v_p2_score,
+      p1_lives = v_p1_lives,
+      p2_lives = v_p2_lives,
+      status = v_status,
+      winner = v_winner
+  where id = p_room_id;
 end;
 $$;
 
@@ -520,25 +601,8 @@ END;
 $$;
 
 
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
 --
--- Name: defeated_trainers; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.defeated_trainers (
-    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
-    user_id uuid NOT NULL,
-    trainer_index integer NOT NULL,
-    defeated_at timestamp with time zone DEFAULT now(),
-    username text
-);
-
-
---
--- Name: draft_duo_rooms; Type: TABLE; Schema: public; Owner: -
+-- Name: update_who_that_pokemon_room(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
 CREATE FUNCTION public.update_who_that_pokemon_room(p_room_id uuid, p_patch jsonb) RETURNS void
@@ -586,83 +650,26 @@ END;
 $$;
 
 
-CREATE FUNCTION public.submit_who_that_pokemon_guess(p_room_id uuid, p_pokemon_id integer, p_next_target_pokemon_id integer) RETURNS void
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-DECLARE
-  v_user uuid := auth.uid();
-  v_room public.who_that_pokemon_rooms;
-  v_is_p1 boolean;
-  v_p1_lives integer;
-  v_p2_lives integer;
-  v_p1_score integer;
-  v_p2_score integer;
-  v_round integer;
-  v_status text := 'playing';
-  v_winner text := NULL;
-  v_target integer;
-  v_used integer[];
-BEGIN
-  IF v_user IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
-  SELECT * INTO v_room FROM public.who_that_pokemon_rooms WHERE id = p_room_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'room_not_found'; END IF;
-  IF v_room.status <> 'playing' THEN RAISE EXCEPTION 'room_not_playing'; END IF;
-  IF v_user = v_room.player1_id THEN
-    v_is_p1 := true;
-  ELSIF v_user = v_room.player2_id THEN
-    v_is_p1 := false;
-  ELSE
-    RAISE EXCEPTION 'not_room_player';
-  END IF;
+SET default_tablespace = '';
 
-  v_p1_lives := v_room.p1_lives;
-  v_p2_lives := v_room.p2_lives;
-  v_p1_score := v_room.p1_score;
-  v_p2_score := v_room.p2_score;
-  v_round := v_room.round;
-  v_target := v_room.target_pokemon_id;
-  v_used := v_room.used_pokemon_ids;
+SET default_table_access_method = heap;
 
-  IF p_pokemon_id = v_room.target_pokemon_id THEN
-    IF v_is_p1 THEN v_p1_score := v_p1_score + GREATEST(0, 5 - v_p1_lives); ELSE v_p2_score := v_p2_score + GREATEST(0, 5 - v_p2_lives); END IF;
-    v_round := v_round + 1;
-  ELSE
-    IF (v_is_p1 AND v_p1_lives >= 3) OR (NOT v_is_p1 AND v_p2_lives >= 3) THEN
-      v_round := v_round + 1;
-    ELSE
-      IF v_is_p1 THEN v_p1_lives := LEAST(3, v_p1_lives + 1); ELSE v_p2_lives := LEAST(3, v_p2_lives + 1); END IF;
-    END IF;
-  END IF;
+--
+-- Name: defeated_trainers; Type: TABLE; Schema: public; Owner: -
+--
 
-  IF v_round > 10 THEN
-    v_status := 'finished';
-    v_target := NULL;
-    IF v_p1_score > v_p2_score THEN v_winner := 'player1';
-    ELSIF v_p2_score > v_p1_score THEN v_winner := 'player2';
-    ELSE v_winner := 'draw';
-    END IF;
-  ELSIF v_round <> v_room.round THEN
-    IF p_next_target_pokemon_id IS NULL THEN RAISE EXCEPTION 'missing_next_target'; END IF;
-    v_target := p_next_target_pokemon_id;
-    v_used := array_append(v_used, p_next_target_pokemon_id);
-    v_p1_lives := 0;
-    v_p2_lives := 0;
-  END IF;
+CREATE TABLE public.defeated_trainers (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    user_id uuid NOT NULL,
+    trainer_index integer NOT NULL,
+    defeated_at timestamp with time zone DEFAULT now(),
+    username text
+);
 
-  UPDATE public.who_that_pokemon_rooms
-  SET round = v_round,
-      target_pokemon_id = v_target,
-      used_pokemon_ids = v_used,
-      p1_score = v_p1_score,
-      p2_score = v_p2_score,
-      p1_lives = v_p1_lives,
-      p2_lives = v_p2_lives,
-      status = v_status,
-      winner = v_winner
-  WHERE id = p_room_id;
-END;
-$$;
+
+--
+-- Name: draft_duo_rooms; Type: TABLE; Schema: public; Owner: -
+--
 
 CREATE TABLE public.draft_duo_rooms (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -731,32 +738,6 @@ CREATE TABLE public.guess_pokemon_rooms (
 
 
 --
--- Name: who_that_pokemon_rooms; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.who_that_pokemon_rooms (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    player1_id uuid NOT NULL,
-    player2_id uuid,
-    status text DEFAULT 'waiting'::text NOT NULL,
-    settings jsonb,
-    round integer DEFAULT 1 NOT NULL,
-    target_pokemon_id integer,
-    used_pokemon_ids integer[] DEFAULT '{}'::integer[] NOT NULL,
-    p1_score integer DEFAULT 0 NOT NULL,
-    p2_score integer DEFAULT 0 NOT NULL,
-    p1_lives integer DEFAULT 0 NOT NULL,
-    p2_lives integer DEFAULT 0 NOT NULL,
-    winner text,
-    p1_ready boolean DEFAULT false NOT NULL,
-    p2_ready boolean DEFAULT false NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT who_that_pokemon_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text]))),
-    CONSTRAINT who_that_pokemon_rooms_winner_check CHECK ((winner IS NULL) OR (winner = ANY (ARRAY['player1'::text, 'player2'::text, 'draw'::text])))
-);
-
-
---
 -- Name: profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -786,6 +767,32 @@ CREATE TABLE public.stat_duel_rooms (
     p1_ready boolean DEFAULT false NOT NULL,
     p2_ready boolean DEFAULT false NOT NULL,
     CONSTRAINT stat_duel_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text])))
+);
+
+
+--
+-- Name: who_that_pokemon_rooms; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.who_that_pokemon_rooms (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    player1_id uuid NOT NULL,
+    player2_id uuid,
+    status text DEFAULT 'waiting'::text NOT NULL,
+    settings jsonb,
+    round integer DEFAULT 1 NOT NULL,
+    target_pokemon_id integer,
+    used_pokemon_ids integer[] DEFAULT '{}'::integer[] NOT NULL,
+    p1_score integer DEFAULT 0 NOT NULL,
+    p2_score integer DEFAULT 0 NOT NULL,
+    p1_lives integer DEFAULT 0 NOT NULL,
+    p2_lives integer DEFAULT 0 NOT NULL,
+    winner text,
+    p1_ready boolean DEFAULT false NOT NULL,
+    p2_ready boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT who_that_pokemon_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text]))),
+    CONSTRAINT who_that_pokemon_rooms_winner_check CHECK (((winner IS NULL) OR (winner = ANY (ARRAY['player1'::text, 'player2'::text, 'draw'::text]))))
 );
 
 
@@ -1017,15 +1024,6 @@ CREATE INDEX idx_stat_duel_rooms_player2_id ON public.stat_duel_rooms USING btre
 CREATE INDEX idx_stat_duel_rooms_status ON public.stat_duel_rooms USING btree (status);
 
 
-CREATE INDEX idx_who_that_pokemon_rooms_created_at ON public.who_that_pokemon_rooms USING btree (created_at);
-
-CREATE INDEX idx_who_that_pokemon_rooms_player1_id ON public.who_that_pokemon_rooms USING btree (player1_id);
-
-CREATE INDEX idx_who_that_pokemon_rooms_player2_id ON public.who_that_pokemon_rooms USING btree (player2_id);
-
-CREATE INDEX idx_who_that_pokemon_rooms_status ON public.who_that_pokemon_rooms USING btree (status);
-
-
 --
 -- Name: defeated_trainers set_defeated_trainer_username_before_write; Type: TRIGGER; Schema: public; Owner: -
 --
@@ -1129,8 +1127,17 @@ ALTER TABLE ONLY public.guess_pokemon_rooms
     ADD CONSTRAINT rooms_winner_id_fkey FOREIGN KEY (winner_id) REFERENCES auth.users(id);
 
 
+--
+-- Name: who_that_pokemon_rooms who_that_pokemon_rooms_player1_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 ALTER TABLE ONLY public.who_that_pokemon_rooms
     ADD CONSTRAINT who_that_pokemon_rooms_player1_id_fkey FOREIGN KEY (player1_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: who_that_pokemon_rooms who_that_pokemon_rooms_player2_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 ALTER TABLE ONLY public.who_that_pokemon_rooms
     ADD CONSTRAINT who_that_pokemon_rooms_player2_id_fkey FOREIGN KEY (player2_id) REFERENCES auth.users(id) ON DELETE SET NULL;
@@ -1345,9 +1352,23 @@ CREATE POLICY stat_duel_rooms_select ON public.stat_duel_rooms FOR SELECT TO aut
 
 ALTER TABLE public.who_that_pokemon_rooms ENABLE ROW LEVEL SECURITY;
 
+--
+-- Name: who_that_pokemon_rooms who_that_pokemon_rooms_delete_owner; Type: POLICY; Schema: public; Owner: -
+--
+
 CREATE POLICY who_that_pokemon_rooms_delete_owner ON public.who_that_pokemon_rooms FOR DELETE TO authenticated USING ((auth.uid() = player1_id));
 
+
+--
+-- Name: who_that_pokemon_rooms who_that_pokemon_rooms_insert; Type: POLICY; Schema: public; Owner: -
+--
+
 CREATE POLICY who_that_pokemon_rooms_insert ON public.who_that_pokemon_rooms FOR INSERT TO authenticated WITH CHECK ((auth.uid() = player1_id));
+
+
+--
+-- Name: who_that_pokemon_rooms who_that_pokemon_rooms_select; Type: POLICY; Schema: public; Owner: -
+--
 
 CREATE POLICY who_that_pokemon_rooms_select ON public.who_that_pokemon_rooms FOR SELECT TO authenticated USING (((auth.uid() = player1_id) OR (auth.uid() = player2_id) OR (status = 'waiting'::text)));
 
@@ -1356,4 +1377,5 @@ CREATE POLICY who_that_pokemon_rooms_select ON public.who_that_pokemon_rooms FOR
 -- PostgreSQL database dump complete
 --
 
-\unrestrict lyOccG4mqsEfqNSxf0uP6vAUDAco5m00lX5O5K5gg31XIuMcHYJHnyME1ggqxH0
+\unrestrict h9WfWLzH0cClFLsmJyZGheik38tavlum3URFgbqybTssZpgmk2HmuhTJ8wyMt62
+
