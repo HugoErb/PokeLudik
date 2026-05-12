@@ -842,7 +842,6 @@ export class SupabaseService implements OnDestroy {
             } else {
                 roomId = await this.createRoom();
             }
-            console.log('[sendGameInvite] room créée:', roomId);
         } catch (err) {
             console.error('[sendGameInvite] échec création room:', err);
             throw err;

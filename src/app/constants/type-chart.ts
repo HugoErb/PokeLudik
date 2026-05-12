@@ -84,8 +84,6 @@ export const TYPE_CHART: Record<string, Record<string, number>> = {
   'Fée':      { 'Feu': 0.5, 'Combat': 2, 'Poison': 0.5, 'Dragon': 2, 'Ténèbres': 2, 'Acier': 0.5 },
 };
 
-export const ALL_TYPES = Object.keys(TYPE_OFFENSIVE);
-
 /** Multiplicateur effectif d'un type attaquant contre un défenseur multi-type */
 export function effectiveMultiplier(defenderTypes: string[], attackerType: string): number {
   return defenderTypes.reduce((mult, defType) => mult * (TYPE_CHART[attackerType]?.[defType] ?? 1), 1);
