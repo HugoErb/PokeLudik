@@ -1,11 +1,10 @@
-<div class="relative w-full h-96 lg:h-full min-h-0 overflow-hidden bg-slate-800 border border-slate-700 rounded-2xl shadow-xl flex flex-col">
+<div class="relative w-full h-full min-h-0 overflow-hidden bg-slate-800 border border-slate-700 rounded-2xl shadow-xl flex flex-col">
 	<!-- Header gradient -->
 	<div class="h-24 flex items-center justify-center rounded-t-2xl" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)">
 		<iconify-icon [icon]="ICONS.friends" class="text-5xl text-white/80"></iconify-icon>
 	</div>
 
 	<div class="px-8 pb-8 pt-6 flex flex-col flex-1 min-h-0 overflow-hidden gap-4">
-		<h3 class="text-xl font-black text-white">Amis</h3>
 
 		<!-- Onglets -->
 		<div class="relative flex bg-slate-900 rounded-xl p-1 gap-1">
@@ -56,7 +55,7 @@
 					<p>Aucun ami pour l'instant</p>
 				</div>
 			} @else {
-				<div class="tab-content flex flex-col gap-2 overflow-y-auto max-h-[200px] pr-1">
+				<div class="tab-content flex-1 min-h-0 flex flex-col gap-2 overflow-y-auto pr-1">
 					@for (friend of friends(); track friend.id + '_' + friend.status) {
 						<div class="relative flex items-center gap-3 bg-slate-700/50 rounded-xl px-3 py-2">
 							<!-- Avatar -->
@@ -99,7 +98,7 @@
 					<p>Aucune demande en attente</p>
 				</div>
 			} @else {
-				<div class="tab-content flex flex-col gap-2 overflow-y-auto max-h-[220px]">
+				<div class="tab-content flex-1 min-h-0 flex flex-col gap-2 overflow-y-auto">
 					@for (req of pendingRequests(); track req.id) {
 						<div class="flex items-center gap-3 bg-slate-700/50 rounded-xl px-3 py-2">
 							<div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 overflow-hidden">

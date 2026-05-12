@@ -96,9 +96,9 @@
 			&nbsp;!
 		</h1>
 
-		<div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+		<div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 			<!-- Carte Jouer -->
-			<div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-xl flex flex-col gap-6">
+			<div #gameModesCard class="bg-slate-800 border border-slate-700 rounded-2xl px-8 pt-5 pb-6 shadow-xl flex flex-col gap-4 self-start">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-xl bg-red-600/20 flex items-center justify-center border border-red-500/30">
 						<iconify-icon [icon]="ICONS.sword" class="text-2xl text-red-400"></iconify-icon>
@@ -175,7 +175,7 @@
 			</div>
 
 			<!-- Carte Compte -->
-			<div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+			<div #accountCard class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-xl flex flex-col min-h-0 self-start">
 				<div class="h-24 avatar-gradient flex items-end px-8">
 					<div
 						class="group relative w-20 h-20 rounded-full border-4 border-slate-800 bg-slate-700 flex items-center justify-center text-3xl font-bold text-white translate-y-8 shadow-xl overflow-hidden cursor-pointer"
@@ -228,7 +228,7 @@
 			</div>
 
 			<!-- Carte Amis -->
-			<div class="flex flex-col gap-2">
+			<div #friendsCard class="flex flex-col gap-2 min-h-0 overflow-hidden self-start">
 				<app-friends-card class="w-full h-full flex flex-col" (inviteRequested)="onInviteRequested($event)" />
 				@if (inviteError) {
 					<p class="text-xs text-red-400 px-1">{{ inviteError }}</p>

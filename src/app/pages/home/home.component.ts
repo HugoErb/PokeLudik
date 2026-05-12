@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -21,8 +21,11 @@ import { AppHeaderComponent } from '../../components/app-header/app-header.compo
     }
   `]
 })
-export class HomeComponent implements OnInit, OnDestroy {
+export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   protected readonly ICONS = ICONS;
+  @ViewChild('gameModesCard') private gameModesCard?: ElementRef<HTMLElement>;
+  @ViewChild('accountCard') private accountCard?: ElementRef<HTMLElement>;
+  @ViewChild('friendsCard') private friendsCard?: ElementRef<HTMLElement>;
   private readonly inviteToastModes: Record<GameMode, {
     label: string;
     icon: string;
@@ -117,7 +120,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   showToast = signal(false);
   toastMessage = signal('');
-
   showCurrentPassword = signal(false);
   showNewPassword = signal(false);
   showConfirmPassword = signal(false);
@@ -127,6 +129,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   inviteCountdown = signal(15);
   private inviteCountdownInterval: ReturnType<typeof setInterval> | null = null;
   private invitesSub?: Subscription;
+  private gameModesResizeObserver?: ResizeObserver;
 
   /** Bascule la visibilite du mot de passe actuel. */
   toggleCurrentPassword(): void { this.showCurrentPassword.update(v => !v); }
@@ -182,9 +185,35 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
   }
 
+  ngAfterViewInit(): void {
+    const card = this.gameModesCard?.nativeElement;
+    if (!card) return;
+
+    const updateFriendsHeight = () => {
+      const height = card.offsetHeight;
+      if (height <= 0) return;
+      const value = `${height}px`;
+      const accountCard = this.accountCard?.nativeElement;
+      const friendsCard = this.friendsCard?.nativeElement;
+      if (accountCard) {
+        accountCard.style.height = value;
+        accountCard.style.maxHeight = value;
+      }
+      if (friendsCard) {
+        friendsCard.style.height = value;
+        friendsCard.style.maxHeight = value;
+      }
+    };
+    requestAnimationFrame(updateFriendsHeight);
+
+    this.gameModesResizeObserver = new ResizeObserver(updateFriendsHeight);
+    this.gameModesResizeObserver.observe(card);
+  }
+
   /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
   ngOnDestroy(): void {
     this.invitesSub?.unsubscribe();
+    this.gameModesResizeObserver?.disconnect();
     this.clearInviteToast();
   }
 
