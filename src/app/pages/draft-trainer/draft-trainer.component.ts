@@ -208,8 +208,20 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
       const trainers = await res.json() as Trainer[];
       const idParam = this.route.snapshot.paramMap.get('id');
       const id = idParam ? parseInt(idParam, 10) : 0;
-      
-      const selectedTrainer = trainers[id] || trainers[0];
+
+      if (!Number.isInteger(id) || id < 0 || id >= trainers.length) {
+        void this.router.navigate(['/trainer-select']);
+        return;
+      }
+
+      const user = this.supabaseService.getCurrentUser();
+      const defeated = user ? await this.supabaseService.getDefeatedTrainers(user.id) : [];
+      if (this.isTrainerLocked(id, defeated)) {
+        void this.router.navigate(['/trainer-select']);
+        return;
+      }
+
+      const selectedTrainer = trainers[id];
       this.trainer.set(selectedTrainer);
 
       if (this.allPokemon().length === 0) {
@@ -230,6 +242,12 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
   /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
   ngOnDestroy(): void {
     this.stopTimer();
+  }
+
+  /** Retourne true si le dresseur demande n'est pas encore debloque. */
+  private isTrainerLocked(index: number, defeatedIndices: number[]): boolean {
+    if (index === 0) return false;
+    return !defeatedIndices.includes(index - 1);
   }
 
   /** Initialise l'etat du draft. */

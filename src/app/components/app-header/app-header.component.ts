@@ -9,6 +9,7 @@ import { Component, CUSTOM_ELEMENTS_SCHEMA, input } from '@angular/core';
 export class AppHeaderComponent {
 	icon = input.required<string>();
 	iconClass = input<string>('');
+	iconSizeClass = input<string>('text-2xl');
 	title = input.required<string>();
 	subtitle = input<string>('');
 }

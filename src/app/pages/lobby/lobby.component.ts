@@ -175,15 +175,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private multiRoomSub?: Subscription;
 	private pollInterval: ReturnType<typeof setInterval> | null = null;
 
-	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; helpMode?: 'stat-duel'; playRoute: string }> = {
+	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel'; playRoute: string }> = {
 		guess_my_pokemon: { title: 'Guess my Pokémon', icon: ICONS.guess, iconClass: 'text-red-400', playRoute: '/game' },
 		stat_duel: { title: 'Duel de Base Stats', subtitle: 'Deux joueurs en ligne', icon: ICONS.statDuel, iconClass: 'text-yellow-400', helpMode: 'stat-duel', playRoute: '/stat-duel' },
-		draft_duo: { title: 'Team Builder', subtitle: 'Deux joueurs en ligne', icon: ICONS.draft, iconClass: 'text-purple-200', playRoute: '/draft-duo' },
+		draft_duo: { title: 'Team Builder', subtitle: 'Deux joueurs en ligne', icon: ICONS.draft, iconClass: 'text-purple-200', iconSizeClass: 'text-4xl', playRoute: '/draft-duo' },
 		who_that_pokemon: { title: "Who's That Pokémon ?", subtitle: 'Deux joueurs en ligne', icon: ICONS.whoPokemon, iconClass: 'text-cyan-300', playRoute: '/who-that-pokemon' },
 	};
 
 	/** Retourne la configuration d'affichage du mode courant. */
-	get modeConfig(): { title: string; subtitle?: string; icon: string; iconClass: string; helpMode?: 'stat-duel'; playRoute: string } {
+	get modeConfig(): { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel'; playRoute: string } {
 		return this.MODE_CONFIG[this.gameMode];
 	}
 

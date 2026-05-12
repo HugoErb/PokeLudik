@@ -3,7 +3,7 @@
 		<app-duel-intro [player1]="duelPlayer1()!" [player2]="duelPlayer2()!" (closed)="onDuelIntroClosed()" />
 	}
 
-	<app-header [icon]="ICONS.draft" iconClass="text-purple-200" title="Team Builder" subtitle="Solo vs Dresseur" />
+	<app-header [icon]="ICONS.draft" iconClass="text-purple-200" iconSizeClass="text-4xl" title="Team Builder" subtitle="Solo vs Dresseur" />
 
 	<!-- Sous-header (Timer, Compteur, Aide et Quitter) -->
 	@if (phase() !== 'loading') {
@@ -342,7 +342,16 @@
 				</div>
 			</div>
 
-			<app-end-game-actions replayMode="solo" maxWidth="xs" (replay)="replay()" (goHome)="goHome()" />
+			<app-end-game-actions replayMode="solo" maxWidth="xs" (replay)="replay()" (goHome)="goHome()">
+				<button
+					type="button"
+					(click)="goToTrainerSelect()"
+					class="w-full py-4 bg-purple-600 hover:bg-purple-500 rounded-2xl font-bold text-white transition-all active:scale-95 shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2"
+				>
+					<iconify-icon [icon]="ICONS.draft" class="text-3xl"></iconify-icon>
+					Sélection des dresseurs
+				</button>
+			</app-end-game-actions>
 		</main>
 	}
 
