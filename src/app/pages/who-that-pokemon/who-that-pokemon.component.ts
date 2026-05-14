@@ -8,11 +8,13 @@ import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { HelpCardComponent } from '../../components/help-modal/help-card.component';
 import { HelpSectionTitleComponent } from '../../components/help-modal/help-section-title.component';
+import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
 import { ModeSelectCardComponent } from '../../components/mode-select-card/mode-select-card.component';
 import { ModeSelectComponent } from '../../components/mode-select-card/mode-select.component';
 import { ICONS } from '../../constants/icons';
 import { Pokemon } from '../../models/pokemon.model';
-import { DEFAULT_WHO_SETTINGS, WhoGameSettings, WhoPokemonRoom } from '../../models/room.model';
+import { DEFAULT_WHO_SETTINGS, WhoPokemonRoom } from '../../models/room.model';
+import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toWhoSettings } from '../../models/game-settings.model';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import {
@@ -22,17 +24,17 @@ import {
   pickWhoPokemonSequence,
   WHO_MAX_HINTS,
   WHO_TOTAL_ROUNDS,
-  WhoHintMode,
   WhoInitialHintMode,
   WhoRevealedHint,
   WhoSoloState,
 } from '../../utils/who-that-pokemon-utils';
 
 type Phase = 'setup' | 'solo' | 'waiting' | 'duo' | 'complete';
+type WhoConfigMode = 'solo';
 
 @Component({
   selector: 'app-who-that-pokemon',
-  imports: [FormsModule, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent],
+  imports: [FormsModule, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent, GameSettingsPanelComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './who-that-pokemon.component.html',
   styles: [`
@@ -83,7 +85,8 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
 
   readonly phase = signal<Phase>('setup');
-  readonly settings = signal<WhoGameSettings>({ ...DEFAULT_WHO_SETTINGS });
+  readonly whoConfigMode = signal<WhoConfigMode | null>(null);
+  readonly settings = signal<ModeSettings>({ ...DEFAULT_MODE_SETTINGS.who_that_pokemon });
   readonly allPokemons = signal<Pokemon[]>([]);
   readonly soloSequence = signal<Pokemon[]>([]);
   readonly soloState = signal<WhoSoloState>({ roundIndex: 0, hintsRevealed: 0, score: 0, found: 0, status: 'playing' });
@@ -229,31 +232,13 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     if (this.toastTimeout) clearTimeout(this.toastTimeout);
   }
 
-  setInitialHint(initialHint: WhoInitialHintMode): void {
-    this.settings.update(settings => ({ ...settings, initialHint }));
+  updateGameSettings(settings: ModeSettings): void {
+    this.settings.set(settings);
     void this.persistWaitingSettings();
   }
 
-  toggleGeneration(generation: number): void {
-    this.settings.update(settings => {
-      const active = settings.generations.includes(generation);
-      return {
-        ...settings,
-        generations: active ? settings.generations.filter(g => g !== generation) : [...settings.generations, generation].sort(),
-      };
-    });
-    void this.persistWaitingSettings();
-  }
-
-  toggleCategory(category: string): void {
-    this.settings.update(settings => {
-      const active = settings.categories.includes(category);
-      return {
-        ...settings,
-        categories: active ? settings.categories.filter(c => c !== category) : [...settings.categories, category],
-      };
-    });
-    void this.persistWaitingSettings();
+  selectWhoConfigMode(mode: WhoConfigMode): void {
+    this.whoConfigMode.set(mode);
   }
 
   startSolo(): void {
@@ -273,7 +258,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     if (this.isBusy()) return;
     this.isBusy.set(true);
     try {
-      const roomId = await this.supabaseService.createWhoPokemonRoom(this.settings());
+      const roomId = await this.supabaseService.createWhoPokemonRoom();
       await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'who_that_pokemon' } });
     } catch {
       this.feedback.set('Impossible de créer la partie.');
@@ -295,7 +280,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     try {
       await this.supabaseService.updateWhoPokemonRoom(r.id, {
         status: 'playing',
-        settings: this.settings(),
+        settings: toWhoSettings(this.settings()),
         round: 1,
         target_pokemon_id: target.id,
         used_pokemon_ids: [target.id],
@@ -465,12 +450,12 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     }
     this.room.set(room);
     this.isPlayer1.set(room.player1_id === user.id);
-    this.settings.set(room.settings ?? { ...DEFAULT_WHO_SETTINGS });
+    this.settings.set(normalizeModeSettings('who_that_pokemon', room.settings));
     this.phase.set(room.status === 'waiting' ? 'waiting' : room.status === 'playing' ? 'duo' : 'complete');
 
     this.roomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()!).subscribe(updated => {
       this.room.set(updated);
-      this.settings.set(updated.settings ?? { ...DEFAULT_WHO_SETTINGS });
+      this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
       this.phase.set(updated.status === 'waiting' ? 'waiting' : updated.status === 'playing' ? 'duo' : 'complete');
       void this.launchReplayIfReady(updated);
     });
@@ -494,7 +479,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   private async persistWaitingSettings(): Promise<void> {
     const r = this.room();
     if (!r || !this.isPlayer1() || r.status !== 'waiting') return;
-    await this.supabaseService.updateWhoPokemonRoom(r.id, { settings: this.settings() }).catch(() => undefined);
+    await this.supabaseService.updateWhoPokemonRoom(r.id, { settings: toWhoSettings(this.settings()) }).catch(() => undefined);
   }
 
   private async launchReplayIfReady(room: WhoPokemonRoom): Promise<void> {

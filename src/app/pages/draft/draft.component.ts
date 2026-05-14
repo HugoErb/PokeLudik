@@ -29,6 +29,8 @@ import { ModeSelectCardComponent } from '../../components/mode-select-card/mode-
 import { ModeSelectComponent } from '../../components/mode-select-card/mode-select.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
+import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
+import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings } from '../../models/game-settings.model';
 import {
   computeRating as computePokemonRating,
   computeTotal as computePokemonTotal,
@@ -42,10 +44,11 @@ import {
 } from '../../utils/draft-utils';
 
 type SlotState = 'idle' | 'leaving' | 'entering';
+type DraftConfigMode = 'solo';
 
 @Component({
   selector: 'app-draft',
-  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, ModeSelectCardComponent, ModeSelectComponent, EndGameActionsComponent, AppHeaderComponent],
+  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, ModeSelectCardComponent, ModeSelectComponent, EndGameActionsComponent, AppHeaderComponent, GameSettingsPanelComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft.component.html',
@@ -80,6 +83,8 @@ export class DraftComponent implements OnInit {
   readonly showHelpModal = signal(false);
   readonly isResetting = signal(false);
   readonly isCreatingRoom = signal(false);
+  readonly draftConfigMode = signal<DraftConfigMode | null>(null);
+  readonly settings = signal<ModeSettings>({ ...DEFAULT_MODE_SETTINGS.draft_duo });
 
   readonly lockedCount = computed(() => this.lockedIndices().size);
   readonly selectedPokemon = signal<Pokemon | null>(null);
@@ -180,6 +185,10 @@ export class DraftComponent implements OnInit {
     this.phase.set('loading');
   }
 
+  selectDraftConfigMode(mode: DraftConfigMode): void {
+    this.draftConfigMode.set(mode);
+  }
+
   /** Demarre le draft contre un dresseur. */
   startTrainer(): void {
     void this.router.navigate(['/trainer-select']);
@@ -199,7 +208,7 @@ export class DraftComponent implements OnInit {
 
   /** Initialise l'etat du draft. */
   private initDraft(): void {
-    const pool = this.allPokemon();
+    const pool = this.getConfiguredPokemonPool();
     const starter = this.pickOneStarter(pool, new Set());
     const legendary = this.pickOneLegendary(pool, new Set(starter ? [starter.id] : []));
     const excludeForNormal = new Set([
@@ -263,11 +272,12 @@ export class DraftComponent implements OnInit {
     const slot5Unlocked = unlocked.includes(5);
     const unlockedNormal = unlocked.filter(i => i !== 0 && i !== 5);
 
-    const newStarter = slot0Unlocked ? this.pickOneStarter(this.allPokemon(), this.usedIds()) : null;
+    const pool = this.getConfiguredPokemonPool();
+    const newStarter = slot0Unlocked ? this.pickOneStarter(pool, this.usedIds()) : null;
     const excludeForNormal = new Set([...this.usedIds(), ...(newStarter ? [newStarter.id] : [])]);
-    const newNormal = this.pickNUnique(this.allPokemon(), excludeForNormal, unlockedNormal.length);
+    const newNormal = this.pickNUnique(pool, excludeForNormal, unlockedNormal.length);
     const excludeForLegend = new Set([...excludeForNormal, ...newNormal.map(p => p.id)]);
-    const newLegendary = slot5Unlocked ? this.pickOneLegendary(this.allPokemon(), excludeForLegend) : null;
+    const newLegendary = slot5Unlocked ? this.pickOneLegendary(pool, excludeForLegend) : null;
 
     const allNew = [
       ...(newStarter ? [newStarter] : []),
@@ -339,6 +349,11 @@ export class DraftComponent implements OnInit {
       this.initDraft();
       this.isResetting.set(false);
     }, 50);
+  }
+
+  updateGameSettings(settings: ModeSettings): void {
+    this.settings.set(settings);
+    if (this.phase() === 'draft') this.saveState();
   }
 
   /** Navigue vers la page d'accueil. */
@@ -424,6 +439,15 @@ export class DraftComponent implements OnInit {
   /** Selectionne plusieurs Pokemon uniques dans le pool. */
   private pickNUnique(pool: Pokemon[], exclude: Set<number>, n: number): Pokemon[] {
     return pickNUniquePokemon(pool, exclude, n);
+  }
+
+  private getConfiguredPokemonPool(): Pokemon[] {
+    const settings = normalizeModeSettings('draft_duo', this.settings());
+    return this.allPokemon().filter(pokemon => {
+      if (settings.generations.length > 0 && !settings.generations.includes(pokemon.generation)) return false;
+      if (settings.categories.length > 0 && !settings.categories.includes(pokemon.category)) return false;
+      return true;
+    });
   }
 
   // ─── Confetti ────────────────────────────────────────────────────────────────

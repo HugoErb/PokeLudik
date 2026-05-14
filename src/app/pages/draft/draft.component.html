@@ -60,7 +60,8 @@
 						description="Construis la meilleure équipe de Pokémon et vise la meilleure note de base stats."
 						[icon]="ICONS.user"
 						accent="red"
-						(selected)="startSolo()"
+						[selected]="draftConfigMode() === 'solo'"
+						(selected)="selectDraftConfigMode('solo')"
 					/>
 					<app-mode-select-card cardTitle="Contre un dresseur" description="Construis la meilleure équipe de Pokémon et affronte l'équipe d'un dresseur célèbre de la franchise."
 						[icon]="ICONS.sword" accent="yellow" [disabled]="isCreatingRoom()" (selected)="startTrainer()" />
@@ -74,6 +75,17 @@
 						(selected)="startDuo()"
 					/>
 				</app-mode-select>
+				@if (draftConfigMode() === 'solo') {
+					<div class="settings-panel-reveal w-full max-w-2xl mt-5 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
+						<app-game-settings-panel mode="draft_duo" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
+						<button
+							(click)="startSolo()"
+							class="mt-4 w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors"
+						>
+							Lancer la partie
+						</button>
+					</div>
+				}
 			</div>
 		</main>
 	}

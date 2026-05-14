@@ -110,15 +110,16 @@
   }
 
   @if (phase() === 'setup') {
-    <main class="flex-1 overflow-y-auto px-4 py-6 flex justify-center">
-      <section class="w-full max-w-3xl flex flex-col gap-5">
+    <main class="flex-1 min-h-0 overflow-y-auto">
+      <div class="min-h-full flex flex-col items-center justify-center pt-8 pb-20 px-4">
         <app-mode-select title="Who's That Pokémon ?" [icon]="ICONS.whoPokemon" iconColor="text-cyan-300" iconSize="text-4xl">
           <app-mode-select-card
             cardTitle="Un joueur"
             description="Devine 10 Pokémon mystère. Chaque bonne réponse rapporte jusqu'à 5 points selon les indices débloqués."
             [icon]="ICONS.user"
             accent="red"
-            (selected)="startSolo()"
+            [selected]="whoConfigMode() === 'solo'"
+            (selected)="selectWhoConfigMode('solo')"
           />
           <app-mode-select-card
             cardTitle="Deux joueurs en ligne"
@@ -131,38 +132,17 @@
           />
         </app-mode-select>
 
-        <div class="w-full max-w-2xl mx-auto bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
-          <h2 class="text-xl font-black mb-4">Paramètres</h2>
-
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Premier indice</p>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
-            @for (mode of hintModes; track mode.value) {
-              <button (click)="setInitialHint(mode.value)" class="rounded-xl border px-3 py-3 flex flex-col items-center gap-2 transition-all" [class.bg-cyan-500]="settings().initialHint === mode.value" [class.text-slate-950]="settings().initialHint === mode.value" [class.border-cyan-300]="settings().initialHint === mode.value" [class.bg-slate-900]="settings().initialHint !== mode.value" [class.border-slate-700]="settings().initialHint !== mode.value">
-                <iconify-icon [icon]="mode.icon" class="text-xl"></iconify-icon>
-                <span class="text-xs font-bold text-center">{{ mode.label }}</span>
-              </button>
-            }
+        @if (whoConfigMode() === 'solo') {
+          <div class="settings-panel-reveal w-full max-w-2xl mt-5 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
+            <app-game-settings-panel mode="who_that_pokemon" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
+            <button (click)="startSolo()" class="mt-4 w-full bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors">Lancer la partie</button>
           </div>
-
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Générations</p>
-          <div class="flex flex-wrap gap-2 mb-5">
-            @for (gen of [1, 2, 3, 4, 5, 6, 7, 8, 9]; track gen) {
-              <button (click)="toggleGeneration(gen)" class="px-3 py-1.5 rounded-lg text-xs font-bold border" [class.bg-blue-600]="settings().generations.includes(gen)" [class.border-blue-400]="settings().generations.includes(gen)" [class.bg-slate-900]="!settings().generations.includes(gen)" [class.border-slate-700]="!settings().generations.includes(gen)">Gen {{ gen }}</button>
-            }
-          </div>
-
-          <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Categories</p>
-          <div class="flex flex-wrap gap-2">
-            @for (cat of ['classique', 'starter', 'légendaire', 'fabuleux', 'fossile', 'ultra-chimère', 'pseudo-légendaire', 'bébé', 'paradoxe']; track cat) {
-              <button (click)="toggleCategory(cat)" class="px-3 py-1.5 rounded-lg text-xs font-bold border capitalize" [class.bg-red-600]="settings().categories.includes(cat)" [class.border-red-400]="settings().categories.includes(cat)" [class.bg-slate-900]="!settings().categories.includes(cat)" [class.border-slate-700]="!settings().categories.includes(cat)">{{ cat }}</button>
-            }
-          </div>
-        </div>
+        }
 
         @if (feedback()) {
-          <p class="text-sm text-red-300 bg-red-950/40 border border-red-800 rounded-xl p-3">{{ feedback() }}</p>
+          <p class="mt-5 text-sm text-red-300 bg-red-950/40 border border-red-800 rounded-xl p-3">{{ feedback() }}</p>
         }
-      </section>
+      </div>
     </main>
   }
 

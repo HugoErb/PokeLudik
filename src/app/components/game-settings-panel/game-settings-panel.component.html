@@ -1,0 +1,125 @@
+﻿@if (definition().configurable) {
+  <div class="flex flex-col gap-2.5 text-left" [class.text-xs]="compact()">
+    @if (hasControl('generations')) {
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col gap-2" [class.opacity-60]="readonly()">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold text-white">Par génération</p>
+            <p class="text-xs text-slate-400">Restreindre aux Pokémon des générations choisies</p>
+          </div>
+          <button (click)="toggleGenMode()" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().generations.length > 0" [class.bg-slate-600]="settings().generations.length === 0">
+            <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().generations.length > 0"></span>
+          </button>
+        </div>
+        <div class="grid transition-all duration-300 ease-in-out" [style.grid-template-rows]="settings().generations.length > 0 ? '1fr' : '0fr'">
+          <div class="overflow-hidden">
+            <div
+              class="flex flex-wrap gap-1 transition-all duration-300 ease-out"
+              [class.pt-1]="settings().generations.length > 0"
+              [class.opacity-100]="settings().generations.length > 0"
+              [class.translate-y-0]="settings().generations.length > 0"
+              [class.opacity-0]="settings().generations.length === 0"
+              [class.-translate-y-3]="settings().generations.length === 0"
+            >
+              <button (click)="selectAllGenerations()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-red-600/15 text-red-200 border border-red-500/60 hover:bg-red-600/25 hover:text-white transition-colors">Tout</button>
+              <button (click)="clearAllGenerations()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-slate-800 text-slate-300 border border-slate-500 hover:bg-slate-700 hover:text-white transition-colors">Aucun</button>
+              @for (gen of ALL_GENERATIONS; track gen) {
+                <button (click)="toggleGeneration(gen)" [disabled]="readonly()" [class]="settings().generations.includes(gen) ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
+                  {{ gen }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (hasControl('categories')) {
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col gap-2" [class.opacity-60]="readonly()">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold text-white">Par catégorie</p>
+            <p class="text-xs text-slate-400">Restreindre aux Pokémon des catégories choisies</p>
+          </div>
+          <button (click)="toggleCategoryMode()" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().categories.length > 0" [class.bg-slate-600]="settings().categories.length === 0">
+            <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().categories.length > 0"></span>
+          </button>
+        </div>
+        <div class="grid transition-all duration-300 ease-in-out" [style.grid-template-rows]="settings().categories.length > 0 ? '1fr' : '0fr'">
+          <div class="overflow-hidden">
+            <div
+              class="flex flex-wrap gap-1 transition-all duration-300 ease-out"
+              [class.pt-1]="settings().categories.length > 0"
+              [class.opacity-100]="settings().categories.length > 0"
+              [class.translate-y-0]="settings().categories.length > 0"
+              [class.opacity-0]="settings().categories.length === 0"
+              [class.-translate-y-3]="settings().categories.length === 0"
+            >
+              <button (click)="selectAllCategories()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-red-600/15 text-red-200 border border-red-500/60 hover:bg-red-600/25 hover:text-white transition-colors">Tout</button>
+              <button (click)="clearAllCategories()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-slate-800 text-slate-300 border border-slate-500 hover:bg-slate-700 hover:text-white transition-colors">Aucun</button>
+              @for (cat of ALL_CATEGORIES; track cat) {
+                <button (click)="toggleCategory(cat)" [disabled]="readonly()" [class]="settings().categories.includes(cat) ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
+                  {{ CATEGORY_LABELS[cat] }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (hasControl('noPokedex')) {
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-center justify-between gap-3" [class.opacity-60]="readonly()">
+        <div><p class="text-sm font-semibold text-white">Sans Pokédex</p><p class="text-xs text-slate-400">Les Pokémon n'affichent que leur nom</p></div>
+        <button (click)="update({ noPokedex: !settings().noPokedex })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().noPokedex" [class.bg-slate-600]="!settings().noPokedex">
+          <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().noPokedex"></span>
+        </button>
+      </div>
+    }
+
+    @if (hasControl('noSearch')) {
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-center justify-between gap-3" [class.opacity-60]="readonly()">
+        <div><p class="text-sm font-semibold text-white">Sans filtres avancés</p><p class="text-xs text-slate-400">Les filtres du Pokédex sont désactivés</p></div>
+        <button (click)="update({ noSearch: !settings().noSearch })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().noSearch" [class.bg-slate-600]="!settings().noSearch">
+          <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().noSearch"></span>
+        </button>
+      </div>
+    }
+
+    @if (hasControl('randomPokemon')) {
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-center justify-between gap-3" [class.opacity-60]="readonly()">
+        <div><p class="text-sm font-semibold text-white">Pokémon aléatoire</p><p class="text-xs text-slate-400">Les Pokémon sont assignés automatiquement</p></div>
+        <button (click)="update({ randomPokemon: !settings().randomPokemon })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().randomPokemon" [class.bg-slate-600]="!settings().randomPokemon">
+          <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().randomPokemon"></span>
+        </button>
+      </div>
+    }
+
+    @if (hasControl('firstPlayer')) {
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col gap-2" [class.opacity-60]="readonly()">
+        <div><p class="text-sm font-semibold text-white">Premier joueur</p><p class="text-xs text-slate-400">Choisir le joueur qui commence</p></div>
+        <div class="flex gap-2">
+          @for (option of firstPlayerOptions; track option.value) {
+            <button (click)="setFirstPlayer(option.value)" [disabled]="readonly()" [class]="settings().firstPlayer === option.value ? 'flex-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'flex-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    @if (hasControl('initialHint')) {
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col gap-2" [class.opacity-60]="readonly()">
+        <div><p class="text-sm font-semibold text-white">Indice de départ</p><p class="text-xs text-slate-400">Indice affiché au début de chaque manche</p></div>
+        <div class="grid grid-cols-2 gap-2">
+          @for (mode of hintModes; track mode.value) {
+            <button (click)="setInitialHint(mode.value)" [disabled]="readonly()" [class]="settings().initialHint === mode.value ? 'rounded-lg border border-red-500 bg-red-600 text-white px-2 py-2 text-xs font-bold flex items-center justify-center gap-1' : 'rounded-lg border border-slate-700 bg-slate-900 text-slate-300 px-2 py-2 text-xs font-bold flex items-center justify-center gap-1'">
+              <iconify-icon [icon]="mode.icon" class="text-base"></iconify-icon>
+              {{ mode.label }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}

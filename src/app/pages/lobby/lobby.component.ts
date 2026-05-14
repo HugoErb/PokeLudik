@@ -9,11 +9,13 @@ import { GameService } from '../../services/game.service';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
-import { DEFAULT_SETTINGS, DEFAULT_WHO_SETTINGS, DraftDuoRoom, FirstPlayer, GameMode, GameSettings, Room, StatDuelRoom, WhoPokemonRoom } from '../../models/room.model';
+import { DraftDuoRoom, GameMode, Room, StatDuelRoom, WhoPokemonRoom } from '../../models/room.model';
+import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, resolvePendingSettingsAfterSave, toGuessSettings, toWhoSettings } from '../../models/game-settings.model';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { HelpModalComponent } from '../../components/help-modal/help-modal.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
+import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
 import { ICONS } from '../../constants/icons';
 import { modalAnimation } from '../../constants/animations';
 import { buildWhoPokemonPool, pickWhoPokemonSequence } from '../../utils/who-that-pokemon-utils';
@@ -22,7 +24,7 @@ type DuelIntroPlayer = { username: string; avatar_url?: string };
 
 @Component({
 	selector: 'app-lobby',
-	imports: [FormsModule, PokemonCardComponent, CancelModalComponent, HelpModalComponent, AppHeaderComponent],
+	imports: [FormsModule, PokemonCardComponent, CancelModalComponent, HelpModalComponent, AppHeaderComponent, GameSettingsPanelComponent],
 	schemas: [CUSTOM_ELEMENTS_SCHEMA],
 	animations: [modalAnimation],
 	templateUrl: './lobby.component.html',
@@ -39,14 +41,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private readonly route = inject(ActivatedRoute);
 	private readonly injector = inject(Injector);
 
-	constructor() {
-		effect(() => {
-			const s = this.gameService.settings();
-			untracked(() => {
-				this.gameSettings = { ...s };
-				if (this.allPokemons.length > 0) this.onSearch();
+		constructor() {
+			effect(() => {
+				const s = this.gameService.settings();
+				untracked(() => {
+					if (this.gameMode !== 'guess_my_pokemon') return;
+					this.gameSettings = normalizeModeSettings('guess_my_pokemon', s);
+					if (this.allPokemons.length > 0) this.onSearch();
+				});
 			});
-		});
 
 		effect(() => {
 			const r = this.room();
@@ -118,27 +121,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	inviteLink = '';
 	copied = false;
 
-	// Configuration de partie (Player 1 uniquement, phase 'waiting'/'ready')
-	gameSettings: GameSettings = { ...DEFAULT_SETTINGS };
+	// Configuration de partie
+	gameSettings: ModeSettings = { ...DEFAULT_MODE_SETTINGS.guess_my_pokemon };
 	isLaunching = false;
 	launchError = '';
 
 	// UI état
-	showSettings = signal(false);
 	showHelpModal = signal(false);
-
-	/** Retourne le nombre de parametres actifs. */
-	get activeSettingsCount(): number {
-		const s = this.gameSettings;
-		let count = 0;
-		if (s.generations.length > 0) count++;
-		if (s.categories.length > 0) count++;
-		if (s.noPokedex) count++;
-		if (s.noSearch) count++;
-		if (s.randomPokemon) count++;
-		if (s.firstPlayer !== 'random') count++;
-		return count;
-	}
 
 	// Annulation / mode dev
 	isCancelling = false;
@@ -147,33 +136,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	isSimulating = false;
 	isSimulatingReady = false;
 	readonly devMode = environment.devMode;
-	readonly firstPlayerOptions: { value: FirstPlayer; label: string }[] = [
-		{ value: 'random', label: 'Aléatoire' },
-		{ value: 'player1', label: 'Vous' },
-		{ value: 'player2', label: 'Adversaire' },
-	];
-
-	readonly ALL_GENERATIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-	readonly ALL_CATEGORIES: string[] = [
-		'classique', 'starter', 'légendaire', 'fabuleux', 'fossile',
-		'ultra-chimère', 'pseudo-légendaire', 'bébé', 'paradoxe',
-	];
-	readonly CATEGORY_LABELS: Record<string, string> = {
-		'classique': 'Classique',
-		'starter': 'Starter',
-		'légendaire': 'Légendaire',
-		'fabuleux': 'Fabuleux',
-		'fossile': 'Fossile',
-		'ultra-chimère': 'Ultra-Chimère',
-		'pseudo-légendaire': 'Pseudo-Lég.',
-		'bébé': 'Bébé',
-		'paradoxe': 'Paradoxe',
-	};
 
 	private pokemonsSub?: Subscription;
 	private inviteResponseSub?: Subscription;
 	private multiRoomSub?: Subscription;
 	private pollInterval: ReturnType<typeof setInterval> | null = null;
+	private pendingLocalSettings: ModeSettings | null = null;
 
 	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel'; playRoute: string }> = {
 		guess_my_pokemon: { title: 'Guess my Pokémon', icon: ICONS.guess, iconClass: 'text-red-400', playRoute: '/game' },
@@ -404,11 +372,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		this.launchError = '';
 		try {
 			if (this.gameMode === 'stat_duel') {
-				const allPokemon = await firstValueFrom(this.pokemonService.loadAll());
+				let allPokemon = await firstValueFrom(this.pokemonService.loadAll());
+				if (this.gameSettings.generations.length > 0) allPokemon = allPokemon.filter(p => this.gameSettings.generations.includes(p.generation));
+				if (this.gameSettings.categories.length > 0) allPokemon = allPokemon.filter(p => this.gameSettings.categories.includes(p.category));
 				const pokemonIds = this.shuffle(allPokemon).slice(0, 6).map(p => p.id);
 				const roundStartAt = new Date(Date.now() + 3000).toISOString();
 				await this.supabaseService.updateStatDuelRoom(this.roomId(), {
 					status: 'playing',
+					settings: toGuessSettings(this.gameSettings),
 					pokemon_ids: pokemonIds,
 					round_start_at: roundStartAt,
 					p1_picks: [],
@@ -422,6 +393,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			} else if (this.gameMode === 'draft_duo') {
 				await this.supabaseService.updateDraftDuoRoom(this.roomId(), {
 					status: 'playing',
+					settings: toGuessSettings(this.gameSettings),
 					p1_team: [],
 					p2_team: [],
 					winner: null,
@@ -435,8 +407,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					pokemons = await firstValueFrom(this.pokemonService.loadAll());
 					this.allPokemons = pokemons;
 				}
-				const room = this.whoPokemonRoom();
-				const settings = room?.settings ?? DEFAULT_WHO_SETTINGS;
+				const settings = toWhoSettings(this.gameSettings);
 				const target = pickWhoPokemonSequence(buildWhoPokemonPool(pokemons, settings), 1)[0];
 				if (!target) throw new Error('Aucun Pokémon disponible');
 				await this.supabaseService.updateWhoPokemonRoom(this.roomId(), {
@@ -454,7 +425,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				});
 				void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
 			} else {
-				await this.gameService.launchGame(this.roomId(), this.gameSettings);
+				await this.gameService.launchGame(this.roomId(), toGuessSettings(this.gameSettings));
 			}
 		} catch {
 			this.launchError = 'Erreur lors du lancement. Réessaie.';
@@ -463,96 +434,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		}
 	}
 
-	/** Active ou désactive la restriction par génération (tout ou la génération 1 par défaut). */
-	toggleGenMode(): void {
+	updateGameSettings(settings: ModeSettings): void {
+		if (!this.isPlayer1()) return;
 		if (this.isConfigLocked()) return;
-		const wasActive = this.gameSettings.generations.length > 0;
-		this.gameSettings = { ...this.gameSettings, generations: wasActive ? [] : [1] };
-		void this.saveSettings();
-	}
-
-	/** Ajoute ou retire une génération de la liste des générations restreintes. */
-	toggleGeneration(gen: number): void {
-		if (this.isConfigLocked()) return;
-		const gens = this.gameSettings.generations;
-		const filtered = gens.filter((g) => g !== gen);
-		const newGens = gens.includes(gen) ? (filtered.length === 0 ? [gen] : filtered) : [...gens, gen];
-		this.gameSettings = { ...this.gameSettings, generations: newGens };
-		void this.saveSettings();
-	}
-
-	/** Sélectionne toutes les générations. */
-	selectAllGenerations(): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, generations: [...this.ALL_GENERATIONS] };
-		void this.saveSettings();
-	}
-
-	/** Désélectionne toutes les générations (une seule reste sélectionnée). */
-	clearAllGenerations(): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, generations: [1] };
-		void this.saveSettings();
-	}
-
-	/** Active ou désactive la restriction par catégorie. */
-	toggleCategoryMode(): void {
-		if (this.isConfigLocked()) return;
-		const wasActive = this.gameSettings.categories.length > 0;
-		this.gameSettings = { ...this.gameSettings, categories: wasActive ? [] : ['classique'] };
-		void this.saveSettings();
-	}
-
-	/** Ajoute ou retire une catégorie de la liste des catégories restreintes. */
-	toggleCategory(cat: string): void {
-		if (this.isConfigLocked()) return;
-		const cats = this.gameSettings.categories;
-		const filtered = cats.filter((c) => c !== cat);
-		const newCats = cats.includes(cat) ? (filtered.length === 0 ? [cat] : filtered) : [...cats, cat];
-		this.gameSettings = { ...this.gameSettings, categories: newCats };
-		void this.saveSettings();
-	}
-
-	/** Sélectionne toutes les catégories. */
-	selectAllCategories(): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, categories: [...this.ALL_CATEGORIES] };
-		void this.saveSettings();
-	}
-
-	/** Désélectionne toutes les catégories (une seule reste sélectionnée). */
-	clearAllCategories(): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, categories: ['classique'] };
-		void this.saveSettings();
-	}
-
-	/** Active ou désactive le mode Pokédex caché (sprites masqués). */
-	toggleNoPokedex(): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, noPokedex: !this.gameSettings.noPokedex };
-		void this.saveSettings();
-	}
-
-	/** Active ou désactive la restriction de recherche dans le Pokédex. */
-	toggleNoSearch(): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, noSearch: !this.gameSettings.noSearch };
-		void this.saveSettings();
-	}
-
-	/** Active ou désactive le mode Pokémon aléatoire. */
-	toggleRandomPokemon(): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, randomPokemon: !this.gameSettings.randomPokemon };
-		void this.saveSettings();
-	}
-
-	/** Définit quel joueur commence la partie. */
-	setFirstPlayer(value: FirstPlayer): void {
-		if (this.isConfigLocked()) return;
-		this.gameSettings = { ...this.gameSettings, firstPlayer: value };
-		void this.saveSettings();
+		this.gameSettings = settings;
+		this.pendingLocalSettings = settings;
+		void this.saveSettings(settings).then((saved) => {
+			this.pendingLocalSettings = resolvePendingSettingsAfterSave(this.pendingLocalSettings, settings, saved);
+		});
 	}
 
 	/** Retourne true si la configuration ne peut plus être modifiée (partie déjà lancée). */
@@ -561,12 +450,38 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }
 
 	/** Sauvegarde les paramètres de la partie en base de données. */
-	private async saveSettings(): Promise<void> {
+	private async saveSettings(settings: ModeSettings): Promise<boolean> {
 		try {
-			await this.gameService.updateSettings(this.roomId(), this.gameSettings);
+			if (this.gameMode === 'guess_my_pokemon') {
+				await this.gameService.updateSettings(this.roomId(), toGuessSettings(settings));
+			} else if (this.gameMode === 'who_that_pokemon') {
+				await this.supabaseService.updateWhoPokemonRoom(this.roomId(), { settings: toWhoSettings(settings) });
+			} else if (this.gameMode === 'stat_duel') {
+				await this.supabaseService.updateStatDuelRoom(this.roomId(), { settings: toGuessSettings(settings) });
+			} else if (this.gameMode === 'draft_duo') {
+				await this.supabaseService.updateDraftDuoRoom(this.roomId(), { settings: toGuessSettings(settings) });
+			}
+			return true;
 		} catch {
+			return false;
 			// ignore les erreurs de sauvegarde des paramètres
 		}
+	}
+
+	private syncRemoteSettings(mode: GameMode, settings: Partial<ModeSettings> | null | undefined): void {
+		const remoteSettings = normalizeModeSettings(mode, settings);
+		if (this.pendingLocalSettings && this.isPlayer1() && !this.isConfigLocked()) {
+			if (this.sameSettings(remoteSettings, this.pendingLocalSettings)) {
+				this.pendingLocalSettings = null;
+			} else {
+				return;
+			}
+		}
+		this.gameSettings = remoteSettings;
+	}
+
+	private sameSettings(a: ModeSettings | null | undefined, b: ModeSettings | null | undefined): boolean {
+		return JSON.stringify(a) === JSON.stringify(b);
 	}
 
 	/**
@@ -662,6 +577,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private async initStatDuelLobby(): Promise<void> {
 		try {
 			let room = await this.supabaseService.getStatDuelRoom(this.roomId());
+			this.syncRemoteSettings('stat_duel', room.settings);
 			const user = this.supabaseService.getCurrentUser();
 			if (user && !room.player2_id && room.player1_id !== user.id) {
 				await this.supabaseService.joinStatDuelRoom(this.roomId());
@@ -677,6 +593,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			} else if (room.status !== 'waiting') void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToStatDuelRoom(this.roomId()).subscribe((updated) => {
 				this.statDuelRoom.set(updated);
+				this.syncRemoteSettings('stat_duel', updated.settings);
 				if (updated.status === 'finished' && updated.winner === null) {
 					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 					return;
@@ -693,6 +610,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private async initDraftDuoLobby(): Promise<void> {
 		try {
 			let room = await this.supabaseService.getDraftDuoRoom(this.roomId());
+			this.syncRemoteSettings('draft_duo', room.settings);
 			const user = this.supabaseService.getCurrentUser();
 			if (user && !room.player2_id && room.player1_id !== user.id) {
 				await this.supabaseService.joinDraftDuoRoom(this.roomId());
@@ -708,6 +626,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			} else if (room.status !== 'waiting') void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToDraftDuoRoom(this.roomId()).subscribe((updated) => {
 				this.draftDuoRoom.set(updated);
+				this.syncRemoteSettings('draft_duo', updated.settings);
 				if (updated.status === 'finished' && updated.winner === null) {
 					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 					return;
@@ -724,6 +643,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private async initWhoPokemonLobby(): Promise<void> {
 		try {
 			let room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
+			this.syncRemoteSettings('who_that_pokemon', room.settings);
 			const user = this.supabaseService.getCurrentUser();
 			if (user && !room.player2_id && room.player1_id !== user.id) {
 				await this.supabaseService.joinWhoPokemonRoom(this.roomId());
@@ -739,6 +659,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			} else if (room.status !== 'waiting') void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()).subscribe((updated) => {
 				this.whoPokemonRoom.set(updated);
+				this.syncRemoteSettings('who_that_pokemon', updated.settings);
 				if (updated.status === 'finished' && updated.winner === null) {
 					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 					return;
@@ -774,6 +695,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				if (this.gameMode === 'stat_duel') {
 					const room = await this.supabaseService.getStatDuelRoom(this.roomId());
 					this.statDuelRoom.set(room);
+					this.syncRemoteSettings('stat_duel', room.settings);
 					if (room.status === 'finished' && room.winner === null) {
 						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 						return;
@@ -782,6 +704,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				} else if (this.gameMode === 'draft_duo') {
 					const room = await this.supabaseService.getDraftDuoRoom(this.roomId());
 					this.draftDuoRoom.set(room);
+					this.syncRemoteSettings('draft_duo', room.settings);
 					if (room.status === 'finished' && room.winner === null) {
 						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 						return;
@@ -790,6 +713,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				} else if (this.gameMode === 'who_that_pokemon') {
 					const room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
 					this.whoPokemonRoom.set(room);
+					this.syncRemoteSettings('who_that_pokemon', room.settings);
 					if (room.status === 'finished' && room.winner === null) {
 						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 						return;

@@ -85,7 +85,8 @@
 							description="Maximise ton total de base stats sur 6 Pokémon."
 							[icon]="ICONS.user"
 							accent="red"
-							(selected)="startSolo()"
+							[selected]="statConfigMode() === 'solo'"
+							(selected)="selectStatConfigMode('solo')"
 						/>
 						<app-mode-select-card
 							cardTitle="Deux joueurs en ligne"
@@ -95,6 +96,18 @@
 							(selected)="createMultiRoom()"
 						/>
 					</app-mode-select>
+
+					@if (statConfigMode() === 'solo') {
+						<div class="settings-panel-reveal w-full max-w-2xl mt-5 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
+							<app-game-settings-panel mode="stat_duel" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
+							<button
+								(click)="startSolo()"
+								class="mt-4 w-full bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors"
+							>
+								Lancer la partie
+							</button>
+						</div>
+					}
 
 					@if (isDevEnv) {
 						<div class="absolute bottom-6">

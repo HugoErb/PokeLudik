@@ -16,6 +16,7 @@ import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
 import { DraftDuoRoom } from '../../models/room.model';
+import { normalizeModeSettings } from '../../models/game-settings.model';
 import { ICONS } from '../../constants/icons';
 import { TYPE_COLORS, TYPE_ICONS } from '../../constants/type-chart';
 import {
@@ -375,7 +376,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
   /** Initialise l'etat du draft. */
   private initDraft(): void {
-    const pool = this.allPokemon();
+    const pool = this.getConfiguredPokemonPool();
     const starter = this.pickOneStarter(pool, new Set());
     const legendary = this.pickOneLegendary(pool, new Set(starter ? [starter.id] : []));
     const excludeForNormal = new Set([
@@ -461,11 +462,12 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     const slot5Unlocked = unlocked.includes(5);
     const unlockedNormal = unlocked.filter(i => i !== 0 && i !== 5);
 
-    const newStarter = slot0Unlocked ? this.pickOneStarter(this.allPokemon(), this.usedIds()) : null;
+    const pool = this.getConfiguredPokemonPool();
+    const newStarter = slot0Unlocked ? this.pickOneStarter(pool, this.usedIds()) : null;
     const excludeForNormal = new Set([...this.usedIds(), ...(newStarter ? [newStarter.id] : [])]);
-    const newNormal = this.pickNUnique(this.allPokemon(), excludeForNormal, unlockedNormal.length);
+    const newNormal = this.pickNUnique(pool, excludeForNormal, unlockedNormal.length);
     const excludeForLegend = new Set([...excludeForNormal, ...newNormal.map(p => p.id)]);
-    const newLegendary = slot5Unlocked ? this.pickOneLegendary(this.allPokemon(), excludeForLegend) : null;
+    const newLegendary = slot5Unlocked ? this.pickOneLegendary(pool, excludeForLegend) : null;
 
     const allNew = [
       ...(newStarter ? [newStarter] : []),
@@ -790,6 +792,15 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   /** Selectionne plusieurs Pokemon uniques dans le pool. */
   private pickNUnique(pool: Pokemon[], exclude: Set<number>, n: number): Pokemon[] {
     return pickNUniquePokemon(pool, exclude, n);
+  }
+
+  private getConfiguredPokemonPool(): Pokemon[] {
+    const settings = normalizeModeSettings('draft_duo', this.room()?.settings);
+    return this.allPokemon().filter(pokemon => {
+      if (settings.generations.length > 0 && !settings.generations.includes(pokemon.generation)) return false;
+      if (settings.categories.length > 0 && !settings.categories.includes(pokemon.category)) return false;
+      return true;
+    });
   }
 
   /** Precharge les images donnees. */

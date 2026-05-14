@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9R0xZdA5nJ47f86ejs3dmkkf0AEmd3XKmjkgN288Ote1ZatYk92OXrGsqfRadtL
+\restrict ycjv2D2owqdfCKHkwfE9fRAGbwm0SgawAttgn4ZsE7nboxYXeS7kwHJt80yB2pS
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 18.3
@@ -417,39 +417,19 @@ BEGIN
 
   SELECT array_agg(key) INTO v_bad_keys
   FROM jsonb_object_keys(p_patch) AS key
-  WHERE key <> ALL (ARRAY['status','p1_team','p2_team','winner','p1_ready','p2_ready','player2_id']);
+  WHERE key <> ALL (ARRAY['status','settings','p1_team','p2_team','winner','p1_ready','p2_ready','player2_id']);
   IF v_bad_keys IS NOT NULL THEN RAISE EXCEPTION 'forbidden_fields: %', v_bad_keys; END IF;
+  IF p_patch ? 'settings' AND (v_user <> v_room.player1_id OR v_room.status <> 'waiting') THEN RAISE EXCEPTION 'settings_locked'; END IF;
 
-  -- Équipes : propriétaires respectifs + limite de 6 Pokémon
   IF p_patch ? 'p1_team' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_team'; END IF;
-  IF p_patch ? 'p1_team' AND jsonb_array_length(p_patch->'p1_team') > 6 THEN RAISE EXCEPTION 'p1_team_too_large'; END IF;
   IF p_patch ? 'p2_team' AND v_user IS DISTINCT FROM v_room.player2_id AND NOT (v_user = v_room.player1_id AND p_patch->'p2_team' = '[]'::jsonb) THEN RAISE EXCEPTION 'forbidden_p2_team'; END IF;
-  IF p_patch ? 'p2_team' AND jsonb_array_length(p_patch->'p2_team') > 6 THEN RAISE EXCEPTION 'p2_team_too_large'; END IF;
-
-  -- winner : les deux joueurs peuvent le définir, mais seulement quand les deux équipes ont 6 Pokémon
-  IF p_patch ? 'winner' THEN
-    IF NULLIF(p_patch->>'winner', '') IS NOT NULL THEN
-      IF v_room.status <> 'playing' THEN RAISE EXCEPTION 'room_not_playing_for_winner'; END IF;
-      IF COALESCE(array_length(v_room.p1_team, 1), 0) < 6 OR COALESCE(array_length(v_room.p2_team, 1), 0) < 6 THEN RAISE EXCEPTION 'teams_incomplete'; END IF;
-      IF p_patch->>'winner' NOT IN ('player1','player2','draw') THEN RAISE EXCEPTION 'invalid_winner_value'; END IF;
-    ELSE
-      -- Effacement (revanche) : seul player1
-      IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_clear_winner'; END IF;
-    END IF;
-  END IF;
-
-  -- status = 'finished' exige winner dans le même appel
-  IF p_patch ? 'status' AND p_patch->>'status' = 'finished' THEN
-    IF NOT (p_patch ? 'winner') OR NULLIF(p_patch->>'winner', '') IS NULL THEN RAISE EXCEPTION 'finished_requires_winner'; END IF;
-  END IF;
-
   IF p_patch ? 'p1_ready' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_ready'; END IF;
   IF p_patch ? 'p2_ready' AND v_user IS DISTINCT FROM v_room.player2_id AND NOT (v_user = v_room.player1_id AND ((p_patch->>'p2_ready')::boolean = false OR v_room.player2_id IS NULL)) THEN RAISE EXCEPTION 'forbidden_p2_ready'; END IF;
-  IF p_patch ? 'player2_id' AND NOT (v_user = v_room.player1_id AND p_patch->>'player2_id' IS NULL AND v_room.status = 'waiting') THEN RAISE EXCEPTION 'forbidden_player2_update'; END IF;
 
   UPDATE public.draft_duo_rooms
   SET
     status = CASE WHEN p_patch ? 'status' THEN p_patch->>'status' ELSE status END,
+    settings = CASE WHEN p_patch ? 'settings' THEN p_patch->'settings' ELSE settings END,
     p1_team = CASE WHEN p_patch ? 'p1_team' THEN ARRAY(SELECT jsonb_array_elements_text(p_patch->'p1_team')::integer) ELSE p1_team END,
     p2_team = CASE WHEN p_patch ? 'p2_team' THEN ARRAY(SELECT jsonb_array_elements_text(p_patch->'p2_team')::integer) ELSE p2_team END,
     winner = CASE WHEN p_patch ? 'winner' THEN p_patch->>'winner' ELSE winner END,
@@ -563,36 +543,13 @@ BEGIN
 
   SELECT array_agg(key) INTO v_bad_keys
   FROM jsonb_object_keys(p_patch) AS key
-  WHERE key <> ALL (ARRAY['status','pokemon_ids','p1_picks','p2_picks','round_start_at','winner','p1_ready','p2_ready','player2_id']);
+  WHERE key <> ALL (ARRAY['status','settings','pokemon_ids','p1_picks','p2_picks','round_start_at','winner','p1_ready','p2_ready','player2_id']);
   IF v_bad_keys IS NOT NULL THEN RAISE EXCEPTION 'forbidden_fields: %', v_bad_keys; END IF;
-
+  IF p_patch ? 'settings' AND (v_user <> v_room.player1_id OR v_room.status <> 'waiting') THEN RAISE EXCEPTION 'settings_locked'; END IF;
   IF (p_patch ? 'pokemon_ids' OR p_patch ? 'round_start_at') AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_launch'; END IF;
 
-  -- p1_picks / p2_picks : uniquement reset à [] par player1 (lancement / revanche)
-  IF p_patch ? 'p1_picks' THEN
-    IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_picks'; END IF;
-    IF p_patch->'p1_picks' <> '[]'::jsonb THEN RAISE EXCEPTION 'p1_picks_must_be_empty_array'; END IF;
-  END IF;
-  IF p_patch ? 'p2_picks' THEN
-    IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p2_picks_reset'; END IF;
-    IF p_patch->'p2_picks' <> '[]'::jsonb THEN RAISE EXCEPTION 'p2_picks_must_be_empty_array'; END IF;
-  END IF;
-
-  -- winner : seul player1, uniquement quand les 6 manches sont terminées
-  IF p_patch ? 'winner' THEN
-    IF v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_set_winner'; END IF;
-    IF NULLIF(p_patch->>'winner', '') IS NOT NULL THEN
-      IF v_room.status <> 'playing' THEN RAISE EXCEPTION 'room_not_playing_for_winner'; END IF;
-      IF jsonb_array_length(v_room.p1_picks) < 6 OR jsonb_array_length(v_room.p2_picks) < 6 THEN RAISE EXCEPTION 'picks_incomplete'; END IF;
-      IF p_patch->>'winner' NOT IN ('player1','player2','draw') THEN RAISE EXCEPTION 'invalid_winner_value'; END IF;
-    END IF;
-  END IF;
-
-  -- status = 'finished' exige winner dans le même appel
-  IF p_patch ? 'status' AND p_patch->>'status' = 'finished' THEN
-    IF NOT (p_patch ? 'winner') OR NULLIF(p_patch->>'winner', '') IS NULL THEN RAISE EXCEPTION 'finished_requires_winner'; END IF;
-  END IF;
-
+  IF p_patch ? 'p1_picks' AND (v_user <> v_room.player1_id OR p_patch->'p1_picks' <> '[]'::jsonb) THEN RAISE EXCEPTION 'forbidden_p1_picks'; END IF;
+  IF p_patch ? 'p2_picks' AND (v_user <> v_room.player1_id OR p_patch->'p2_picks' <> '[]'::jsonb) THEN RAISE EXCEPTION 'forbidden_p2_picks'; END IF;
   IF p_patch ? 'p1_ready' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_ready'; END IF;
   IF p_patch ? 'p2_ready' AND v_user IS DISTINCT FROM v_room.player2_id AND NOT (v_user = v_room.player1_id AND ((p_patch->>'p2_ready')::boolean = false OR v_room.player2_id IS NULL)) THEN RAISE EXCEPTION 'forbidden_p2_ready'; END IF;
   IF p_patch ? 'player2_id' AND NOT (v_user = v_room.player1_id AND p_patch->>'player2_id' IS NULL AND v_room.status = 'waiting') THEN RAISE EXCEPTION 'forbidden_player2_update'; END IF;
@@ -600,6 +557,7 @@ BEGIN
   UPDATE public.stat_duel_rooms
   SET
     status = CASE WHEN p_patch ? 'status' THEN p_patch->>'status' ELSE status END,
+    settings = CASE WHEN p_patch ? 'settings' THEN p_patch->'settings' ELSE settings END,
     pokemon_ids = CASE WHEN p_patch ? 'pokemon_ids' THEN ARRAY(SELECT jsonb_array_elements_text(p_patch->'pokemon_ids')::integer) ELSE pokemon_ids END,
     p1_picks = CASE WHEN p_patch ? 'p1_picks' THEN p_patch->'p1_picks' ELSE p1_picks END,
     p2_picks = CASE WHEN p_patch ? 'p2_picks' THEN p_patch->'p2_picks' ELSE p2_picks END,
@@ -635,12 +593,7 @@ BEGIN
   FROM jsonb_object_keys(p_patch) AS key
   WHERE key <> ALL (ARRAY['status','settings','round','target_pokemon_id','used_pokemon_ids','p1_score','p2_score','p1_lives','p2_lives','winner','p1_ready','p2_ready','player2_id']);
   IF v_bad_keys IS NOT NULL THEN RAISE EXCEPTION 'forbidden_fields: %', v_bad_keys; END IF;
-
   IF p_patch ? 'settings' AND (v_user <> v_room.player1_id OR v_room.status <> 'waiting') THEN RAISE EXCEPTION 'settings_locked'; END IF;
-  IF p_patch ? 'player2_id' AND NOT (v_user = v_room.player1_id AND p_patch->>'player2_id' IS NULL AND v_room.status = 'waiting') THEN RAISE EXCEPTION 'forbidden_player2_update'; END IF;
-  IF (p_patch ? 'round' OR p_patch ? 'target_pokemon_id' OR p_patch ? 'used_pokemon_ids' OR p_patch ? 'p1_score' OR p_patch ? 'p2_score' OR p_patch ? 'p1_lives' OR p_patch ? 'p2_lives') AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'only_player1_can_control_game'; END IF;
-  IF p_patch ? 'p1_ready' AND v_user <> v_room.player1_id THEN RAISE EXCEPTION 'forbidden_p1_ready'; END IF;
-  IF p_patch ? 'p2_ready' AND v_user IS DISTINCT FROM v_room.player2_id THEN RAISE EXCEPTION 'forbidden_p2_ready'; END IF;
 
   UPDATE public.who_that_pokemon_rooms
   SET
@@ -694,6 +647,7 @@ CREATE TABLE public.draft_duo_rooms (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     p1_ready boolean DEFAULT false NOT NULL,
     p2_ready boolean DEFAULT false NOT NULL,
+    settings jsonb,
     CONSTRAINT draft_duo_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text])))
 );
 
@@ -778,6 +732,7 @@ CREATE TABLE public.stat_duel_rooms (
     created_at timestamp with time zone DEFAULT now(),
     p1_ready boolean DEFAULT false NOT NULL,
     p2_ready boolean DEFAULT false NOT NULL,
+    settings jsonb,
     CONSTRAINT stat_duel_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text])))
 );
 
@@ -1396,5 +1351,5 @@ CREATE POLICY who_that_pokemon_rooms_select ON public.who_that_pokemon_rooms FOR
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9R0xZdA5nJ47f86ejs3dmkkf0AEmd3XKmjkgN288Ote1ZatYk92OXrGsqfRadtL
+\unrestrict ycjv2D2owqdfCKHkwfE9fRAGbwm0SgawAttgn4ZsE7nboxYXeS7kwHJt80yB2pS
 

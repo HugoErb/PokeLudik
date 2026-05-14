@@ -95,6 +95,7 @@ export interface StatDuelRoom {
   winner: 'player1' | 'player2' | 'draw' | null;
   p1_ready: boolean;
   p2_ready: boolean;
+  settings: GameSettings | null;
   created_at: string;
 }
 
@@ -108,6 +109,7 @@ export interface DraftDuoRoom {
   winner: 'player1' | 'player2' | 'draw' | null;
   p1_ready: boolean;
   p2_ready: boolean;
+  settings: GameSettings | null;
   created_at: string;
 }
 

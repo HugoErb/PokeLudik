@@ -16,8 +16,11 @@ import { EndGameActionsComponent } from '../../components/end-game-actions/end-g
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { environment } from '../../../environments/environment';
+import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
+import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toGuessSettings } from '../../models/game-settings.model';
 
 type Phase = 'mode-select' | 'waiting' | 'playing' | 'result';
+type StatConfigMode = 'solo';
 
 interface StatDef {
     key: keyof Pokemon['stats'];
@@ -43,7 +46,7 @@ const ROUND_DURATION_MS = ROUND_PICK_TIME_MS + ROUND_TRANSITION_TIME_MS;
 @Component({
     selector: 'app-stat-duel',
     standalone: true,
-    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent],
+    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     templateUrl: './stat-duel.component.html',
     styles: [`
@@ -76,10 +79,12 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     // --- Phase & mode ------------------------------------------------------------
     phase = signal<Phase>('mode-select');
+    statConfigMode = signal<StatConfigMode | null>(null);
     isSolo = signal(true);
     isDevMode = signal(false);
     isPlayer1 = signal(false);
     roomId: string | null = null;
+    settings = signal<ModeSettings>({ ...DEFAULT_MODE_SETTINGS.stat_duel });
 
     // Game state
     pokemonList = signal<Pokemon[]>([]);
@@ -223,7 +228,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     /** Demarre une partie solo. */
     async startSolo(): Promise<void> {
         this.isSolo.set(true);
-        const allPokemon = await this.loadAll();
+        const allPokemon = this.getConfiguredPokemonPool(await this.loadAll());
         const list = this.shuffle(allPokemon).slice(0, ROUND_COUNT);
         this.pokemonList.set(list);
         this.preloadImages(list);
@@ -231,6 +236,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.currentRound.set(0);
         this.phase.set('playing');
         this.startPokemonAnimation(() => this.startSoloClock());
+    }
+
+    selectStatConfigMode(mode: StatConfigMode): void {
+        this.statConfigMode.set(mode);
     }
 
     /** Cree une room multijoueur. */
@@ -242,7 +251,12 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     /** Demarre le mode developpement. */
     async startDevMode(): Promise<void> {
         const roomId = await this.supabaseService.createStatDuelRoom();
+        await this.supabaseService.updateStatDuelRoom(roomId, { settings: toGuessSettings(this.settings()) });
         void this.router.navigate(['/stat-duel', roomId], { queryParams: { dev: '1' } });
+    }
+
+    updateGameSettings(settings: ModeSettings): void {
+        this.settings.set(settings);
     }
 
     // --- Multi init --------------------------------------------------------------
@@ -256,6 +270,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
         const room = await this.supabaseService.getStatDuelRoom(roomId);
         this.room.set(room);
+        this.settings.set(normalizeModeSettings('stat_duel', room.settings));
         if (room.status === 'finished' && room.winner === null) {
             void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
             return;
@@ -277,6 +292,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
         this.roomSub = this.supabaseService.subscribeToStatDuelRoom(roomId).subscribe(async (updated) => {
             this.room.set(updated);
+            this.settings.set(normalizeModeSettings('stat_duel', updated.settings));
             if (updated.status === 'finished' && updated.winner === null) {
                 this.stopClock();
                 void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
@@ -403,13 +419,14 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
         this.isLaunching.set(true);
         try {
-            const allPokemon = await this.loadAll();
+            const allPokemon = this.getConfiguredPokemonPool(await this.loadAll(), currentRoom.settings);
             const pokemonIds = this.shuffle(allPokemon).slice(0, ROUND_COUNT).map(p => p.id);
             // Delay round start until the VS animation has finished
             const roundStartAt = new Date(Date.now() + 3000).toISOString();
 
             await this.supabaseService.updateStatDuelRoom(this.roomId, {
                 status: 'playing',
+                settings: toGuessSettings(normalizeModeSettings('stat_duel', currentRoom.settings ?? this.settings())),
                 pokemon_ids: pokemonIds,
                 round_start_at: roundStartAt,
             });
@@ -874,11 +891,12 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         if (!this.roomId) return;
         const currentRoom = this.room();
         if (!currentRoom) return;
-        const allPokemon = await this.loadAll();
+        const allPokemon = this.getConfiguredPokemonPool(await this.loadAll(), currentRoom.settings);
         const pokemonIds = this.shuffle(allPokemon).slice(0, ROUND_COUNT).map(p => p.id);
         const roundStartAt = new Date(Date.now() + 3000).toISOString();
         await this.supabaseService.updateStatDuelRoom(this.roomId, {
             status: 'playing',
+            settings: toGuessSettings(normalizeModeSettings('stat_duel', currentRoom.settings ?? this.settings())),
             pokemon_ids: pokemonIds,
             p1_picks: [],
             p2_picks: [],
@@ -995,6 +1013,15 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             [a[i], a[j]] = [a[j], a[i]];
         }
         return a;
+    }
+
+    private getConfiguredPokemonPool(pokemons: Pokemon[], sourceSettings: Partial<ModeSettings> | null | undefined = this.settings()): Pokemon[] {
+        const settings = normalizeModeSettings('stat_duel', sourceSettings);
+        return pokemons.filter(pokemon => {
+            if (settings.generations.length > 0 && !settings.generations.includes(pokemon.generation)) return false;
+            if (settings.categories.length > 0 && !settings.categories.includes(pokemon.category)) return false;
+            return true;
+        });
     }
 
     /** Retourne la largeur CSS d'une barre de statistique. */

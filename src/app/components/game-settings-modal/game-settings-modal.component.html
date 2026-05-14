@@ -1,77 +1,18 @@
-		<div
+﻿		<div
 			class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
 			(click)="close.emit()"
 			[@modalAnimation]
 		>
 			<div
-				class="bg-slate-800 border border-slate-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-5 modal-content relative"
+				class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-2xl w-full shadow-xl flex flex-col gap-5 modal-content relative"
 				(click)="$event.stopPropagation()"
 			>
 				<button (click)="close.emit()" class="absolute top-4 right-4 z-10 bg-slate-900/60 hover:bg-red-600 rounded-full w-8 h-8 flex items-center justify-center text-slate-300 hover:text-white transition-colors">
 					<iconify-icon [icon]="ICONS.close" class="text-lg"></iconify-icon>
 				</button>
 
-				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center border border-blue-500/30">
-						<iconify-icon [icon]="ICONS.rules" class="text-2xl text-blue-400"></iconify-icon>
-					</div>
-					<div>
-						<h2 class="text-lg font-bold text-white uppercase tracking-wider">Configuration</h2>
-						<p class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em]">Paramètres de la partie</p>
-					</div>
-				</div>
+				<app-game-settings-panel mode="guess_my_pokemon" [settings]="normalizedSettings()" [readonly]="true" [compact]="true" />
 
-				<div class="space-y-3">
-					<!-- Générations -->
-					<div class="bg-slate-900/40 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-2">
-						<div class="flex items-center justify-between">
-							<span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Générations</span>
-							<span class="px-2 py-0.5 bg-blue-600/20 text-blue-400 text-[10px] font-black rounded uppercase">
-								{{ settings().generations.length === 0 ? "Toutes" : settings().generations.length + " Actives" }}
-							</span>
-						</div>
-						<div class="flex flex-wrap gap-1.5">
-							@for (gen of [1, 2, 3, 4, 5, 6, 7, 8, 9]; track gen) {
-								@if (settings().generations.length === 0 || settings().generations.includes(gen)) {
-									<span class="text-[11px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-										Gén {{ gen }}
-									</span>
-								} @else {
-									<span
-										class="text-[11px] font-bold text-slate-600 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 opacity-40 line-through"
-									>
-										Gén {{ gen }}
-									</span>
-								}
-							}
-						</div>
-					</div>
-
-					<!-- Restrictions Pokédex -->
-					<div class="grid grid-cols-2 gap-3">
-						<div class="bg-slate-900/40 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1 items-center text-center">
-							<span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pokédex</span>
-							@if (settings().noPokedex) {
-								<iconify-icon [icon]="ICONS.close" class="text-xl text-red-500"></iconify-icon>
-								<span class="text-[11px] font-bold text-red-400 uppercase">Désactivé</span>
-							} @else {
-								<iconify-icon [icon]="ICONS.check" class="text-xl text-green-500"></iconify-icon>
-								<span class="text-[11px] font-bold text-green-400 uppercase">Activé</span>
-							}
-						</div>
-
-						<div class="bg-slate-900/40 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1 items-center text-center">
-							<span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Recherche</span>
-							@if (settings().noSearch) {
-								<iconify-icon [icon]="ICONS.close" class="text-xl text-red-500"></iconify-icon>
-								<span class="text-[11px] font-bold text-red-400 uppercase">Désactivée</span>
-							} @else {
-								<iconify-icon [icon]="ICONS.check" class="text-xl text-green-500"></iconify-icon>
-								<span class="text-[11px] font-bold text-green-400 uppercase">Activée</span>
-							}
-						</div>
-					</div>
-				</div>
 
 				<button
 					(click)="close.emit()"
