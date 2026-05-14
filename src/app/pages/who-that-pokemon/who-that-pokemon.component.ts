@@ -22,9 +22,11 @@ import {
   getWhoHintOrder,
   nextSoloState,
   pickWhoPokemonSequence,
+  resolveWhoInitialHint,
   WHO_MAX_HINTS,
   WHO_TOTAL_ROUNDS,
   WhoInitialHintMode,
+  WhoInitialHintSetting,
   WhoRevealedHint,
   WhoSoloState,
 } from '../../utils/who-that-pokemon-utils';
@@ -71,11 +73,12 @@ type WhoConfigMode = 'solo';
 export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   protected readonly ICONS = ICONS;
   protected readonly maxHints = WHO_MAX_HINTS;
-  protected readonly hintModes: { value: WhoInitialHintMode; label: string; icon: string }[] = [
+  protected readonly hintModes: { value: WhoInitialHintSetting; label: string; icon: string }[] = [
     { value: 'silhouette', label: 'Silhouette', icon: ICONS.whoPokemon },
     { value: 'cry', label: 'Cri', icon: ICONS.sound },
-    { value: 'pokedex_number', label: 'Numéro', icon: ICONS.pokedex },
+    { value: 'pokedex_number', label: 'Numéro de Pokédex', icon: ICONS.pokedex },
     { value: 'description', label: 'Description', icon: ICONS.rules },
+    { value: 'random', label: 'Aléatoire', icon: ICONS.dice },
   ];
 
   readonly roomId = input<string | undefined>();
@@ -210,7 +213,14 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     const playerSeed = room ? (this.isPlayer1() ? 101 : 202) : 0;
     return getWhoHintOrder(target.id + roundSeed + playerSeed, this.initialHint()).slice(0, this.myHintsRevealed());
   });
-  readonly initialHint = computed<WhoInitialHintMode>(() => this.settings().initialHint ?? 'silhouette');
+  readonly initialHint = computed<WhoInitialHintMode>(() => {
+    const target = this.targetPokemon();
+    if (!target) return 'silhouette';
+    const room = this.room();
+    const roundSeed = room ? room.round : this.soloState().roundIndex + 1;
+    const playerSeed = room ? (this.isPlayer1() ? 101 : 202) : 0;
+    return resolveWhoInitialHint(target.id + roundSeed + playerSeed, this.settings().initialHint ?? 'silhouette');
+  });
   readonly visibleHints = computed<WhoRevealedHint[]>(() => [this.initialHint(), ...this.revealedHints()]);
   readonly targetAnimationKey = computed(() => this.targetPokemon()?.id ?? 0);
 

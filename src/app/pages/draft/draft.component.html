@@ -80,8 +80,9 @@
 						<app-game-settings-panel mode="draft_duo" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
 						<button
 							(click)="startSolo()"
-							class="mt-4 w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors"
+							class="mt-4 w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors flex items-center justify-center gap-2"
 						>
+							<iconify-icon [icon]="ICONS.play" class="text-xl"></iconify-icon>
 							Lancer la partie
 						</button>
 					</div>

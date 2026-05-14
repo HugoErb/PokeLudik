@@ -2,7 +2,7 @@ import type { GameMode } from './room.model';
 
 export type SettingsMode = GameMode | 'draft_trainer';
 export type FirstPlayer = 'player1' | 'player2' | 'random';
-export type WhoInitialHint = 'silhouette' | 'cry' | 'pokedex_number' | 'description';
+export type WhoInitialHint = 'silhouette' | 'cry' | 'pokedex_number' | 'description' | 'random';
 
 export type SettingsControl =
   | 'generations'

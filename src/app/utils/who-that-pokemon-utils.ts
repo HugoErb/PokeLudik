@@ -2,12 +2,13 @@ import { Pokemon } from '../models/pokemon.model';
 
 export type WhoHintMode = 'silhouette' | 'cry' | 'pokedex_number' | 'description' | 'first_letter';
 export type WhoInitialHintMode = Exclude<WhoHintMode, 'first_letter'>;
+export type WhoInitialHintSetting = WhoInitialHintMode | 'random';
 export type WhoRevealedHint = WhoHintMode;
 
 export interface WhoGameSettings {
   generations: number[];
   categories: string[];
-  initialHint: WhoInitialHintMode;
+  initialHint: WhoInitialHintSetting;
 }
 
 export interface WhoSoloState {
@@ -119,8 +120,15 @@ function advanceDuoRound(state: WhoDuoRoundState): WhoDuoRoundState {
   };
 }
 
-export function getWhoHintOrder(seed: number, initialHint: WhoInitialHintMode = 'silhouette'): WhoRevealedHint[] {
-  const hints = WHO_HINT_MODES.filter(hint => hint !== initialHint);
+export function resolveWhoInitialHint(seed: number, initialHint: WhoInitialHintSetting = 'silhouette'): WhoInitialHintMode {
+  if (initialHint !== 'random') return initialHint;
+  const playableHints: WhoInitialHintMode[] = ['silhouette', 'cry', 'pokedex_number', 'description'];
+  return playableHints[Math.abs(seed || 1) % playableHints.length];
+}
+
+export function getWhoHintOrder(seed: number, initialHint: WhoInitialHintSetting = 'silhouette'): WhoRevealedHint[] {
+  const resolvedInitialHint = resolveWhoInitialHint(seed, initialHint);
+  const hints = WHO_HINT_MODES.filter(hint => hint !== resolvedInitialHint);
   let value = seed || 1;
   for (let index = hints.length - 1; index > 0; index--) {
     value = (value * 9301 + 49297) % 233280;

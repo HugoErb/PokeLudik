@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
 export interface WhoGameSettings {
   generations: number[];
   categories: string[];
-  initialHint: 'silhouette' | 'cry' | 'pokedex_number' | 'description';
+  initialHint: 'silhouette' | 'cry' | 'pokedex_number' | 'description' | 'random';
 }
 
 export const DEFAULT_WHO_SETTINGS: WhoGameSettings = {

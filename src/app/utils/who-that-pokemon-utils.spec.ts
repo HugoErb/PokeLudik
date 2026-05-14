@@ -4,6 +4,7 @@ import {
   getWhoHintOrder,
   nextSoloState,
   pickWhoPokemonSequence,
+  resolveWhoInitialHint,
   resolveDuoGuess,
   WHO_MAX_HINTS,
   WhoDuoRoundState,
@@ -74,6 +75,12 @@ describe('who-that-pokemon-utils', () => {
 
     expect(result).not.toContain('cry');
     expect(result).toContain('silhouette');
+  });
+
+  it('resout un indice initial aleatoire en indice jouable', () => {
+    const result = resolveWhoInitialHint(25, 'random');
+
+    expect(['silhouette', 'cry', 'pokedex_number', 'description']).toContain(result);
   });
 
   it('bloque un joueur duo a 0 vie apres une mauvaise reponse', () => {

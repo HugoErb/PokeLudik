@@ -48,8 +48,9 @@ export class GameSettingsPanelComponent {
   protected readonly hintModes: { value: WhoInitialHint; label: string; icon: string }[] = [
     { value: 'silhouette', label: 'Silhouette', icon: ICONS.whoPokemon },
     { value: 'cry', label: 'Cri', icon: ICONS.sound },
-    { value: 'pokedex_number', label: 'Numéro', icon: ICONS.pokedex },
+    { value: 'pokedex_number', label: 'Numéro de Pokédex', icon: ICONS.pokedex },
     { value: 'description', label: 'Description', icon: ICONS.rules },
+    { value: 'random', label: 'Aléatoire', icon: ICONS.dice },
   ];
 
   protected readonly definition = computed(() => getSettingsDefinition(this.mode()));
