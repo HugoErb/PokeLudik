@@ -2,8 +2,8 @@
   <div class="flex flex-col gap-2.5 text-left" [class.text-xs]="compact()">
     @if (hasControl('generations')) {
       <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col" [class.gap-2]="settings().generations.length > 0" [class.opacity-60]="readonly()">
-        <div class="flex items-center justify-between gap-3">
-          <div>
+        <div class="flex items-start sm:items-center justify-between gap-3">
+          <div class="min-w-0">
             <p class="text-sm font-semibold text-white">Par génération</p>
             <p class="text-xs text-slate-400">Restreindre aux Pokémon des générations choisies</p>
           </div>
@@ -36,8 +36,8 @@
 
     @if (hasControl('categories')) {
       <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col" [class.gap-2]="settings().categories.length > 0" [class.opacity-60]="readonly()">
-        <div class="flex items-center justify-between gap-3">
-          <div>
+        <div class="flex items-start sm:items-center justify-between gap-3">
+          <div class="min-w-0">
             <p class="text-sm font-semibold text-white">Par catégorie</p>
             <p class="text-xs text-slate-400">Restreindre aux Pokémon des catégories choisies</p>
           </div>
@@ -69,8 +69,8 @@
     }
 
     @if (hasControl('noPokedex')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-center justify-between gap-3" [class.opacity-60]="readonly()">
-        <div><p class="text-sm font-semibold text-white">Sans Pokédex</p><p class="text-xs text-slate-400">Les Pokémon n'affichent que leur nom</p></div>
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-start sm:items-center justify-between gap-3" [class.opacity-60]="readonly()">
+        <div class="min-w-0"><p class="text-sm font-semibold text-white">Sans Pokédex</p><p class="text-xs text-slate-400">Les Pokémon n'affichent que leur nom</p></div>
         <button (click)="update({ noPokedex: !settings().noPokedex })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().noPokedex" [class.bg-slate-600]="!settings().noPokedex">
           <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().noPokedex"></span>
         </button>
@@ -78,8 +78,8 @@
     }
 
     @if (hasControl('noSearch')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-center justify-between gap-3" [class.opacity-60]="readonly()">
-        <div><p class="text-sm font-semibold text-white">Sans filtres</p><p class="text-xs text-slate-400">Les filtres du Pokédex sont désactivés</p></div>
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-start sm:items-center justify-between gap-3" [class.opacity-60]="readonly()">
+        <div class="min-w-0"><p class="text-sm font-semibold text-white">Sans filtres</p><p class="text-xs text-slate-400">Les filtres du Pokédex sont désactivés</p></div>
         <button (click)="update({ noSearch: !settings().noSearch })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().noSearch" [class.bg-slate-600]="!settings().noSearch">
           <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().noSearch"></span>
         </button>
@@ -87,8 +87,8 @@
     }
 
     @if (hasControl('randomPokemon')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-center justify-between gap-3" [class.opacity-60]="readonly()">
-        <div><p class="text-sm font-semibold text-white">Pokémon aléatoire</p><p class="text-xs text-slate-400">Les Pokémon sont assignés automatiquement</p></div>
+      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-start sm:items-center justify-between gap-3" [class.opacity-60]="readonly()">
+        <div class="min-w-0"><p class="text-sm font-semibold text-white">Pokémon aléatoire</p><p class="text-xs text-slate-400">Les Pokémon sont assignés automatiquement</p></div>
         <button (click)="update({ randomPokemon: !settings().randomPokemon })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().randomPokemon" [class.bg-slate-600]="!settings().randomPokemon">
           <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().randomPokemon"></span>
         </button>
@@ -98,9 +98,9 @@
     @if (hasControl('firstPlayer')) {
       <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col gap-2" [class.opacity-60]="readonly()">
         <div><p class="text-sm font-semibold text-white">Premier joueur</p><p class="text-xs text-slate-400">Choisir le joueur qui commence</p></div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap sm:flex-nowrap gap-2">
           @for (option of firstPlayerOptions; track option.value) {
-            <button (click)="setFirstPlayer(option.value)" [disabled]="readonly()" [class]="settings().firstPlayer === option.value ? 'flex-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'flex-1 px-2 py-1.5 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
+            <button (click)="setFirstPlayer(option.value)" [disabled]="readonly()" [class]="settings().firstPlayer === option.value ? 'flex-1 min-w-20 sm:min-w-0 px-2 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'flex-1 min-w-20 sm:min-w-0 px-2 py-1.5 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
               {{ option.label }}
             </button>
           }
@@ -113,7 +113,7 @@
         <div><p class="text-sm font-semibold text-white">Indice de départ</p><p class="text-xs text-slate-400">Indice affiché au début de chaque manche</p></div>
         <div class="flex flex-wrap gap-1">
           @for (mode of hintModes; track mode.value) {
-            <button (click)="setInitialHint(mode.value)" [disabled]="readonly()" [class]="settings().initialHint === mode.value ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
+            <button (click)="setInitialHint(mode.value)" [disabled]="readonly()" [class]="settings().initialHint === mode.value ? 'flex-1 sm:flex-none min-w-24 sm:min-w-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'flex-1 sm:flex-none min-w-24 sm:min-w-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
               {{ mode.label }}
             </button>
           }
