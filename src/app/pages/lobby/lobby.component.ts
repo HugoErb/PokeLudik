@@ -19,6 +19,7 @@ import { GameSettingsPanelComponent } from '../../components/game-settings-panel
 import { ICONS } from '../../constants/icons';
 import { modalAnimation } from '../../constants/animations';
 import { buildWhoPokemonPool, pickWhoPokemonSequence } from '../../utils/who-that-pokemon-utils';
+import { shouldEnterMultiplayerGame } from '../../utils/multiplayer-room-state';
 
 type DuelIntroPlayer = { username: string; avatar_url?: string };
 
@@ -588,17 +589,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=stat_duel`;
 			this.supabaseService.trackPresence('in_game');
 			this.subscribeInviteDecline();
-			if (room.status === 'finished' && room.winner === null) {
+			if (room.status === 'finished') {
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
-			} else if (room.status !== 'waiting') void this.navigateToPlay();
+			} else if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToStatDuelRoom(this.roomId()).subscribe((updated) => {
 				this.statDuelRoom.set(updated);
 				this.syncRemoteSettings('stat_duel', updated.settings);
-				if (updated.status === 'finished' && updated.winner === null) {
+				if (updated.status === 'finished') {
 					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 					return;
 				}
-				if (updated.status !== 'waiting') void this.navigateToPlay();
+				if (shouldEnterMultiplayerGame(updated)) void this.navigateToPlay();
 			});
 			this.startMultiPoll();
 		} catch {
@@ -621,17 +622,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=draft_duo`;
 			this.supabaseService.trackPresence('in_game');
 			this.subscribeInviteDecline();
-			if (room.status === 'finished' && room.winner === null) {
+			if (room.status === 'finished') {
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
-			} else if (room.status !== 'waiting') void this.navigateToPlay();
+			} else if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToDraftDuoRoom(this.roomId()).subscribe((updated) => {
 				this.draftDuoRoom.set(updated);
 				this.syncRemoteSettings('draft_duo', updated.settings);
-				if (updated.status === 'finished' && updated.winner === null) {
+				if (updated.status === 'finished') {
 					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 					return;
 				}
-				if (updated.status !== 'waiting') void this.navigateToPlay();
+				if (shouldEnterMultiplayerGame(updated)) void this.navigateToPlay();
 			});
 			this.startMultiPoll();
 		} catch {
@@ -654,17 +655,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=who_that_pokemon`;
 			this.supabaseService.trackPresence('in_game');
 			this.subscribeInviteDecline();
-			if (room.status === 'finished' && room.winner === null) {
+			if (room.status === 'finished') {
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
-			} else if (room.status !== 'waiting') void this.navigateToPlay();
+			} else if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 			this.multiRoomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()).subscribe((updated) => {
 				this.whoPokemonRoom.set(updated);
 				this.syncRemoteSettings('who_that_pokemon', updated.settings);
-				if (updated.status === 'finished' && updated.winner === null) {
+				if (updated.status === 'finished') {
 					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 					return;
 				}
-				if (updated.status !== 'waiting') void this.navigateToPlay();
+				if (shouldEnterMultiplayerGame(updated)) void this.navigateToPlay();
 			});
 			this.startMultiPoll();
 			this.pokemonsSub = this.pokemonService.loadAll().subscribe((pokemons) => {
@@ -696,29 +697,29 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					const room = await this.supabaseService.getStatDuelRoom(this.roomId());
 					this.statDuelRoom.set(room);
 					this.syncRemoteSettings('stat_duel', room.settings);
-					if (room.status === 'finished' && room.winner === null) {
+					if (room.status === 'finished') {
 						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 						return;
 					}
-					if (room.status !== 'waiting') void this.navigateToPlay();
+					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				} else if (this.gameMode === 'draft_duo') {
 					const room = await this.supabaseService.getDraftDuoRoom(this.roomId());
 					this.draftDuoRoom.set(room);
 					this.syncRemoteSettings('draft_duo', room.settings);
-					if (room.status === 'finished' && room.winner === null) {
+					if (room.status === 'finished') {
 						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 						return;
 					}
-					if (room.status !== 'waiting') void this.navigateToPlay();
+					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				} else if (this.gameMode === 'who_that_pokemon') {
 					const room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
 					this.whoPokemonRoom.set(room);
 					this.syncRemoteSettings('who_that_pokemon', room.settings);
-					if (room.status === 'finished' && room.winner === null) {
+					if (room.status === 'finished') {
 						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 						return;
 					}
-					if (room.status !== 'waiting') void this.navigateToPlay();
+					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				}
 			} catch {
 				// ignore les erreurs de polling

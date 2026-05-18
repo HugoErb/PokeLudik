@@ -259,9 +259,6 @@ export class SupabaseService implements OnDestroy {
                 .on('broadcast', { event: '*' }, ({ event, payload }) => {
                     this.broadcastSubject.next({ event, payload });
                 })
-                .on('presence', { event: 'leave' }, ({ key }) => {
-                    this.emitPlayerLeftIfOpponent(key);
-                })
                 .subscribe((status) => {
                     if (status === 'CHANNEL_ERROR') {
                         observer.error(new Error(`Erreur canal room-${roomId}`));
@@ -377,9 +374,6 @@ export class SupabaseService implements OnDestroy {
                 .on('broadcast', { event: '*' }, ({ event, payload }) => {
                     this.broadcastSubject.next({ event, payload });
                 })
-                .on('presence', { event: 'leave' }, ({ key }) => {
-                    this.emitPlayerLeftIfOpponent(key);
-                })
                 .subscribe((status) => {
                     if (status === 'CHANNEL_ERROR') {
                         observer.error(new Error(`Erreur canal stat-duel-${roomId}`));
@@ -462,9 +456,6 @@ export class SupabaseService implements OnDestroy {
                 )
                 .on('broadcast', { event: '*' }, ({ event, payload }) => {
                     this.broadcastSubject.next({ event, payload });
-                })
-                .on('presence', { event: 'leave' }, ({ key }) => {
-                    this.emitPlayerLeftIfOpponent(key);
                 })
                 .subscribe((status) => {
                     if (status === 'CHANNEL_ERROR') {
@@ -550,9 +541,6 @@ export class SupabaseService implements OnDestroy {
                 .on('broadcast', { event: '*' }, ({ event, payload }) => {
                     this.broadcastSubject.next({ event, payload });
                 })
-                .on('presence', { event: 'leave' }, ({ key }) => {
-                    this.emitPlayerLeftIfOpponent(key);
-                })
                 .subscribe((status) => {
                     if (status === 'CHANNEL_ERROR') observer.error(new Error(`Erreur canal who-that-pokemon-${roomId}`));
                     if (status === 'SUBSCRIBED' && user) void channel.track({ user_id: user.id });
@@ -616,13 +604,6 @@ export class SupabaseService implements OnDestroy {
     }
 
     /** Retourne l'utilisateur courant ou null s'il n'est pas connecté. */
-    /** Signale localement le depart d'un autre joueur detecte par Presence. */
-    private emitPlayerLeftIfOpponent(leftUserId: string): void {
-        const currentUserId = this.getCurrentUser()?.id;
-        if (currentUserId && leftUserId === currentUserId) return;
-        this.broadcastSubject.next({ event: 'player_left', payload: {} });
-    }
-
     getCurrentUser(): User | null {
         return this.userSubject.getValue();
     }
@@ -862,21 +843,33 @@ export class SupabaseService implements OnDestroy {
 
     /** Accepte une invitation de jeu et rejoint la room correspondant au mode. */
     async acceptGameInvite(inviteId: string, roomId: string, gameMode: GameMode = 'guess_my_pokemon'): Promise<void> {
-        let joinFn: Promise<void>;
+        const me = this.getCurrentUser();
+        if (!me) throw new Error('Non connecté');
+
+        const { data: invite, error: inviteError } = await this.supabase
+            .from('game_invites')
+            .select('id, recipient_id, room_id, game_mode, status')
+            .eq('id', inviteId)
+            .single();
+
+        if (inviteError) throw inviteError;
+        const currentInvite = invite as Pick<GameInvite, 'id' | 'recipient_id' | 'room_id' | 'game_mode' | 'status'>;
+        if (currentInvite.recipient_id !== me.id) throw new Error('Invitation non autorisée');
+        if (currentInvite.room_id !== roomId || currentInvite.game_mode !== gameMode) throw new Error('Invitation incohérente');
+        if (currentInvite.status !== 'pending') throw new Error('Invitation déjà traitée');
+
         if (gameMode === 'stat_duel') {
-            joinFn = this.joinStatDuelRoom(roomId);
+            await this.joinStatDuelRoom(roomId);
         } else if (gameMode === 'draft_duo') {
-            joinFn = this.joinDraftDuoRoom(roomId);
+            await this.joinDraftDuoRoom(roomId);
         } else if (gameMode === 'who_that_pokemon') {
-            joinFn = this.joinWhoPokemonRoom(roomId);
+            await this.joinWhoPokemonRoom(roomId);
         } else {
-            joinFn = this.joinRoom(roomId);
+            await this.joinRoom(roomId);
         }
 
-        await Promise.all([
-            this.supabase.from('game_invites').update({ status: 'accepted' }).eq('id', inviteId),
-            joinFn,
-        ]);
+        const { error } = await this.supabase.from('game_invites').update({ status: 'accepted' }).eq('id', inviteId);
+        if (error) throw error;
     }
 
     /** Refuse une invitation de jeu. */
