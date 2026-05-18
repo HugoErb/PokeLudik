@@ -77,14 +77,6 @@ export class GameSettingsPanelComponent {
     this.update({ generations });
   }
 
-  protected selectAllGenerations(): void {
-    this.update({ generations: [...this.ALL_GENERATIONS] });
-  }
-
-  protected clearAllGenerations(): void {
-    this.update({ generations: [1] });
-  }
-
   protected toggleCategoryMode(): void {
     const categories = this.settings().categories.length > 0 ? [] : ['classique'];
     this.update({ categories });
@@ -95,14 +87,6 @@ export class GameSettingsPanelComponent {
     const filtered = current.filter((c) => c !== category);
     const categories = current.includes(category) ? (filtered.length === 0 ? [category] : filtered) : [...current, category];
     this.update({ categories });
-  }
-
-  protected selectAllCategories(): void {
-    this.update({ categories: [...this.ALL_CATEGORIES] });
-  }
-
-  protected clearAllCategories(): void {
-    this.update({ categories: ['classique'] });
   }
 
   protected setFirstPlayer(firstPlayer: FirstPlayer): void {

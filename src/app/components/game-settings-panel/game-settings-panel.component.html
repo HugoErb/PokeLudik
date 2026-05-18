@@ -21,8 +21,6 @@
               [class.opacity-0]="settings().generations.length === 0"
               [class.-translate-y-3]="settings().generations.length === 0"
             >
-              <button (click)="selectAllGenerations()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-red-600/15 text-red-200 border border-red-500/60 hover:bg-red-600/25 hover:text-white transition-colors">Tout</button>
-              <button (click)="clearAllGenerations()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-slate-800 text-slate-300 border border-slate-500 hover:bg-slate-700 hover:text-white transition-colors">Aucun</button>
               @for (gen of ALL_GENERATIONS; track gen) {
                 <button (click)="toggleGeneration(gen)" [disabled]="readonly()" [class]="settings().generations.includes(gen) ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
                   {{ gen }}
@@ -55,8 +53,6 @@
               [class.opacity-0]="settings().categories.length === 0"
               [class.-translate-y-3]="settings().categories.length === 0"
             >
-              <button (click)="selectAllCategories()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-red-600/15 text-red-200 border border-red-500/60 hover:bg-red-600/25 hover:text-white transition-colors">Tout</button>
-              <button (click)="clearAllCategories()" [disabled]="readonly()" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-slate-800 text-slate-300 border border-slate-500 hover:bg-slate-700 hover:text-white transition-colors">Aucun</button>
               @for (cat of ALL_CATEGORIES; track cat) {
                 <button (click)="toggleCategory(cat)" [disabled]="readonly()" [class]="settings().categories.includes(cat) ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
                   {{ CATEGORY_LABELS[cat] }}
