@@ -19,7 +19,7 @@ import { GameSettingsPanelComponent } from '../../components/game-settings-panel
 import { ICONS } from '../../constants/icons';
 import { modalAnimation } from '../../constants/animations';
 import { buildWhoPokemonPool, pickWhoPokemonSequence } from '../../utils/who-that-pokemon-utils';
-import { shouldEnterMultiplayerGame } from '../../utils/multiplayer-room-state';
+import { resolveLobbyGameMode, shouldEnterMultiplayerGame } from '../../utils/multiplayer-room-state';
 
 type DuelIntroPlayer = { username: string; avatar_url?: string };
 
@@ -69,7 +69,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	}
 
 	// États
-	gameMode: GameMode = 'guess_my_pokemon';
+	gameMode: GameMode = resolveLobbyGameMode(this.route.snapshot.queryParamMap.get('mode'));
 	private readonly statDuelRoom = signal<StatDuelRoom | null>(null);
 	private readonly draftDuoRoom = signal<DraftDuoRoom | null>(null);
 	private readonly whoPokemonRoom = signal<WhoPokemonRoom | null>(null);
@@ -569,9 +569,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 	/** Resout le mode de jeu depuis les parametres de route. */
 	private resolveMode(): GameMode {
-		const mode = this.route.snapshot.queryParamMap.get('mode');
-		if (mode === 'stat_duel' || mode === 'draft_duo' || mode === 'who_that_pokemon') return mode;
-		return 'guess_my_pokemon';
+		return resolveLobbyGameMode(this.route.snapshot.queryParamMap.get('mode'));
 	}
 
 	/** Initialise le lobby Duel de Base Stats. */

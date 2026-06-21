@@ -1,5 +1,5 @@
 import { DraftDuoRoom } from '../models/room.model';
-import { shouldEnterMultiplayerGame } from './multiplayer-room-state';
+import { resolveLobbyGameMode, shouldEnterMultiplayerGame } from './multiplayer-room-state';
 
 function room(status: DraftDuoRoom['status']): DraftDuoRoom {
   return {
@@ -23,5 +23,12 @@ describe('multiplayer room state', () => {
     expect(shouldEnterMultiplayerGame(room('playing'))).toBeTrue();
     expect(shouldEnterMultiplayerGame(room('finished'))).toBeFalse();
   });
-});
 
+  it('résout le mode du lobby depuis le paramètre de route', () => {
+    expect(resolveLobbyGameMode('stat_duel')).toBe('stat_duel');
+    expect(resolveLobbyGameMode('draft_duo')).toBe('draft_duo');
+    expect(resolveLobbyGameMode('who_that_pokemon')).toBe('who_that_pokemon');
+    expect(resolveLobbyGameMode(null)).toBe('guess_my_pokemon');
+    expect(resolveLobbyGameMode('inconnu')).toBe('guess_my_pokemon');
+  });
+});
