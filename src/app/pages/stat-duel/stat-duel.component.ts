@@ -18,6 +18,7 @@ import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal
 import { environment } from '../../../environments/environment';
 import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toGuessSettings } from '../../models/game-settings.model';
+import { shouldRevealStatDuelRound } from '../../utils/stat-duel-sync';
 
 type Phase = 'mode-select' | 'waiting' | 'playing' | 'result';
 type StatConfigMode = 'solo';
@@ -335,7 +336,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                 this.opponentPicks.set(isP1 ? updated.p2_picks : updated.p1_picks);
 
                 // Simultaneous reveal: as soon as both players picked, reveal
-                if (this.waitingForReveal() && this.opponentPicks().length > this.currentRound()) {
+                if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, this.currentRound(), this.revealedRound())) {
                     this.triggerReveal();
                 }
 
@@ -512,7 +513,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             if (remaining <= 0) {
                 if (!this.hasPickedThisRound()) {
                     this.autoPickStat();
-                } else if (this.waitingForReveal() && !this.isCurrentRoundRevealed()) {
+                } else if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, this.currentRound(), this.revealedRound())) {
                     this.triggerReveal();
                 }
             }
@@ -593,7 +594,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                     }
                 }
 
-                if (prevRound >= 0 && this.waitingForReveal()) {
+                if (prevRound >= 0 && shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, prevRound, this.revealedRound())) {
                     this.triggerReveal();
                 }
 
@@ -610,7 +611,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             if (remainingPick <= 0 && elapsedInRound <= ROUND_PICK_TIME_MS + 200) {
                 if (this.myPicks().length <= round) {
                     this.autoPickStat();
-                } else if (this.waitingForReveal() && !this.isCurrentRoundRevealed()) {
+                } else if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, round, this.revealedRound())) {
                     this.triggerReveal();
                 }
             }
@@ -639,9 +640,11 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Declenche la revelation du Pokemon courant. */
     private triggerReveal(): void {
+        const round = this.currentRound();
+        if (!shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, round, this.revealedRound())) return;
+
         this.waitingForReveal.set(false);
         this.pendingMyPickStat.set(null);
-        const round = this.currentRound();
         this.revealedRound.set(round);
         const myPick = this.myPicks()[round];
         if (myPick) this.justPickedStat.set(myPick);
@@ -699,7 +702,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             this.waitingForReveal.set(true);
             void this.supabaseService.appendStatPick(this.roomId, isP1 ? 'p1_picks' : 'p2_picks', pick);
             // If the opponent already picked, reveal immediately
-            if (this.opponentPicks().length > this.currentRound()) {
+            if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, this.currentRound(), this.revealedRound())) {
                 this.triggerReveal();
             }
         }
