@@ -332,9 +332,9 @@
 					<div class="w-full p-3 sm:p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-[440px_260px_440px] gap-3 lg:gap-6 lg:items-center lg:w-auto">
 
 						<!-- CENTRE : Pokémon - 1er sur mobile, colonne centrale desktop -->
-						<div class="order-1 lg:order-2 relative flex justify-center lg:self-center">
+						<div class="order-1 lg:order-2 relative flex flex-col items-center justify-center lg:self-center">
 							@if (waitingForReveal()) {
-								<div class="pointer-events-none absolute left-1/2 top-0 z-10 flex -translate-x-1/2 -translate-y-[calc(100%+0.5rem)] items-center justify-center gap-2 whitespace-nowrap text-center text-sm text-slate-400">
+								<div class="pointer-events-none z-10 mb-2 flex items-center justify-center gap-2 text-center text-xs sm:text-sm text-slate-400 lg:absolute lg:left-1/2 lg:top-0 lg:mb-0 lg:-translate-x-1/2 lg:-translate-y-[calc(100%+0.5rem)] lg:whitespace-nowrap">
 									<iconify-icon [icon]="ICONS.loading" class="text-base animate-spin text-blue-400"></iconify-icon>
 									<span>En attente de l'adversaire...</span>
 								</div>
