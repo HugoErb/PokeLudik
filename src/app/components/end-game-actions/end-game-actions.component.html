@@ -15,7 +15,7 @@
 						<span>Rejouer</span>
 					</div>
 					@if (isMultiReplay() && opponentLeft()) {
-						<span class="text-[9px] font-medium uppercase tracking-wider opacity-80 italic">L'adversaire a quitté la partie</span>
+						<span class="text-[9px] font-medium uppercase tracking-wider opacity-80 italic">L'adversaire a déjà quitté</span>
 					} @else if (isMultiReplay() && iWantReplay() && !opponentWantsReplay()) {
 						<span class="text-[9px] font-medium uppercase tracking-wider opacity-80 italic">En attente de l'adversaire</span>
 					} @else if (isMultiReplay() && opponentWantsReplay()) {

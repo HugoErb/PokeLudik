@@ -135,6 +135,10 @@ export class GameComponent implements OnInit, OnDestroy {
 			}
 			if (r?.status === 'finished' && r.winner_id === null) {
 				untracked(() => {
+					if (this.showEndModal) {
+						this.opponentLeft.set(true);
+						return;
+					}
 					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 				});
 				return;
@@ -306,6 +310,10 @@ export class GameComponent implements OnInit, OnDestroy {
 
 		this.broadcastSub = this.gameService.broadcastEvents$.subscribe(({ event }) => {
 			if (event === 'player_left') {
+				if (this.showEndModal) {
+					this.opponentLeft.set(true);
+					return;
+				}
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 			}
 		});

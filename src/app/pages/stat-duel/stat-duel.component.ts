@@ -200,6 +200,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
             this.broadcastSub = this.supabaseService.broadcastEvents$.subscribe(({ event }) => {
                 if (event === 'player_left') {
+                    if (this.phase() === 'result') {
+                        this.opponentLeft.set(true);
+                        return;
+                    }
                     void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
                 }
             });
@@ -294,6 +298,11 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             this.room.set(updated);
             this.settings.set(normalizeModeSettings('stat_duel', updated.settings));
             if (updated.status === 'finished' && updated.winner === null) {
+                if (this.phase() === 'result') {
+                    this.stopClock();
+                    this.opponentLeft.set(true);
+                    return;
+                }
                 this.stopClock();
                 void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
                 return;
@@ -841,6 +850,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.justPickedStat.set(null);
         this.justRevealedOpponentPick.set(null);
         this.nextRoundCountdown.set(null);
+        this.opponentLeft.set(false);
         this.pokemonVisible.set(false);
         this.pokemonAnimating.set(false);
         this.botPickedRounds.clear();

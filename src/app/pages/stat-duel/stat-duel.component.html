@@ -203,12 +203,14 @@
 						</div>
 					}
 
-					<button
-						(click)="promptCancel()"
-						class="mt-3 mb-1 w-full bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-					>
-						Annuler
-					</button>
+					@if (isPlayer1()) {
+						<button
+							(click)="promptCancel()"
+							class="mt-3 mb-1 w-full bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+						>
+							Annuler
+						</button>
+					}
 				</div>
 			</div>
 		}

@@ -110,6 +110,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   readonly showHelpModal = signal(false);
   readonly showCancelModal = signal(false);
   readonly isCancelling = signal(false);
+  readonly opponentLeft = signal(false);
 
   private roomSub?: Subscription;
   private broadcastSub?: Subscription;
@@ -466,15 +467,30 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     this.roomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()!).subscribe(updated => {
       this.room.set(updated);
       this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
+      if (updated.status === 'finished' && updated.winner === null && this.phase() === 'complete') {
+        this.opponentLeft.set(true);
+      }
+      if (updated.status === 'playing') {
+        this.opponentLeft.set(false);
+      }
       this.phase.set(updated.status === 'waiting' ? 'waiting' : updated.status === 'playing' ? 'duo' : 'complete');
       void this.launchReplayIfReady(updated);
     });
     this.pollInterval = setInterval(async () => {
       const updated = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
+      if (updated.status === 'finished' && updated.winner === null && this.phase() === 'complete') {
+        this.opponentLeft.set(true);
+      }
       this.room.set(updated);
     }, 2000);
     this.broadcastSub = this.supabaseService.broadcastEvents$.subscribe(({ event }) => {
-      if (event === 'player_left') void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+      if (event === 'player_left') {
+        if (this.phase() === 'complete') {
+          this.opponentLeft.set(true);
+          return;
+        }
+        void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+      }
     });
 
     const inviteId = this.route.snapshot.queryParamMap.get('inviteId');

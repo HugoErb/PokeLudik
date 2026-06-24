@@ -233,6 +233,10 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
       this.broadcastSub = this.supabaseService.broadcastEvents$.subscribe(({ event }) => {
         if (event === 'player_left') {
+          if (this.phase() === 'complete') {
+            this.opponentLeft.set(true);
+            return;
+          }
           void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
         }
       });
@@ -258,6 +262,10 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     this.room.set(updated);
 
     if (updated.status === 'finished' && updated.winner === null) {
+      if (this.phase() === 'complete') {
+        this.opponentLeft.set(true);
+        return;
+      }
       this.stopTimer();
       void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
       return;
@@ -696,6 +704,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     this.isLockingPick = false;
     this.enteringComplete = false;
     this.confettiFired = false;
+    this.opponentLeft.set(false);
     this.showScores.set(false);
     this.myTeamPokemons.set([]);
     this.opponentTeamPokemons.set([]);
