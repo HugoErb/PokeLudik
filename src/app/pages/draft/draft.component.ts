@@ -37,6 +37,7 @@ import {
   getRatingWidth as getPokemonRatingWidth,
   getScoreBarColor as getPokemonScoreBarColor,
   getScoreColor as getPokemonScoreColor,
+  hasEnoughPokemonForDraft,
   pickNUnique as pickNUniquePokemon,
   pickOneLegendary as pickOneLegendaryPokemon,
   pickOneStarter as pickOneStarterPokemon,
@@ -85,6 +86,7 @@ export class DraftComponent implements OnInit {
   readonly isCreatingRoom = signal(false);
   readonly draftConfigMode = signal<DraftConfigMode | null>(null);
   readonly settings = signal<ModeSettings>({ ...DEFAULT_MODE_SETTINGS.draft_duo });
+  readonly configurationError = signal('');
 
   readonly lockedCount = computed(() => this.lockedIndices().size);
   readonly selectedPokemon = signal<Pokemon | null>(null);
@@ -182,6 +184,11 @@ export class DraftComponent implements OnInit {
 
   /** Demarre une partie solo. */
   startSolo(): void {
+    this.configurationError.set('');
+    if (!hasEnoughPokemonForDraft(this.getConfiguredPokemonPool())) {
+      this.configurationError.set('Ces filtres doivent laisser au moins 6 Pokemon distincts.');
+      return;
+    }
     this.phase.set('loading');
   }
 
@@ -209,6 +216,11 @@ export class DraftComponent implements OnInit {
   /** Initialise l'etat du draft. */
   private initDraft(): void {
     const pool = this.getConfiguredPokemonPool();
+    if (!hasEnoughPokemonForDraft(pool)) {
+      this.configurationError.set('Ces filtres doivent laisser au moins 6 Pokemon distincts.');
+      this.phase.set('mode-select');
+      return;
+    }
     const starter = this.pickOneStarter(pool, new Set());
     const legendary = this.pickOneLegendary(pool, new Set(starter ? [starter.id] : []));
     const excludeForNormal = new Set([
@@ -353,6 +365,7 @@ export class DraftComponent implements OnInit {
 
   updateGameSettings(settings: ModeSettings): void {
     this.settings.set(settings);
+    this.configurationError.set('');
     if (this.phase() === 'draft') this.saveState();
   }
 

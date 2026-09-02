@@ -48,8 +48,8 @@ export class ResetPasswordComponent implements OnInit, OnDestroy {
    */
   ngOnInit(): void {
     // Supabase émet PASSWORD_RECOVERY quand le lien email est valide
-    this.authSub = this.supabaseService.currentUser$.subscribe(user => {
-      if (user) {
+    this.authSub = this.supabaseService.passwordRecoveryReady$.subscribe(isRecovery => {
+      if (isRecovery) {
         this.isReady = true;
         if (this.timeoutId !== null) clearTimeout(this.timeoutId);
       }
@@ -79,6 +79,7 @@ export class ResetPasswordComponent implements OnInit, OnDestroy {
     try {
       await this.supabaseService.updatePassword(password);
       this.infoMessage = 'Mot de passe mis à jour avec succès !';
+      await this.supabaseService.signOut();
       setTimeout(() => this.router.navigateByUrl('/login'), 2000);
     } catch (err: unknown) {
       this.errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';

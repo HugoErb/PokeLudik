@@ -34,11 +34,13 @@ describe('GameService', () => {
       'getCurrentUser',
       'getRoomById',
       'updateRoom',
+      'submitGuessPokemonGuess',
       'broadcastGuess',
       'broadcastPlayerLeft',
     ]);
     supabaseService.getCurrentUser.and.returnValue(user as any);
     supabaseService.updateRoom.and.resolveTo();
+    supabaseService.submitGuessPokemonGuess.and.resolveTo(true);
     supabaseService.broadcastGuess.and.resolveTo();
     supabaseService.broadcastPlayerLeft.and.resolveTo();
     (supabaseService as any).currentUserSignal = jasmine.createSpy('currentUserSignal').and.returnValue(user);
@@ -62,10 +64,20 @@ describe('GameService', () => {
     const result = await service.guess('room-1', 25);
 
     expect(result).toBe('correct');
-    expect(supabaseService.updateRoom).toHaveBeenCalledWith('room-1', jasmine.objectContaining({
-      winner_id: 'player-2',
-      status: 'finished',
-    }));
+    expect(supabaseService.submitGuessPokemonGuess).toHaveBeenCalledWith('room-1', 25);
+  });
+
+  it("laisse le serveur valider un mauvais guess et diffuse seulement l'animation", async () => {
+    service.currentRoom.set(room({ current_turn: 'player-2' }));
+    supabaseService.getRoomById.and.resolveTo(room({ current_turn: 'player-2' }));
+    supabaseService.submitGuessPokemonGuess.and.resolveTo(false);
+
+    const result = await service.guess('room-1', 4);
+
+    expect(result).toBe('incorrect');
+    expect(supabaseService.submitGuessPokemonGuess).toHaveBeenCalledWith('room-1', 4);
+    expect(supabaseService.broadcastGuess).toHaveBeenCalledWith(4, 'player-2');
+    expect(supabaseService.updateRoom).not.toHaveBeenCalled();
   });
 
   it("met a jour la room quand l'adversaire rejoint une invitation", () => {

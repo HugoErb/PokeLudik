@@ -301,6 +301,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         p2_lives: 0,
         winner: null,
         p1_ready: false,
+        p2_ready: false,
       });
       this.phase.set('duo');
     } finally {
@@ -330,12 +331,11 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const nextTarget = this.pickNextDuoTargetId();
     const target = this.targetPokemon();
     const isCorrect = guessed.id === target?.id;
     const hadAllHints = this.myHintsRevealed() >= WHO_MAX_HINTS;
     try {
-      await this.supabaseService.submitWhoPokemonGuess(this.roomId()!, guessed.id, nextTarget);
+      await this.supabaseService.submitWhoPokemonGuess(this.roomId()!, this.room()!.round, guessed.id);
       if (isCorrect) {
         this.feedback.set('');
         this.showToast(target?.name ?? guessed.name, 'success', target);
@@ -477,11 +477,21 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       void this.launchReplayIfReady(updated);
     });
     this.pollInterval = setInterval(async () => {
-      const updated = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
-      if (updated.status === 'finished' && updated.winner === null && this.phase() === 'complete') {
-        this.opponentLeft.set(true);
+      try {
+        const updated = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
+        this.room.set(updated);
+        this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
+        if (updated.status === 'finished' && updated.winner === null) {
+          if (this.phase() === 'complete') this.opponentLeft.set(true);
+          else void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+          return;
+        }
+        if (updated.status === 'playing') this.opponentLeft.set(false);
+        this.phase.set(updated.status === 'waiting' ? 'waiting' : updated.status === 'playing' ? 'duo' : 'complete');
+        void this.launchReplayIfReady(updated);
+      } catch {
+        // Le prochain tick retentera la synchronisation.
       }
-      this.room.set(updated);
     }, 2000);
     this.broadcastSub = this.supabaseService.broadcastEvents$.subscribe(({ event }) => {
       if (event === 'player_left') {
@@ -524,15 +534,8 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       p2_lives: 0,
       winner: null,
       p1_ready: false,
+      p2_ready: false,
     });
-  }
-
-  private pickNextDuoTargetId(): number | null {
-    const r = this.room();
-    if (!r || r.round >= WHO_TOTAL_ROUNDS) return null;
-    const used = new Set(r.used_pokemon_ids);
-    const pool = buildWhoPokemonPool(this.allPokemons(), r.settings ?? DEFAULT_WHO_SETTINGS).filter(p => !used.has(p.id));
-    return pickWhoPokemonSequence(pool.length > 0 ? pool : buildWhoPokemonPool(this.allPokemons(), r.settings ?? DEFAULT_WHO_SETTINGS), 1)[0]?.id ?? null;
   }
 
   private findPokemonByName(name: string): Pokemon | null {

@@ -55,7 +55,7 @@ export const environment = {
 };
 ```
 
-Le schéma de référence est dans `sql-schema/ddb-schema`.
+Le schéma de référence est dans `sql-schema/ddb-schema.sql`. Il doit être appliqué à Supabase : les règles de jeu multijoueur et le catalogue de validation sont exécutés côté PostgreSQL.
 
 ## Scripts
 
@@ -76,6 +76,12 @@ npm run generate:pokemon
 ```
 
 Régénère `src/assets/pokemon.json` depuis PokéAPI.
+
+```bash
+npm run generate:pokemon-sql
+```
+
+Synchronise le catalogue Pokémon embarqué dans le schéma SQL après une régénération des données.
 
 ```bash
 npm run add:ratings

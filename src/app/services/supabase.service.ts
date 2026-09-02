@@ -11,6 +11,7 @@ export class SupabaseService implements OnDestroy {
     private userSubject = new BehaviorSubject<User | null>(null);
     private authSubscription: { unsubscribe: () => void } | null = null;
     private readonly isInitializedSubject = new BehaviorSubject<boolean>(false);
+    private readonly passwordRecoverySubject = new BehaviorSubject<boolean>(false);
     private broadcastSubject = new Subject<{ event: string; payload: any }>();
     private readonly ngZone = inject(NgZone);
 
@@ -19,6 +20,7 @@ export class SupabaseService implements OnDestroy {
 
     currentUser$: Observable<User | null> = this.userSubject.asObservable();
     readonly authReady$: Observable<User | null>;
+    readonly passwordRecoveryReady$ = this.passwordRecoverySubject.asObservable();
     readonly currentUserSignal = signal<User | null>(null);
 
     constructor() {
@@ -41,6 +43,8 @@ export class SupabaseService implements OnDestroy {
             const user = session?.user ?? null;
             this.userSubject.next(user);
             this.currentUserSignal.set(user);
+            if (event === 'PASSWORD_RECOVERY') this.passwordRecoverySubject.next(true);
+            if (event === 'SIGNED_OUT') this.passwordRecoverySubject.next(false);
 
             // Crée le profil à la première connexion (cas confirmation email activée)
             if (event === 'SIGNED_IN' && user) {
@@ -128,6 +132,7 @@ export class SupabaseService implements OnDestroy {
     async updatePassword(newPassword: string): Promise<void> {
         const { error } = await this.supabase.auth.updateUser({ password: newPassword });
         if (error) throw error;
+        this.passwordRecoverySubject.next(false);
     }
 
     /**
@@ -286,6 +291,15 @@ export class SupabaseService implements OnDestroy {
         const { error } = await this.supabase.rpc('update_guess_pokemon_room', { p_room_id: roomId, p_patch: patch });
 
         if (error) throw error;
+    }
+
+    async submitGuessPokemonGuess(roomId: string, pokemonId: number): Promise<boolean> {
+        const { data, error } = await this.supabase.rpc('submit_guess_pokemon_guess', {
+            p_room_id: roomId,
+            p_pokemon_id: pokemonId,
+        });
+        if (error) throw error;
+        return data === true;
     }
 
     /** Supprime une room (Guess my Pokémon) de la base de données. */
@@ -519,11 +533,11 @@ export class SupabaseService implements OnDestroy {
         if (error) throw error;
     }
 
-    async submitWhoPokemonGuess(roomId: string, pokemonId: number, nextTargetPokemonId: number | null): Promise<void> {
+    async submitWhoPokemonGuess(roomId: string, round: number, pokemonId: number): Promise<void> {
         const { error } = await this.supabase.rpc('submit_who_that_pokemon_guess', {
             p_room_id: roomId,
+            p_round: round,
             p_pokemon_id: pokemonId,
-            p_next_target_pokemon_id: nextTargetPokemonId,
         });
         if (error) throw error;
     }
@@ -876,6 +890,34 @@ export class SupabaseService implements OnDestroy {
     async declineGameInvite(inviteId: string): Promise<void> {
         const { error } = await this.supabase.from('game_invites').update({ status: 'declined' }).eq('id', inviteId);
         if (error) throw error;
+    }
+
+    /** Recharge les invitations en attente reçues pendant que l'accueil était fermé. */
+    async getPendingGameInvites(): Promise<GameInvite[]> {
+        const userId = this.getCurrentUser()?.id;
+        if (!userId) return [];
+
+        const { data, error } = await this.supabase
+            .from('game_invites')
+            .select('*')
+            .eq('recipient_id', userId)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+
+        const invites = (data ?? []) as GameInvite[];
+        const senderIds = [...new Set(invites.map(invite => invite.sender_id))];
+        if (senderIds.length === 0) return invites;
+
+        const { data: profiles } = await this.supabase
+            .from('profiles')
+            .select('id, username')
+            .in('id', senderIds);
+        const usernames = new Map((profiles ?? []).map((profile: any) => [profile.id, profile.username]));
+        return invites.map(invite => ({
+            ...invite,
+            sender_profile: usernames.has(invite.sender_id) ? { username: usernames.get(invite.sender_id)! } : undefined,
+        }));
     }
 
     /** S'abonne aux nouvelles invitations de jeu reçues par l'utilisateur courant. */

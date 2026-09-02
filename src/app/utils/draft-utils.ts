@@ -13,6 +13,13 @@ export interface DraftDuoTeams {
   p2_team: number[];
 }
 
+export const DRAFT_TEAM_SIZE = 6;
+
+/** Indique si le pool permet de proposer six Pokemon distincts. */
+export function hasEnoughPokemonForDraft(pool: Pokemon[]): boolean {
+  return new Set(pool.map(pokemon => pokemon.id)).size >= DRAFT_TEAM_SIZE;
+}
+
 /** Indique si une room contient les deux equipes completes du mode duo. */
 export function canUseRoomForDuoComplete(room: DraftDuoTeams): boolean {
   return room.p1_team.length === 6 && room.p2_team.length === 6;
@@ -107,6 +114,7 @@ export function getRatingWidth(rating: number): string {
 
 /** Selectionne un starter disponible dans le pool. */
 export function pickOneStarter(pool: Pokemon[], exclude: Set<number>, currentSlots: (Pokemon | null)[] = []): Pokemon {
+  if (pool.length === 0) throw new Error('Aucun Pokemon disponible pour ce draft');
   const starters = pool.filter(pokemon => pokemon.category === 'starter');
   if (starters.length === 0) {
     const fallback = pool.filter(pokemon => !exclude.has(pokemon.id));
@@ -126,6 +134,7 @@ export function pickOneStarter(pool: Pokemon[], exclude: Set<number>, currentSlo
 
 /** Selectionne un Pokemon legendaire ou fabuleux disponible dans le pool. */
 export function pickOneLegendary(pool: Pokemon[], exclude: Set<number>, currentSlots: (Pokemon | null)[] = []): Pokemon {
+  if (pool.length === 0) throw new Error('Aucun Pokemon disponible pour ce draft');
   const legends = pool.filter(pokemon => pokemon.category === 'l\u00e9gendaire' || pokemon.category === 'fabuleux');
   if (legends.length === 0) {
     const fallback = pool.filter(pokemon => !exclude.has(pokemon.id));

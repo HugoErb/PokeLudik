@@ -325,21 +325,21 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	}
 
 	/** Annule la room et navigue vers l'accueil. */
-	cancelRoom(): void {
+	async cancelRoom(): Promise<void> {
 		if (this.isCancelling) return;
 		this.isCancelling = true;
 		if (this.gameMode === 'guess_my_pokemon') {
-			void this.gameService.cancelRoom(this.roomId()).catch(() => {
+			await this.gameService.cancelRoom(this.roomId()).catch(() => {
 				// ignore les erreurs d'annulation
 			});
 		} else if (this.gameMode === 'stat_duel') {
-			void this.cancelStatDuelRoom();
+			await this.cancelStatDuelRoom();
 		} else if (this.gameMode === 'draft_duo') {
-			void this.cancelDraftDuoRoom();
+			await this.cancelDraftDuoRoom();
 		} else {
-			void this.cancelWhoPokemonRoom();
+			await this.cancelWhoPokemonRoom();
 		}
-		void this.router.navigate(['/home']);
+		await this.router.navigate(['/home']);
 	}
 
 	/** DEV : Simule un adversaire sans compte réel dans la room. */
@@ -376,6 +376,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				let allPokemon = await firstValueFrom(this.pokemonService.loadAll());
 				if (this.gameSettings.generations.length > 0) allPokemon = allPokemon.filter(p => this.gameSettings.generations.includes(p.generation));
 				if (this.gameSettings.categories.length > 0) allPokemon = allPokemon.filter(p => this.gameSettings.categories.includes(p.category));
+				if (new Set(allPokemon.map(p => p.id)).size < 6) {
+					throw new Error('Le pool doit contenir au moins 6 Pokemon distincts');
+				}
 				const pokemonIds = this.shuffle(allPokemon).slice(0, 6).map(p => p.id);
 				const roundStartAt = new Date(Date.now() + 3000).toISOString();
 				await this.supabaseService.updateStatDuelRoom(this.roomId(), {
@@ -392,6 +395,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				await this.preloadDuelIntroForRoom();
 				void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
 			} else if (this.gameMode === 'draft_duo') {
+				let allPokemon = await firstValueFrom(this.pokemonService.loadAll());
+				if (this.gameSettings.generations.length > 0) allPokemon = allPokemon.filter(p => this.gameSettings.generations.includes(p.generation));
+				if (this.gameSettings.categories.length > 0) allPokemon = allPokemon.filter(p => this.gameSettings.categories.includes(p.category));
+				if (new Set(allPokemon.map(p => p.id)).size < 6) {
+					throw new Error('Le pool doit contenir au moins 6 Pokemon distincts');
+				}
 				await this.supabaseService.updateDraftDuoRoom(this.roomId(), {
 					status: 'playing',
 					settings: toGuessSettings(this.gameSettings),
@@ -423,13 +432,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					p2_lives: 0,
 					winner: null,
 					p1_ready: false,
+					p2_ready: false,
 				});
 				void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
 			} else {
 				await this.gameService.launchGame(this.roomId(), toGuessSettings(this.gameSettings));
 			}
-		} catch {
-			this.launchError = 'Erreur lors du lancement. Réessaie.';
+		} catch (error) {
+			this.launchError = error instanceof Error && error.message.includes('au moins 6')
+				? 'Ces filtres doivent laisser au moins 6 Pokemon distincts.'
+				: 'Erreur lors du lancement. Réessaie.';
 		} finally {
 			this.isLaunching = false;
 		}

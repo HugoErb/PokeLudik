@@ -86,6 +86,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     isPlayer1 = signal(false);
     roomId: string | null = null;
     settings = signal<ModeSettings>({ ...DEFAULT_MODE_SETTINGS.stat_duel });
+    configurationError = signal('');
 
     // Game state
     pokemonList = signal<Pokemon[]>([]);
@@ -98,6 +99,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     room = signal<StatDuelRoom | null>(null);
     revealedRound = signal(-1);
     waitingForReveal = signal(false);
+    catchingUp = signal(false);
     pendingMyPickStat = signal<string | null>(null);
     justRevealedOpponentPick = signal<StatPick | null>(null);
     nextRoundCountdown = signal<number | null>(null);
@@ -118,6 +120,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     // --- Timer -------------------------------------------------------------------
     private clockInterval: ReturnType<typeof setInterval> | null = null;
     private roundStartTime = 0;
+    private catchUpPromise: Promise<void> | null = null;
 
     // --- Abonnements -------------------------------------------------------------
     private roomSub?: Subscription;
@@ -234,6 +237,11 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     async startSolo(): Promise<void> {
         this.isSolo.set(true);
         const allPokemon = this.getConfiguredPokemonPool(await this.loadAll());
+        if (allPokemon.length < ROUND_COUNT) {
+            this.configurationError.set('Ces filtres doivent laisser au moins 6 Pokemon distincts.');
+            return;
+        }
+        this.configurationError.set('');
         const list = this.shuffle(allPokemon).slice(0, ROUND_COUNT);
         this.pokemonList.set(list);
         this.preloadImages(list);
@@ -262,6 +270,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     updateGameSettings(settings: ModeSettings): void {
         this.settings.set(settings);
+        this.configurationError.set('');
     }
 
     // --- Multi init --------------------------------------------------------------
@@ -430,6 +439,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.isLaunching.set(true);
         try {
             const allPokemon = this.getConfiguredPokemonPool(await this.loadAll(), currentRoom.settings);
+            if (allPokemon.length < ROUND_COUNT) {
+                this.configurationError.set('Ces filtres doivent laisser au moins 6 Pokemon distincts.');
+                return;
+            }
             const pokemonIds = this.shuffle(allPokemon).slice(0, ROUND_COUNT).map(p => p.id);
             // Delay round start until the VS animation has finished
             const roundStartAt = new Date(Date.now() + 3000).toISOString();
@@ -552,6 +565,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         // S'assurer que currentRound est correct avant de commencer l'intervalle
         if (initialElapsed >= 0) {
             this.currentRound.set(Math.min(Math.max(0, prevRound), ROUND_COUNT - 1));
+            if (prevRound > 0) void this.ensureAutoPicksThrough(Math.min(prevRound - 1, ROUND_COUNT - 1));
         }
 
         this.clockInterval = setInterval(() => {
@@ -584,14 +598,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
             // Changement de manche
             if (round !== prevRound) {
-                // If we missed rounds (lag/background), catch up auto-picks
+                // Rattraper toutes les manches manquées après une mise en veille
+                // ou le throttling des timers d'un onglet en arrière-plan.
                 if (prevRound >= 0 && round > prevRound) {
-                    for (let r = prevRound; r < round; r++) {
-                        if (this.myPicks().length <= r) {
-                            // We could auto-pick here for missed rounds
-                            // But pickStat depends on currentRound, so it is tricky.
-                        }
-                    }
+                    void this.ensureAutoPicksThrough(round - 1);
                 }
 
                 if (prevRound >= 0 && shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, prevRound, this.revealedRound())) {
@@ -608,9 +618,9 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             }
 
             // Auto-pick at the end of the pick window
-            if (remainingPick <= 0 && elapsedInRound <= ROUND_PICK_TIME_MS + 200) {
+            if (remainingPick <= 0) {
                 if (this.myPicks().length <= round) {
-                    this.autoPickStat();
+                    void this.ensureAutoPicksThrough(round);
                 } else if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, round, this.revealedRound())) {
                     this.triggerReveal();
                 }
@@ -619,12 +629,14 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             // Fin du jeu
             if (elapsed >= ROUND_COUNT * ROUND_DURATION_MS) {
                 this.stopClock();
-                if (!this.isSolo() && this.phase() === 'playing') {
-                    const r = this.room();
-                    if (r && r.p1_picks.length === ROUND_COUNT && r.p2_picks.length === ROUND_COUNT) {
-                        this.endMultiGame(r);
+                void this.ensureAutoPicksThrough(ROUND_COUNT - 1).then(async () => {
+                    if (!this.roomId || this.phase() !== 'playing') return;
+                    const refreshed = await this.supabaseService.getStatDuelRoom(this.roomId);
+                    this.room.set(refreshed);
+                    if (refreshed.p1_picks.length === ROUND_COUNT && refreshed.p2_picks.length === ROUND_COUNT) {
+                        this.endMultiGame(refreshed);
                     }
-                }
+                });
             }
         }, 200);
     }
@@ -680,7 +692,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Selectionne une statistique pour la manche courante. */
     pickStat(statKey: keyof Pokemon['stats']): void {
-        if (this.hasPickedThisRound()) return;
+        if (this.hasPickedThisRound() || this.catchingUp()) return;
         const pokemon = this.currentPokemon();
         if (!pokemon) return;
 
@@ -700,7 +712,11 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             const isP1 = this.room()?.player1_id === me.id;
             this.pendingMyPickStat.set(statKey);
             this.waitingForReveal.set(true);
-            void this.supabaseService.appendStatPick(this.roomId, isP1 ? 'p1_picks' : 'p2_picks', pick);
+            void this.supabaseService.appendStatPick(this.roomId, isP1 ? 'p1_picks' : 'p2_picks', pick).catch(() => {
+                this.myPicks.update(picks => picks.at(-1)?.stat === statKey ? picks.slice(0, -1) : picks);
+                this.pendingMyPickStat.set(null);
+                this.waitingForReveal.set(false);
+            });
             // If the opponent already picked, reveal immediately
             if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, this.currentRound(), this.revealedRound())) {
                 this.triggerReveal();
@@ -714,6 +730,39 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         if (available.length === 0) return;
         const randomKey = available[Math.floor(Math.random() * available.length)];
         this.pickStat(randomKey);
+    }
+
+    /** Ajoute séquentiellement les choix automatiques manquants jusqu'à la manche demandée. */
+    private ensureAutoPicksThrough(lastRound: number): Promise<void> {
+        if (this.catchUpPromise) return this.catchUpPromise;
+
+        this.catchingUp.set(true);
+        this.catchUpPromise = (async () => {
+            while (this.myPicks().length <= Math.min(lastRound, ROUND_COUNT - 1) && this.phase() === 'playing') {
+                const roundIndex = this.myPicks().length;
+                const pokemon = this.pokemonList()[roundIndex];
+                const available = STAT_DEFS.map(stat => stat.key).filter(key => !this.pickedStatKeys().has(key));
+                if (!pokemon || available.length === 0 || !this.roomId) return;
+
+                const stat = available[Math.floor(Math.random() * available.length)];
+                const pick: StatPick = { stat, value: pokemon.stats[stat] };
+                this.myPicks.update(picks => [...picks, pick]);
+
+                const me = this.supabaseService.getCurrentUser();
+                const isP1 = !!me && this.room()?.player1_id === me.id;
+                try {
+                    await this.supabaseService.appendStatPick(this.roomId, isP1 ? 'p1_picks' : 'p2_picks', pick);
+                } catch {
+                    this.myPicks.update(picks => picks.slice(0, -1));
+                    return;
+                }
+            }
+        })().finally(() => {
+            this.catchUpPromise = null;
+            this.catchingUp.set(false);
+        });
+
+        return this.catchUpPromise;
     }
 
     // --- Avancer (solo) ----------------------------------------------------------
@@ -905,11 +954,14 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         const currentRoom = this.room();
         if (!currentRoom) return;
         const allPokemon = this.getConfiguredPokemonPool(await this.loadAll(), currentRoom.settings);
+        if (allPokemon.length < ROUND_COUNT) {
+            this.configurationError.set('Ces filtres doivent laisser au moins 6 Pokemon distincts.');
+            return;
+        }
         const pokemonIds = this.shuffle(allPokemon).slice(0, ROUND_COUNT).map(p => p.id);
         const roundStartAt = new Date(Date.now() + 3000).toISOString();
         await this.supabaseService.updateStatDuelRoom(this.roomId, {
             status: 'playing',
-            settings: toGuessSettings(normalizeModeSettings('stat_duel', currentRoom.settings ?? this.settings())),
             pokemon_ids: pokemonIds,
             p1_picks: [],
             p2_picks: [],

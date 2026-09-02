@@ -252,27 +252,14 @@ export class GameService implements OnDestroy {
 
         if (adversaryPokemonId === null) throw new Error("L'adversaire n'a pas encore choisi de Pokémon");
 
-        if (pokemonId === adversaryPokemonId) {
-            // Bonne réponse : fin de partie
-            await this.updateAndRefresh(roomId, {
-                winner_id: user.id,
-                status: 'finished',
-                p1_ready: false,
-                p2_ready: false,
-                last_guess: null,
-            });
+        const isCorrect = await this.supabaseService.submitGuessPokemonGuess(roomId, pokemonId);
+        if (isCorrect) {
+            await this.refreshRoom(roomId);
             return 'correct';
         } else {
-            // Mauvaise réponse : passage de tour
             if (!adversaryId && !this.isDev()) throw new Error('Adversaire introuvable');
-
-            // Diffuser le guess à l'adversaire via Broadcast
             void this.supabaseService.broadcastGuess(pokemonId, user.id);
-
-            await this.updateAndRefresh(roomId, {
-                current_turn: adversaryId,
-                last_guess: pokemonId,
-            });
+            await this.refreshRoom(roomId);
             return 'incorrect';
         }
     }

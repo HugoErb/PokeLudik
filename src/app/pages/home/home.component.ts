@@ -183,6 +183,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.invitesSub = this.supabaseService.subscribeToIncomingGameInvites().subscribe((invite) => {
       this.showGameInviteToast(invite);
     });
+    void this.loadPendingGameInvite();
   }
 
   ngAfterViewInit(): void {
@@ -265,8 +266,16 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Affiche le toast d'invitation de jeu. */
   private showGameInviteToast(invite: GameInvite): void {
     this.clearInviteToast();
+    const ageSeconds = Math.max(0, (Date.now() - new Date(invite.created_at).getTime()) / 1000);
+    const remainingSeconds = Math.ceil(15 - ageSeconds);
+    if (remainingSeconds <= 0) {
+      void this.supabaseService.declineGameInvite(invite.id)
+        .then(() => this.loadPendingGameInvite())
+        .catch(() => undefined);
+      return;
+    }
     this.incomingInvite.set(invite);
-    this.inviteCountdown.set(15);
+    this.inviteCountdown.set(remainingSeconds);
 
     this.inviteCountdownInterval = setInterval(() => {
       const c = this.inviteCountdown() - 1;
@@ -289,15 +298,20 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const invite = this.incomingInvite();
     if (!invite) return;
     this.clearInviteToast();
-    await this.supabaseService.acceptGameInvite(invite.id, invite.room_id, invite.game_mode);
-    if (invite.game_mode === 'stat_duel') {
-      this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'stat_duel' } });
-    } else if (invite.game_mode === 'draft_duo') {
-      this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'draft_duo' } });
-    } else if (invite.game_mode === 'who_that_pokemon') {
-      this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'who_that_pokemon' } });
-    } else {
-      this.router.navigate(['/lobby', invite.room_id]);
+    try {
+      await this.supabaseService.acceptGameInvite(invite.id, invite.room_id, invite.game_mode);
+      if (invite.game_mode === 'stat_duel') {
+        this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'stat_duel' } });
+      } else if (invite.game_mode === 'draft_duo') {
+        this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'draft_duo' } });
+      } else if (invite.game_mode === 'who_that_pokemon') {
+        this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'who_that_pokemon' } });
+      } else {
+        this.router.navigate(['/lobby', invite.room_id]);
+      }
+    } catch {
+      this.triggerToast("Cette invitation n'est plus disponible.");
+      void this.loadPendingGameInvite();
     }
   }
 
@@ -307,11 +321,23 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!invite) return;
     this.clearInviteToast();
     await this.supabaseService.declineGameInvite(invite.id);
+    await this.loadPendingGameInvite();
   }
 
   /** Refuse automatiquement l'invitation de jeu courante. */
   private async autoDeclineInvite(): Promise<void> {
     await this.declineGameInvite();
+  }
+
+  /** Recharge les invitations reçues pendant que l'accueil n'était pas ouvert. */
+  private async loadPendingGameInvite(): Promise<void> {
+    if (this.incomingInvite()) return;
+    try {
+      const [invite] = await this.supabaseService.getPendingGameInvites();
+      if (invite) this.showGameInviteToast(invite);
+    } catch {
+      // Le temps réel reste actif si le rattrapage ponctuel échoue.
+    }
   }
 
   // ─── Invitation envoyée à un ami ─────────────────────────────────────────────

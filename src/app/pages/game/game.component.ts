@@ -481,13 +481,13 @@ export class GameComponent implements OnInit, OnDestroy {
 	}
 
 	/** Confirme l'annulation de la partie et navigue vers l'accueil. */
-	confirmCancel(): void {
+	async confirmCancel(): Promise<void> {
 		if (this.isCancelling) return;
 		this.isCancelling = true;
-		void this.gameService.cancelRoom(this.roomId()).catch(() => {
+		await this.gameService.cancelRoom(this.roomId()).catch(() => {
 			// ignore les erreurs d'annulation
 		});
-		void this.router.navigate(['/home']);
+		await this.router.navigate(['/home']);
 	}
 
 	/** Lifecycle Angular — nettoie les confettis et les abonnements. */

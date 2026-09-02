@@ -52,6 +52,12 @@ describe('who-that-pokemon-utils', () => {
     expect(state).toEqual({ roundIndex: 9, hintsRevealed: 0, score: 45, found: 10, status: 'won' });
   });
 
+  it('termine le solo apres la dixieme manche meme si une reponse precedente a ete ratee', () => {
+    const state = nextSoloState({ roundIndex: 9, hintsRevealed: 0, score: 35, found: 8, status: 'playing' }, true);
+
+    expect(state).toEqual({ roundIndex: 9, hintsRevealed: 0, score: 40, found: 9, status: 'lost' });
+  });
+
   it('revele un indice apres une mauvaise reponse solo', () => {
     const state = nextSoloState({ roundIndex: 0, hintsRevealed: 0, score: 0, found: 0, status: 'playing' }, false);
 

@@ -1,5 +1,5 @@
 import { Pokemon } from '../models/pokemon.model';
-import { canUseRoomForDuoComplete, computeDuoCoverageScore } from './draft-utils';
+import { canUseRoomForDuoComplete, computeDuoCoverageScore, hasEnoughPokemonForDraft, pickOneStarter } from './draft-utils';
 
 function pokemon(id: number, name: string, types: string[]): Pokemon {
   return {
@@ -34,5 +34,15 @@ describe('canUseRoomForDuoComplete', () => {
 
   it('accepte uniquement quand les deux equipes ont 6 Pokemon', () => {
     expect(canUseRoomForDuoComplete({ p1_team: [1, 2, 3, 4, 5, 6], p2_team: [7, 8, 9, 10, 11, 12] })).toBeTrue();
+  });
+});
+
+describe('validation du pool de draft', () => {
+  it('refuse un pool qui ne contient pas six Pokemon distincts', () => {
+    expect(hasEnoughPokemonForDraft([pokemon(1, 'A', []), pokemon(2, 'B', [])])).toBeFalse();
+  });
+
+  it('refuse explicitement de tirer dans un pool vide', () => {
+    expect(() => pickOneStarter([], new Set())).toThrowError('Aucun Pokemon disponible pour ce draft');
   });
 });

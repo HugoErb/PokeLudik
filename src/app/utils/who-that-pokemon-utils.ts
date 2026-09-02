@@ -57,12 +57,13 @@ export function nextSoloState(state: WhoSoloState, isCorrect: boolean): WhoSoloS
   if (state.status !== 'playing') return state;
   if (isCorrect) {
     const found = state.found + 1;
+    const isLastRound = state.roundIndex >= WHO_TOTAL_ROUNDS - 1;
     return {
       roundIndex: Math.min(state.roundIndex + 1, WHO_TOTAL_ROUNDS - 1),
       hintsRevealed: 0,
       score: state.score + Math.max(0, WHO_BASE_SCORE - state.hintsRevealed),
       found,
-      status: found >= WHO_TOTAL_ROUNDS ? 'won' : 'playing',
+      status: isLastRound ? (found >= WHO_TOTAL_ROUNDS ? 'won' : 'lost') : 'playing',
     };
   }
 

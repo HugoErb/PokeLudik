@@ -100,6 +100,9 @@
 					@if (statConfigMode() === 'solo') {
 						<div class="settings-panel-reveal w-full max-w-2xl mt-5 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
 							<app-game-settings-panel mode="stat_duel" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
+							@if (configurationError()) {
+								<p class="mt-3 text-sm text-red-400" role="alert">{{ configurationError() }}</p>
+							}
 							<button
 								(click)="startSolo()"
 								class="mt-4 w-full bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors flex items-center justify-center gap-2"
@@ -279,7 +282,7 @@
 										@let alreadyPicked = pickedStatKeys().has(stat.key);
 										@let justPicked = justPickedStat()?.stat === stat.key;
 										@let pick = getMyPickForStat(stat.key);
-										@let canPick = !alreadyPicked && !hasPickedThisRound() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
+										@let canPick = !alreadyPicked && !hasPickedThisRound() && !catchingUp() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
 
 										<div
 											[class]="getStatRowClass(alreadyPicked, justPicked, canPick)"
@@ -400,7 +403,7 @@
 										@let justPicked = justPickedStat()?.stat === stat.key;
 										@let isPending = pendingMyPickStat() === stat.key;
 										@let revealedPick = getMyRevealedPickForStat(stat.key);
-										@let canPick = !alreadyPicked && !hasPickedThisRound() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
+										@let canPick = !alreadyPicked && !hasPickedThisRound() && !catchingUp() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
 
 										<div
 											[class]="getStatRowClass(alreadyPicked, justPicked, canPick)"
