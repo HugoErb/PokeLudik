@@ -384,3 +384,6 @@ GRANT EXECUTE ON FUNCTION public.join_pokemon_auction_room(uuid),public.set_poke
 
 DROP POLICY IF EXISTS game_invites_insert ON public.game_invites;
 CREATE POLICY game_invites_insert ON public.game_invites FOR INSERT TO authenticated WITH CHECK (auth.uid()=sender_id AND status='pending' AND sender_id<>recipient_id AND game_mode IN ('guess_my_pokemon','stat_duel','draft_duo','who_that_pokemon','pokemon_auction'));
+
+-- Rend immédiatement les nouvelles tables et RPC visibles par l'API Supabase.
+NOTIFY pgrst, 'reload schema';

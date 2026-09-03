@@ -97,7 +97,7 @@
 	}
 
 	<!-- Main content -->
-	<main class="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 pb-8 pt-5 sm:pb-12 sm:pt-6">
+	<main class="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 pb-8 pt-7 sm:pb-12 sm:pt-6">
 		<div class="menu-grid pointer-events-none absolute inset-0"></div>
 		<div class="relative mb-7 w-full max-w-7xl sm:mb-9">
 			<h1 class="text-3xl font-black tracking-[-0.045em] text-white sm:text-5xl">
@@ -189,7 +189,7 @@
 
 			<!-- Carte Amis -->
 			<div #friendsCard class="flex min-h-0 flex-col gap-2 self-start overflow-hidden lg:col-span-4">
-				<app-friends-card class="w-full h-full flex flex-col" (inviteRequested)="onInviteRequested($event)" />
+				<app-friends-card class="flex min-h-0 w-full flex-col lg:h-full" (inviteRequested)="onInviteRequested($event)" />
 				@if (inviteError) {
 					<p class="text-xs text-red-400 px-1">{{ inviteError }}</p>
 				}

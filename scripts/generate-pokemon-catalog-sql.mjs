@@ -31,19 +31,32 @@ const end = schema.indexOf(endMarker);
 if (start < 0 || end < start) throw new Error('Marqueurs du catalogue introuvables');
 
 const updated = `${schema.slice(0, start + startMarker.length)}\n${seed}\n${schema.slice(end)}`;
-const auctionRows = pokemon.map(entry => {
-  const types = `ARRAY[${entry.types.map(quote).join(',')}]::text[]`;
-  return `(${entry.id},${types},${Number(entry.rating)})`;
-});
 const auctionCatalog = [
   '-- Fichier généré par npm run generate:pokemon-sql. Ne pas modifier manuellement.',
-  '-- À appliquer sur une base existante avant pokemon-auction.sql.',
+  '-- Migration additive autonome à appliquer avant pokemon-auction.sql.',
+  '',
+  'CREATE TABLE IF NOT EXISTS public.pokemon_catalog (',
+  '  id integer PRIMARY KEY,',
+  '  generation integer NOT NULL,',
+  '  category text NOT NULL,',
+  "  types text[] DEFAULT '{}'::text[] NOT NULL,",
+  '  rating numeric(3,1) DEFAULT 0 NOT NULL,',
+  '  pv integer NOT NULL,',
+  '  attaque integer NOT NULL,',
+  '  defense integer NOT NULL,',
+  '  atq_spe integer NOT NULL,',
+  '  def_spe integer NOT NULL,',
+  '  vitesse integer NOT NULL',
+  ');',
   '',
   "ALTER TABLE public.pokemon_catalog ADD COLUMN IF NOT EXISTS types text[] DEFAULT '{}'::text[] NOT NULL;",
   'ALTER TABLE public.pokemon_catalog ADD COLUMN IF NOT EXISTS rating numeric(3,1) DEFAULT 0 NOT NULL;',
   '',
-  'INSERT INTO public.pokemon_catalog (id, types, rating) VALUES',
-  `${auctionRows.join(',\n')}\nON CONFLICT (id) DO UPDATE SET types = EXCLUDED.types, rating = EXCLUDED.rating;`,
+  seed,
+  '',
+  'ALTER TABLE public.pokemon_catalog ENABLE ROW LEVEL SECURITY;',
+  'REVOKE ALL ON TABLE public.pokemon_catalog FROM anon, authenticated;',
+  "NOTIFY pgrst, 'reload schema';",
   '',
 ].join('\n');
 

@@ -61,7 +61,7 @@ Le schéma de référence est dans `sql-schema/ddb-schema.sql`. Il doit être ap
 - Installation neuve : appliquer `sql-schema/ddb-schema.sql`, puis `sql-schema/pokemon-auction.sql`.
 - Base existante : appliquer `sql-schema/pokemon-auction-catalog.sql`, puis `sql-schema/pokemon-auction.sql`.
 
-Le fichier de catalogue intermédiaire ajoute les types et notes nécessaires au calcul sécurisé du résultat côté serveur.
+Le fichier de catalogue intermédiaire est une migration additive autonome : il crée uniquement `pokemon_catalog` si cette table manque, puis synchronise les données nécessaires au calcul sécurisé du résultat côté serveur.
 La migration des enchères active également `pokemon_auction_rooms` dans Supabase Realtime.
 
 ## Scripts

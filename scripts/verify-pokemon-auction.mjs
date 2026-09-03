@@ -30,7 +30,7 @@ const serverChart = JSON.parse(auctionSql.slice(sqlChartStart, sqlChartEnd));
 if (JSON.stringify(clientChart) !== JSON.stringify(serverChart)) throw new Error('La table des types client et serveur diffère');
 
 const pokemon = JSON.parse(pokemonSource);
-const catalogRows = auctionCatalog.match(/^\(\d+,ARRAY\[/gm)?.length ?? 0;
+const catalogRows = auctionCatalog.match(/^\(\d+,\d+,'/gm)?.length ?? 0;
 if (catalogRows !== pokemon.length) throw new Error(`Catalogue incomplet : ${catalogRows}/${pokemon.length}`);
 
 if (auctionSql.includes('save_pokemon_auction_result(p_room_id uuid,p_p1_stats')) {

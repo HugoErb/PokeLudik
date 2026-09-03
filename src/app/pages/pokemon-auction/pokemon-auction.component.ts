@@ -35,6 +35,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   private roomSub?: Subscription;
   private timer?: ReturnType<typeof setInterval>;
   private poll?: ReturnType<typeof setInterval>;
+  private resultToastTimeout?: ReturnType<typeof setTimeout>;
   private resultSaving = false;
   private finalizedRound = 0;
 
@@ -44,6 +45,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly actionPending = signal(false);
   readonly error = signal('');
+  readonly resultToast = signal('');
   readonly showCancel = signal(false);
   readonly isCancelling = signal(false);
   readonly iWantReplay = signal(false);
@@ -66,6 +68,14 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     const end = new Date(this.room()?.auction_end_at ?? 0).getTime();
     return Math.max(0, Math.ceil((end - Math.max(this.now(), start)) / 1000));
   });
+  readonly timerProgress = computed(() => {
+    const start = new Date(this.room()?.auction_start_at ?? 0).getTime();
+    const end = new Date(this.room()?.auction_end_at ?? 0).getTime();
+    const remaining = Math.max(0, end - Math.max(this.now(), start));
+    return Math.min(100, (remaining / 15_000) * 100);
+  });
+  readonly timerColor = computed(() => this.timeLeft() <= 3 ? 'text-red-400' : this.timeLeft() <= 6 ? 'text-yellow-400' : 'text-green-400');
+  readonly timerBarColor = computed(() => this.timeLeft() <= 3 ? 'bg-red-500' : this.timeLeft() <= 6 ? 'bg-yellow-500' : 'bg-green-500');
   readonly hasStarted = computed(() => this.now() >= new Date(this.room()?.auction_start_at ?? 0).getTime());
   readonly myTurn = computed(() => this.room()?.current_turn === this.myRole());
   readonly myBidSubmitted = computed(() => this.isPlayer1() ? !!this.room()?.p1_bid_submitted : !!this.room()?.p2_bid_submitted);
@@ -118,6 +128,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     this.roomSub?.unsubscribe();
     if (this.timer) clearInterval(this.timer);
     if (this.poll) clearInterval(this.poll);
+    if (this.resultToastTimeout) clearTimeout(this.resultToastTimeout);
     this.supabase.untrackPresence();
   }
 
@@ -153,14 +164,20 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
 
   protected lastResultText(): string {
     const result = this.room()?.last_result; if (!result) return '';
+    const pokemon = this.byId(result.pokemonId);
+    const pokemonName = pokemon
+      ? `${pokemon.name.charAt(0).toUpperCase()}${pokemon.name.slice(1)}`
+      : `Pokémon #${result.pokemonId}`;
     const revealedBids = this.room()?.settings?.auctionFormat === 'sealed'
       ? ` Offres révélées : ${result.p1Bid ?? 0} ₽ / ${result.p2Bid ?? 0} ₽.`
       : '';
-    if (result.outcome === 'tied') return `Égalité : ce Pokémon reviendra plus tard.${revealedBids}`;
-    const who = result.winner === this.myRole() ? 'Tu remportes' : `${this.opponentName()} remporte`;
-    if (result.outcome === 'free') return `${who} le Pokémon gratuitement.${revealedBids}`;
-    if (result.outcome === 'blocked') return `${who} le blocage pour ${result.price} ₽.${revealedBids}`;
-    return `${who} le Pokémon pour ${result.price} ₽.${revealedBids}`;
+    if (result.outcome === 'tied') return `Égalité pour ${pokemonName} : il reviendra plus tard.${revealedBids}`;
+    const mine = result.winner === this.myRole();
+    const subject = mine ? 'Tu' : this.opponentName();
+    const verb = mine ? 'remportes' : 'remporte';
+    if (result.outcome === 'free') return `${subject} ${verb} ${pokemonName} gratuitement.${revealedBids}`;
+    if (result.outcome === 'blocked') return `${subject} ${mine ? 'bloques' : 'bloque'} ${pokemonName} pour ${result.price} ₽.${revealedBids}`;
+    return `${subject} ${verb} ${pokemonName} pour ${result.price} ₽.${revealedBids}`;
   }
 
   protected typeColor(type: string): string { return TYPE_COLORS[type] ?? 'bg-gray-500'; }
@@ -198,7 +215,9 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   private onRoom(room: PokemonAuctionRoom): void {
     const previousRound = this.room()?.round;
     const previousStatus = this.room()?.status;
+    const previousResultRound = this.room()?.last_result?.round;
     this.room.set(room);
+    if (room.last_result && room.last_result.round !== previousResultRound) this.showResultToast();
     if (room.status === 'finished' && (room.p1_team.length < 6 || room.p2_team.length < 6)) {
       void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
       return;
@@ -209,6 +228,15 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     }
     if (previousStatus === 'finished' && room.status === 'playing') this.iWantReplay.set(false);
     if (room.status === 'finished') void this.saveResultIfNeeded(room);
+  }
+
+  private showResultToast(): void {
+    if (this.resultToastTimeout) clearTimeout(this.resultToastTimeout);
+    this.resultToast.set(this.lastResultText());
+    this.resultToastTimeout = setTimeout(() => {
+      this.resultToast.set('');
+      this.resultToastTimeout = undefined;
+    }, 4500);
   }
 
   private async saveResultIfNeeded(room: PokemonAuctionRoom): Promise<void> {

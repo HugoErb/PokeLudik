@@ -199,13 +199,18 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!card) return;
 
     const updateFriendsHeight = () => {
-      const height = card.offsetHeight;
-      if (height <= 0) return;
-      const value = `${height}px`;
       const friendsCard = this.friendsCard?.nativeElement;
-      if (friendsCard) {
+      if (!friendsCard) return;
+
+      if (globalThis.matchMedia('(min-width: 1024px)').matches) {
+        const height = card.offsetHeight;
+        if (height <= 0) return;
+        const value = `${height}px`;
         friendsCard.style.height = value;
         friendsCard.style.maxHeight = value;
+      } else {
+        friendsCard.style.removeProperty('height');
+        friendsCard.style.removeProperty('max-height');
       }
     };
     requestAnimationFrame(updateFriendsHeight);
