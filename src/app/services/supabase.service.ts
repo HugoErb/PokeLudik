@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy, signal, inject, NgZone } from '@angular/core';
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { filter, map, skipUntil } from 'rxjs/operators';
+import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, GameSettings, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
@@ -26,15 +26,26 @@ export class SupabaseService implements OnDestroy {
     constructor() {
         this.supabase = createClient(environment.supabaseUrl, environment.supabaseAnonKey);
 
-        this.authReady$ = this.userSubject.pipe(skipUntil(this.isInitializedSubject.pipe(filter((v) => v))));
+        // combineLatest rejoue toujours la valeur utilisateur courante au moment où
+        // l'initialisation se termine. Avec skipUntil, cette valeur pouvait être
+        // émise juste avant le signal `true` puis perdue, laissant le guard bloqué.
+        this.authReady$ = combineLatest([this.userSubject, this.isInitializedSubject]).pipe(
+            filter(([, isInitialized]) => isInitialized),
+            map(([user]) => user),
+        );
 
         // Initialise avec la session courante
-        this.supabase.auth.getSession().then(({ data }) => {
-            const user = data.session?.user ?? null;
-            this.userSubject.next(user);
-            this.currentUserSignal.set(user);
-            this.isInitializedSubject.next(true);
-        });
+        this.supabase.auth.getSession()
+            .then(({ data }) => {
+                const user = data.session?.user ?? null;
+                this.userSubject.next(user);
+                this.currentUserSignal.set(user);
+            })
+            .catch(() => {
+                this.userSubject.next(null);
+                this.currentUserSignal.set(null);
+            })
+            .finally(() => this.isInitializedSubject.next(true));
 
         // Écoute les changements d'état d'authentification
         const {
