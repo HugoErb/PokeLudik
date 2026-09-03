@@ -66,6 +66,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       iconClass: 'text-cyan-300',
       buttonClass: 'bg-cyan-600 hover:bg-cyan-500 focus-visible:ring-cyan-400',
     },
+    pokemon_auction: {
+      label: 'Enchères Pokémon',
+      icon: ICONS.auction,
+      borderClass: 'border-amber-500/60', glowClass: 'shadow-amber-950/50',
+      iconBoxClass: 'bg-amber-500/20 border-amber-500/30', iconClass: 'text-amber-300',
+      buttonClass: 'bg-amber-500 hover:bg-amber-400 text-slate-950 focus-visible:ring-amber-300',
+    },
   };
   showPasswordModal = signal(false);
   showUsernameModal = signal(false);
@@ -98,7 +105,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   username = '';
   avatarUrl = signal<string | null>(null);
   isCreating = false;
-  createError = '';
   inviteError = '';
   isLoadingProfile = true;
   isUpdatingPassword = false;
@@ -115,6 +121,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   showToast = signal(false);
   toastMessage = signal('');
+  toastKind = signal<'success' | 'error'>('success');
   showCurrentPassword = signal(false);
   showNewPassword = signal(false);
   showConfirmPassword = signal(false);
@@ -123,6 +130,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   incomingInvite = signal<GameInvite | null>(null);
   inviteCountdown = signal(15);
   private inviteCountdownInterval: ReturnType<typeof setInterval> | null = null;
+  private toastTimeout: ReturnType<typeof setTimeout> | null = null;
   private invitesSub?: Subscription;
   private gameModesResizeObserver?: ResizeObserver;
 
@@ -139,10 +147,15 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Affiche temporairement un toast. */
-  private triggerToast(message: string): void {
+  private triggerToast(message: string, kind: 'success' | 'error' = 'success'): void {
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
     this.toastMessage.set(message);
+    this.toastKind.set(kind);
     this.showToast.set(true);
-    setTimeout(() => this.showToast.set(false), 3000);
+    this.toastTimeout = setTimeout(() => {
+      this.showToast.set(false);
+      this.toastTimeout = null;
+    }, 3500);
   }
 
   constructor(
@@ -205,6 +218,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.invitesSub?.unsubscribe();
     this.gameModesResizeObserver?.disconnect();
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
     this.clearInviteToast();
   }
 
@@ -296,6 +310,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'draft_duo' } });
       } else if (invite.game_mode === 'who_that_pokemon') {
         this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'who_that_pokemon' } });
+      } else if (invite.game_mode === 'pokemon_auction') {
+        this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'pokemon_auction' } });
       } else {
         this.router.navigate(['/lobby', invite.room_id]);
       }
@@ -335,7 +351,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Traite une demande d'invitation envoyee a un ami. */
   async onInviteRequested(event: { friendId: string; username: string; gameMode: GameMode }): Promise<void> {
     this.isCreating = true;
-    this.createError = '';
     this.inviteError = '';
     try {
       const { roomId, inviteId } = await this.supabaseService.sendGameInvite(event.friendId, event.gameMode);
@@ -345,6 +360,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'draft_duo', inviteId, friendName: event.username } });
       } else if (event.gameMode === 'who_that_pokemon') {
         this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'who_that_pokemon', inviteId, friendName: event.username } });
+      } else if (event.gameMode === 'pokemon_auction') {
+        this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'pokemon_auction', inviteId, friendName: event.username } });
       } else {
         this.router.navigate(['/lobby', roomId], { queryParams: { inviteId, friendName: event.username } });
       }
@@ -372,17 +389,28 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.router.navigate(['/who-that-pokemon']);
   }
 
+  async startPokemonAuction(): Promise<void> {
+    this.isCreating = true;
+    try {
+      const roomId = await this.supabaseService.createPokemonAuctionRoom();
+      await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'pokemon_auction' } });
+    } catch {
+      this.triggerToast('Impossible de créer la partie. Réessaie.', 'error');
+    } finally {
+      this.isCreating = false;
+    }
+  }
+
   /** Cree une nouvelle partie. */
   async createGame(): Promise<void> {
     this.isCreating = true;
-    this.createError = '';
     this.inviteError = '';
     localStorage.removeItem('gmp:filters');
     try {
       const roomId = await this.supabaseService.createRoom();
       this.router.navigate(['/lobby', roomId]);
     } catch {
-      this.createError = 'Impossible de créer la partie. Réessaie.';
+      this.triggerToast('Impossible de créer la partie. Réessaie.', 'error');
     } finally {
       this.isCreating = false;
     }

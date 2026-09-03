@@ -27,6 +27,7 @@ describe('multiplayer room state', () => {
   it('résout le mode du lobby depuis le paramètre de route', () => {
     expect(resolveLobbyGameMode('stat_duel')).toBe('stat_duel');
     expect(resolveLobbyGameMode('draft_duo')).toBe('draft_duo');
+    expect(resolveLobbyGameMode('pokemon_auction')).toBe('pokemon_auction');
     expect(resolveLobbyGameMode('who_that_pokemon')).toBe('who_that_pokemon');
     expect(resolveLobbyGameMode(null)).toBe('guess_my_pokemon');
     expect(resolveLobbyGameMode('inconnu')).toBe('guess_my_pokemon');

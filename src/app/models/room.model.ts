@@ -65,7 +65,62 @@ export interface Friendship {
   created_at: string;
 }
 
-export type GameMode = 'guess_my_pokemon' | 'stat_duel' | 'draft_duo' | 'who_that_pokemon';
+export type GameMode = 'guess_my_pokemon' | 'stat_duel' | 'draft_duo' | 'who_that_pokemon' | 'pokemon_auction';
+
+export type AuctionFormat = 'live' | 'sealed' | 'turn_based';
+
+export interface AuctionGameSettings {
+  generations: number[];
+  categories: string[];
+  auctionFormat: AuctionFormat;
+  startingBudget: number;
+}
+
+export interface AuctionResult {
+  pokemonId: number;
+  outcome: 'purchased' | 'free' | 'blocked' | 'tied';
+  winner: 'player1' | 'player2' | null;
+  price: number;
+  p1Bid?: number;
+  p2Bid?: number;
+  round: number;
+}
+
+export interface PokemonAuctionRoom {
+  id: string;
+  player1_id: string;
+  player2_id: string | null;
+  status: 'waiting' | 'playing' | 'finished';
+  settings: AuctionGameSettings | null;
+  p1_team: number[];
+  p2_team: number[];
+  p1_balance: number;
+  p2_balance: number;
+  current_pokemon_id: number | null;
+  used_pokemon_ids: number[];
+  requeue_pokemon_ids: number[];
+  round: number;
+  auction_start_at: string | null;
+  auction_end_at: string | null;
+  current_bid: number;
+  current_bidder: 'player1' | 'player2' | null;
+  current_turn: 'player1' | 'player2' | null;
+  p1_passed: boolean;
+  p2_passed: boolean;
+  p1_bid_submitted: boolean;
+  p2_bid_submitted: boolean;
+  last_result: AuctionResult | null;
+  p1_stats_score: number | null;
+  p2_stats_score: number | null;
+  p1_coverage_score: number | null;
+  p2_coverage_score: number | null;
+  p1_final_score: number | null;
+  p2_final_score: number | null;
+  winner: 'player1' | 'player2' | 'draw' | null;
+  p1_ready: boolean;
+  p2_ready: boolean;
+  created_at: string;
+}
 
 export interface GameInvite {
   id: string;

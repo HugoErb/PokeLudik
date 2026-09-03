@@ -15,6 +15,7 @@ export const routes: Routes = [
   { path: 'stat-duel', loadComponent: () => import('./pages/stat-duel/stat-duel.component').then(m => m.StatDuelComponent), canActivate: [authGuard] },
   { path: 'stat-duel/:roomId', loadComponent: () => import('./pages/stat-duel/stat-duel.component').then(m => m.StatDuelComponent), canActivate: [authGuard] },
   { path: 'draft-duo/:roomId', loadComponent: () => import('./pages/draft-duo/draft-duo.component').then(m => m.DraftDuoComponent), canActivate: [authGuard] },
+  { path: 'pokemon-auction/:roomId', loadComponent: () => import('./pages/pokemon-auction/pokemon-auction.component').then(m => m.PokemonAuctionComponent), canActivate: [authGuard] },
   { path: 'trainer-select', loadComponent: () => import('./pages/trainer-select/trainer-select.component').then(m => m.TrainerSelectComponent), canActivate: [authGuard] },
   { path: 'draft-trainer/:id', loadComponent: () => import('./pages/draft-trainer/draft-trainer.component').then(m => m.DraftTrainerComponent), canActivate: [authGuard] },
   { path: '**', redirectTo: '/login' }

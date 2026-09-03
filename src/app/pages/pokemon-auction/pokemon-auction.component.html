@@ -1,0 +1,104 @@
+<div class="menu-surface flex h-dvh flex-col overflow-hidden text-white">
+  <app-header [icon]="ICONS.auction" iconClass="text-orange-300" title="Enchères Pokémon">
+    @if (room()?.status === 'playing') {
+      <button type="button" (click)="showCancel.set(true)" class="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/[0.08]">Quitter</button>
+    }
+  </app-header>
+
+  @if (loading()) {
+    <main class="flex flex-1 items-center justify-center"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-4xl text-orange-300"></iconify-icon></main>
+  } @else if (room(); as game) {
+    @if (game.status === 'playing') {
+      <main class="relative flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 lg:p-6">
+        <div class="mx-auto mb-3 flex w-full max-w-7xl flex-wrap items-center justify-center gap-2">
+          <span class="rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-orange-200">{{ formatLabel() }}</span>
+          <span class="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-300">Enchère {{ game.round }}</span>
+          <span class="rounded-full border px-3 py-1 text-xs font-black tabular-nums" [ngClass]="timeLeft() <= 5 ? 'border-red-400/40 bg-red-500/10 text-red-300' : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300'">{{ timeLeft() }} s</span>
+        </div>
+
+        <div class="mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-3 overflow-y-auto lg:grid-cols-[minmax(230px,1fr)_minmax(330px,1.35fr)_minmax(230px,1fr)] lg:items-start">
+          <section class="order-2 rounded-3xl border border-orange-400/15 bg-slate-900/75 p-3 shadow-xl lg:order-1">
+            <div class="mb-3 flex items-center justify-between"><div><p class="text-xs font-black uppercase tracking-wider text-orange-300">Ton équipe</p><p class="text-[10px] text-slate-500">{{ myTeam().length }}/6 Pokémon</p></div><span class="rounded-xl bg-emerald-500/10 px-3 py-1.5 text-sm font-black text-emerald-300">{{ myBalance() }} ₽</span></div>
+            <div class="grid grid-cols-3 gap-2 lg:grid-cols-2 xl:grid-cols-3">
+              @for (slot of [0,1,2,3,4,5]; track slot) {
+                <div class="aspect-square min-w-0 rounded-2xl border border-white/[0.08] bg-slate-950/55 p-1.5 flex flex-col items-center justify-center">
+                  @if (myTeam()[slot]; as pokemon) { <img [src]="pokemon.sprite" [alt]="pokemon.name" class="h-[70%] w-[70%] object-contain" /><span class="w-full truncate text-center text-[9px] font-bold capitalize">{{ pokemon.name }}</span> }
+                  @else { <iconify-icon [icon]="ICONS.pokeball" class="text-2xl text-slate-700"></iconify-icon> }
+                </div>
+              }
+            </div>
+          </section>
+
+          <section class="order-1 flex flex-col gap-3 rounded-3xl border border-orange-400/20 bg-gradient-to-b from-slate-900 to-slate-950 p-4 shadow-2xl shadow-orange-950/20 lg:order-2">
+            @if (currentPokemon(); as pokemon) {
+              <div class="flex flex-col items-center">
+                <img [src]="pokemon.sprite" [alt]="pokemon.name" class="h-36 w-36 object-contain drop-shadow-2xl sm:h-44 sm:w-44" />
+                <p class="text-[10px] font-black tracking-widest text-slate-500">#{{ pokemon.id.toString().padStart(3, '0') }}</p>
+                <h1 class="text-2xl font-black capitalize tracking-tight">{{ pokemon.name }}</h1>
+                <div class="mt-2 flex gap-1.5">@for (type of pokemon.types; track type) { <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black" [ngClass]="typeColor(type)"><iconify-icon [icon]="typeIcon(type)"></iconify-icon>{{ type }}</span> }</div>
+              </div>
+              <app-pokemon-stats-grid [pokemon]="pokemon" />
+              <div class="grid grid-cols-4 gap-1.5 text-center">
+                <div class="rounded-lg bg-slate-900/70 p-1.5"><span class="block text-[8px] uppercase text-slate-500">Gén.</span><b class="text-[10px]">{{ pokemon.generation }}</b></div>
+                <div class="rounded-lg bg-slate-900/70 p-1.5"><span class="block text-[8px] uppercase text-slate-500">Catégorie</span><b class="block truncate text-[10px] capitalize">{{ pokemon.category }}</b></div>
+                <div class="rounded-lg bg-slate-900/70 p-1.5"><span class="block text-[8px] uppercase text-slate-500">Taille</span><b class="text-[10px]">{{ pokemon.height }} m</b></div>
+                <div class="rounded-lg bg-slate-900/70 p-1.5"><span class="block text-[8px] uppercase text-slate-500">Poids</span><b class="text-[10px]">{{ pokemon.weight }} kg</b></div>
+              </div>
+            } @else {
+              <div class="flex min-h-72 items-center justify-center"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-4xl text-orange-300"></iconify-icon></div>
+            }
+
+            <div class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3">
+              @if (!hasStarted()) {
+                <p class="text-center text-sm font-bold text-slate-300">Prépare-toi…</p>
+              } @else if (game.settings?.auctionFormat === 'sealed') {
+                <div class="mb-3 flex justify-center gap-4 text-xs"><span [class.text-emerald-300]="myBidSubmitted()">{{ myBidSubmitted() ? '✓ Offre envoyée' : 'Ton offre attendue' }}</span><span [class.text-emerald-300]="opponentBidSubmitted()">{{ opponentBidSubmitted() ? '✓ Adversaire prêt' : 'Adversaire réfléchit' }}</span></div>
+              } @else {
+                <div class="mb-3 text-center"><p class="text-[10px] font-black uppercase tracking-widest text-slate-500">Meilleure offre</p><p class="text-3xl font-black text-orange-300">{{ game.current_bid || '—' }}<span class="ml-1 text-base">₽</span></p>@if (game.current_bidder) { <p class="text-[10px] text-slate-400">{{ game.current_bidder === myRole() ? 'Tu mènes' : opponentName() + ' mène' }}</p> }</div>
+              }
+
+              @if (game.settings?.auctionFormat !== 'turn_based' || myTurn()) {
+                <div class="flex items-stretch gap-2">
+                  <input type="number" min="10" step="10" [(ngModel)]="bidAmount" (change)="normalizeBid()" [disabled]="!canAct()" class="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-right text-base font-black text-white outline-none focus:border-orange-400" />
+                  <button type="button" (click)="submitBid()" [disabled]="!canAct() || bidAmount < minimumBid() || bidAmount > maxBid()" class="rounded-xl bg-orange-500 px-4 text-sm font-black text-slate-950 transition hover:bg-orange-400 disabled:opacity-40">{{ game.settings?.auctionFormat === 'sealed' ? 'Valider' : 'Miser' }}</button>
+                </div>
+                <div class="mt-2 grid grid-cols-4 gap-1.5">@for (quick of [10,50,100]; track quick) { <button type="button" (click)="adjustBid(quick)" [disabled]="!canAct()" class="rounded-lg border border-white/10 bg-white/[0.04] py-1.5 text-[10px] font-bold text-slate-300 disabled:opacity-40">+{{ quick }}</button> }<button type="button" (click)="setMaximumBid()" [disabled]="!canAct()" class="rounded-lg border border-white/10 bg-white/[0.04] py-1.5 text-[10px] font-bold text-orange-300 disabled:opacity-40">MAX</button></div>
+                @if (game.settings?.auctionFormat !== 'live') { <button type="button" (click)="pass()" [disabled]="!canAct()" class="mt-2 w-full rounded-xl border border-white/10 py-2 text-xs font-bold text-slate-400 hover:bg-white/[0.04] disabled:opacity-40">Passer</button> }
+              } @else {
+                <p class="py-3 text-center text-sm font-bold text-slate-400">Au tour de {{ opponentName() }}</p>
+              }
+              <p class="mt-2 text-center text-[10px] text-slate-500">Offre maximale : {{ maxBid() }} ₽ · réserve incluse</p>
+              @if (error()) { <p class="mt-2 rounded-lg bg-red-500/10 p-2 text-center text-[10px] text-red-300">{{ error() }}</p> }
+            </div>
+            @if (lastResultText()) { <div class="rounded-xl border border-orange-400/15 bg-orange-500/[0.06] px-3 py-2 text-center text-xs font-bold text-orange-100">{{ lastResultText() }}</div> }
+          </section>
+
+          <section class="order-3 rounded-3xl border border-blue-400/15 bg-slate-900/75 p-3 shadow-xl">
+            <div class="mb-3 flex items-center justify-between"><div><p class="text-xs font-black uppercase tracking-wider text-blue-300">{{ opponentName() }}</p><p class="text-[10px] text-slate-500">{{ opponentTeam().length }}/6 Pokémon</p></div><span class="rounded-xl bg-blue-500/10 px-3 py-1.5 text-sm font-black text-blue-300">{{ opponentBalance() }} ₽</span></div>
+            <div class="grid grid-cols-3 gap-2 lg:grid-cols-2 xl:grid-cols-3">
+              @for (slot of [0,1,2,3,4,5]; track slot) {
+                <div class="aspect-square min-w-0 rounded-2xl border border-white/[0.08] bg-slate-950/55 p-1.5 flex flex-col items-center justify-center">
+                  @if (opponentTeam()[slot]; as pokemon) { <img [src]="pokemon.sprite" [alt]="pokemon.name" class="h-[70%] w-[70%] object-contain" /><span class="w-full truncate text-center text-[9px] font-bold capitalize">{{ pokemon.name }}</span> }
+                  @else { <iconify-icon [icon]="ICONS.pokeball" class="text-2xl text-slate-700"></iconify-icon> }
+                </div>
+              }
+            </div>
+          </section>
+        </div>
+      </main>
+    } @else {
+      <main class="flex min-h-0 flex-1 items-start justify-start overflow-y-auto p-4 sm:p-6">
+        <div class="mx-auto w-full max-w-5xl rounded-[30px] border border-white/10 bg-slate-900/80 p-5 shadow-2xl sm:p-8">
+          <div class="text-center"><iconify-icon [icon]="result() === 'win' ? ICONS.trophy : result() === 'lose' ? ICONS.skull : ICONS.pokeball" class="text-5xl" [ngClass]="result() === 'win' ? 'text-yellow-400' : result() === 'lose' ? 'text-red-400' : 'text-blue-300'"></iconify-icon><h1 class="mt-2 text-3xl font-black">{{ result() === 'win' ? 'Victoire !' : result() === 'lose' ? 'Défaite' : 'Égalité !' }}</h1><p class="mt-1 text-sm text-slate-400">Comparaison des statistiques et de la couverture de types</p></div>
+          <div class="mt-6 grid gap-4 md:grid-cols-2">
+            <div class="min-w-0 rounded-2xl border border-orange-400/20 bg-orange-500/[0.05] p-4"><div class="flex min-w-0 items-center justify-between gap-2"><h2 class="min-w-0 truncate font-black">Ton équipe</h2><strong class="shrink-0 text-2xl text-orange-300">{{ myResultScores().final }}/10</strong></div><div class="mt-3 grid grid-cols-6 gap-1">@for (pokemon of myTeam(); track pokemon.id) { <img [src]="pokemon.sprite" [alt]="pokemon.name" class="w-full object-contain" /> }</div><div class="mt-3 grid grid-cols-2 gap-2 text-center text-xs"><div class="rounded-xl bg-slate-950/60 p-2"><span class="text-slate-500">Base Stats</span><b class="block text-white">{{ myResultScores().stats }}</b></div><div class="rounded-xl bg-slate-950/60 p-2"><span class="text-slate-500">Couverture</span><b class="block text-white">{{ myResultScores().coverage }}</b></div></div></div>
+            <div class="min-w-0 rounded-2xl border border-blue-400/20 bg-blue-500/[0.05] p-4"><div class="flex min-w-0 items-center justify-between gap-2"><h2 class="min-w-0 truncate font-black">{{ opponentName() }}</h2><strong class="shrink-0 text-2xl text-blue-300">{{ opponentResultScores().final }}/10</strong></div><div class="mt-3 grid grid-cols-6 gap-1">@for (pokemon of opponentTeam(); track pokemon.id) { <img [src]="pokemon.sprite" [alt]="pokemon.name" class="w-full object-contain" /> }</div><div class="mt-3 grid grid-cols-2 gap-2 text-center text-xs"><div class="rounded-xl bg-slate-950/60 p-2"><span class="text-slate-500">Base Stats</span><b class="block text-white">{{ opponentResultScores().stats }}</b></div><div class="rounded-xl bg-slate-950/60 p-2"><span class="text-slate-500">Couverture</span><b class="block text-white">{{ opponentResultScores().coverage }}</b></div></div></div>
+          </div>
+          <div class="mx-auto mt-6 max-w-sm"><app-end-game-actions replayMode="multi" [iWantReplay]="iWantReplay()" [opponentWantsReplay]="isPlayer1() ? game.p2_ready : game.p1_ready" (replay)="requestReplay()" (goHome)="goHome()" /></div>
+        </div>
+      </main>
+    }
+  }
+</div>
+
+@if (showCancel()) { <app-cancel-modal [isCancelling]="isCancelling()" title="Quitter les enchères ?" message="La partie sera arrêtée pour les deux joueurs." (cancel)="showCancel.set(false)" (confirm)="cancel()" /> }

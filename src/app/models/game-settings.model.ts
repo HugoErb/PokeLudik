@@ -1,4 +1,5 @@
 import type { GameMode } from './room.model';
+import type { AuctionFormat, AuctionGameSettings } from './room.model';
 
 export type SettingsMode = GameMode | 'draft_trainer';
 export type FirstPlayer = 'player1' | 'player2' | 'random';
@@ -11,7 +12,9 @@ export type SettingsControl =
   | 'noSearch'
   | 'randomPokemon'
   | 'firstPlayer'
-  | 'initialHint';
+  | 'initialHint'
+  | 'auctionFormat'
+  | 'startingBudget';
 
 export interface ModeSettings {
   generations: number[];
@@ -21,10 +24,13 @@ export interface ModeSettings {
   firstPlayer: FirstPlayer;
   randomPokemon: boolean;
   initialHint: WhoInitialHint;
+  auctionFormat: AuctionFormat;
+  startingBudget: number;
 }
 
 export type GuessGameSettings = Pick<ModeSettings, 'generations' | 'categories' | 'noPokedex' | 'noSearch' | 'firstPlayer' | 'randomPokemon'>;
 export type WhoModeSettings = Pick<ModeSettings, 'generations' | 'categories' | 'initialHint'>;
+export type AuctionModeSettings = Pick<ModeSettings, 'generations' | 'categories' | 'auctionFormat' | 'startingBudget'>;
 
 export interface SettingsDefinition {
   configurable: boolean;
@@ -40,6 +46,8 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     firstPlayer: 'random',
     randomPokemon: false,
     initialHint: 'silhouette',
+    auctionFormat: 'live',
+    startingBudget: 1000,
   },
   stat_duel: {
     generations: [],
@@ -49,6 +57,8 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     firstPlayer: 'random',
     randomPokemon: false,
     initialHint: 'silhouette',
+    auctionFormat: 'live',
+    startingBudget: 1000,
   },
   draft_duo: {
     generations: [],
@@ -58,6 +68,8 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     firstPlayer: 'random',
     randomPokemon: false,
     initialHint: 'silhouette',
+    auctionFormat: 'live',
+    startingBudget: 1000,
   },
   who_that_pokemon: {
     generations: [],
@@ -67,6 +79,19 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     firstPlayer: 'random',
     randomPokemon: false,
     initialHint: 'silhouette',
+    auctionFormat: 'live',
+    startingBudget: 1000,
+  },
+  pokemon_auction: {
+    generations: [],
+    categories: [],
+    noPokedex: false,
+    noSearch: false,
+    firstPlayer: 'random',
+    randomPokemon: false,
+    initialHint: 'silhouette',
+    auctionFormat: 'live',
+    startingBudget: 1000,
   },
   draft_trainer: {
     generations: [],
@@ -76,6 +101,8 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     firstPlayer: 'random',
     randomPokemon: false,
     initialHint: 'silhouette',
+    auctionFormat: 'live',
+    startingBudget: 1000,
   },
 };
 
@@ -99,6 +126,10 @@ const SETTINGS_DEFINITIONS: Record<SettingsMode, SettingsDefinition> = {
   draft_trainer: {
     configurable: false,
     controls: [],
+  },
+  pokemon_auction: {
+    configurable: true,
+    controls: ['generations', 'categories', 'auctionFormat', 'startingBudget'],
   },
 };
 
@@ -129,6 +160,15 @@ export function toWhoSettings(settings: ModeSettings): WhoModeSettings {
   };
 }
 
+export function toAuctionSettings(settings: ModeSettings): AuctionGameSettings {
+  return {
+    generations: settings.generations,
+    categories: settings.categories,
+    auctionFormat: settings.auctionFormat,
+    startingBudget: settings.startingBudget,
+  };
+}
+
 export function getActiveSettingsCount(mode: SettingsMode, settings: ModeSettings): number {
   const controls = new Set(getSettingsDefinition(mode).controls);
   let count = 0;
@@ -139,6 +179,8 @@ export function getActiveSettingsCount(mode: SettingsMode, settings: ModeSetting
   if (controls.has('randomPokemon') && settings.randomPokemon) count++;
   if (controls.has('firstPlayer') && settings.firstPlayer !== 'random') count++;
   if (controls.has('initialHint') && settings.initialHint !== DEFAULT_MODE_SETTINGS.who_that_pokemon.initialHint) count++;
+  if (controls.has('auctionFormat') && settings.auctionFormat !== DEFAULT_MODE_SETTINGS.pokemon_auction.auctionFormat) count++;
+  if (controls.has('startingBudget') && settings.startingBudget !== DEFAULT_MODE_SETTINGS.pokemon_auction.startingBudget) count++;
   return count;
 }
 

@@ -21,6 +21,8 @@ export const ICONS = {
   sound: 'mdi:volume-high',
   play: 'mdi:play',
   pause: 'mdi:pause',
+  auction: 'mdi:currency-usd',
+  money: 'mdi:cash',
 
   // Auth
   password: 'mdi:lock-outline',

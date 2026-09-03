@@ -17,6 +17,7 @@ import { AppHeaderComponent } from '../../components/app-header/app-header.compo
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { environment } from '../../../environments/environment';
 import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
+import { PokemonStatsGridComponent } from '../../components/pokemon-stats-grid/pokemon-stats-grid.component';
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toGuessSettings } from '../../models/game-settings.model';
 import { shouldRevealStatDuelRound } from '../../utils/stat-duel-sync';
 
@@ -47,7 +48,7 @@ const ROUND_DURATION_MS = ROUND_PICK_TIME_MS + ROUND_TRANSITION_TIME_MS;
 @Component({
     selector: 'app-stat-duel',
     standalone: true,
-    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent],
+    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent, PokemonStatsGridComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     templateUrl: './stat-duel.component.html',
     styles: [`

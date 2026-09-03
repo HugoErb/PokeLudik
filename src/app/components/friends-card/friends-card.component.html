@@ -207,6 +207,10 @@
 				<iconify-icon [icon]="ICONS.statDuel" class="text-yellow-400 text-base flex-shrink-0"></iconify-icon>
 				Duel de base stats
 			</button>
+			<button [disabled]="openMenuFriend()?.status !== 'online'" (click)="inviteFriend(openMenuFriend()!, 'pokemon_auction'); closeMenu()" class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-left">
+				<iconify-icon [icon]="ICONS.auction" class="text-orange-300 text-base flex-shrink-0"></iconify-icon>
+				Enchères Pokémon
+			</button>
 			<div class="border-t border-slate-700 my-1"></div>
 			<button
 				(click)="askRemoveFriend(openMenuFriend()!); closeMenu()"

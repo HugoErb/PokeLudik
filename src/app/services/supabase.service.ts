@@ -3,7 +3,7 @@ import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, GameSettings, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
+import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, GameSettings, PokemonAuctionRoom, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService implements OnDestroy {
@@ -501,6 +501,82 @@ export class SupabaseService implements OnDestroy {
     }
 
     /** Envoie une invitation à rejoindre une room existante (sans créer de nouvelle room). */
+    // ─── Enchères Pokémon ────────────────────────────────────────────────────
+
+    async createPokemonAuctionRoom(): Promise<string> {
+        const user = this.userSubject.getValue();
+        if (!user) throw new Error('Utilisateur non connecté');
+        const { data, error } = await this.supabase.from('pokemon_auction_rooms').insert({ player1_id: user.id }).select('id').single();
+        if (error) throw error;
+        return (data as { id: string }).id;
+    }
+
+    async getPokemonAuctionRoom(roomId: string): Promise<PokemonAuctionRoom> {
+        const { data, error } = await this.supabase.from('pokemon_auction_rooms').select('*').eq('id', roomId).single();
+        if (error) throw error;
+        return data as PokemonAuctionRoom;
+    }
+
+    async joinPokemonAuctionRoom(roomId: string): Promise<void> {
+        const { error } = await this.supabase.rpc('join_pokemon_auction_room', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    async setPokemonAuctionSettings(roomId: string, settings: AuctionGameSettings): Promise<void> {
+        const { error } = await this.supabase.rpc('set_pokemon_auction_settings', { p_room_id: roomId, p_settings: settings });
+        if (error) throw error;
+    }
+
+    async launchPokemonAuctionRoom(roomId: string, settings: AuctionGameSettings): Promise<void> {
+        const { error } = await this.supabase.rpc('launch_pokemon_auction_room', { p_room_id: roomId, p_settings: settings });
+        if (error) throw error;
+    }
+
+    async placePokemonAuctionBid(roomId: string, amount: number): Promise<void> {
+        const { error } = await this.supabase.rpc('place_pokemon_auction_bid', { p_room_id: roomId, p_amount: amount });
+        if (error) throw error;
+    }
+
+    async passPokemonAuctionTurn(roomId: string): Promise<void> {
+        const { error } = await this.supabase.rpc('pass_pokemon_auction_turn', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    async submitPokemonAuctionSealedBid(roomId: string, amount: number): Promise<void> {
+        const { error } = await this.supabase.rpc('submit_pokemon_auction_sealed_bid', { p_room_id: roomId, p_amount: amount });
+        if (error) throw error;
+    }
+
+    async finalizePokemonAuction(roomId: string): Promise<void> {
+        const { error } = await this.supabase.rpc('finalize_pokemon_auction', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    async savePokemonAuctionResult(roomId: string): Promise<void> {
+        const { error } = await this.supabase.rpc('save_pokemon_auction_result', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    async requestPokemonAuctionReplay(roomId: string): Promise<void> {
+        const { error } = await this.supabase.rpc('request_pokemon_auction_replay', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    async cancelPokemonAuctionRoom(roomId: string): Promise<void> {
+        const { error } = await this.supabase.rpc('cancel_pokemon_auction_room', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    subscribeToPokemonAuctionRoom(roomId: string): Observable<PokemonAuctionRoom> {
+        return new Observable<PokemonAuctionRoom>((observer) => {
+            const channel = this.supabase.channel(`pokemon-auction-${roomId}`)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'pokemon_auction_rooms', filter: `id=eq.${roomId}` },
+                    (payload) => observer.next(payload.new as PokemonAuctionRoom))
+                .subscribe((status) => { if (status === 'CHANNEL_ERROR') observer.error(new Error('Canal enchères indisponible')); });
+            return () => { this.supabase.removeChannel(channel); };
+        });
+    }
+
     async createWhoPokemonRoom(settings?: WhoGameSettings): Promise<string> {
         const user = this.userSubject.getValue();
         if (!user) throw new Error('Utilisateur non connecté');
@@ -845,6 +921,8 @@ export class SupabaseService implements OnDestroy {
                 roomId = await this.createDraftDuoRoom();
             } else if (gameMode === 'who_that_pokemon') {
                 roomId = await this.createWhoPokemonRoom();
+            } else if (gameMode === 'pokemon_auction') {
+                roomId = await this.createPokemonAuctionRoom();
             } else {
                 roomId = await this.createRoom();
             }
@@ -889,6 +967,8 @@ export class SupabaseService implements OnDestroy {
             await this.joinDraftDuoRoom(roomId);
         } else if (gameMode === 'who_that_pokemon') {
             await this.joinWhoPokemonRoom(roomId);
+        } else if (gameMode === 'pokemon_auction') {
+            await this.joinPokemonAuctionRoom(roomId);
         } else {
             await this.joinRoom(roomId);
         }

@@ -17,6 +17,9 @@ export class InviteComponent implements OnInit, OnDestroy {
 
 	state: 'loading' | 'valid' | 'error' | 'full' = 'loading';
 	errorMessage = '';
+	headerTitle = 'Guess my Pokémon';
+	headerIcon: string = ICONS.guess;
+	headerIconClass = 'text-red-400';
 
 	constructor(
 		private readonly supabaseService: SupabaseService,
@@ -29,11 +32,22 @@ export class InviteComponent implements OnInit, OnDestroy {
 		this.supabaseService.trackPresence('online');
 		const mode = this.route.snapshot.queryParamMap.get('mode');
 		if (mode === 'stat_duel') {
+			this.headerTitle = 'Duel de Base Stats'; this.headerIcon = ICONS.statDuel; this.headerIconClass = 'text-cyan-300';
+		} else if (mode === 'draft_duo') {
+			this.headerTitle = 'Team Builder Duo'; this.headerIcon = ICONS.draft; this.headerIconClass = 'text-purple-300';
+		} else if (mode === 'who_that_pokemon') {
+			this.headerTitle = 'Qui est ce Pokémon ?'; this.headerIcon = ICONS.whoPokemon; this.headerIconClass = 'text-amber-300';
+		} else if (mode === 'pokemon_auction') {
+			this.headerTitle = 'Enchères Pokémon'; this.headerIcon = ICONS.auction; this.headerIconClass = 'text-orange-300';
+		}
+		if (mode === 'stat_duel') {
 			this.loadStatDuelRoom();
 		} else if (mode === 'draft_duo') {
 			this.loadDraftDuoRoom();
 		} else if (mode === 'who_that_pokemon') {
 			this.loadWhoPokemonRoom();
+		} else if (mode === 'pokemon_auction') {
+			this.loadPokemonAuctionRoom();
 		} else {
 			this.loadRoom();
 		}
@@ -148,6 +162,26 @@ export class InviteComponent implements OnInit, OnDestroy {
 		} catch {
 			this.state = 'error';
 			this.errorMessage = "Cette invitation n'est plus valide.";
+		}
+	}
+
+	private async loadPokemonAuctionRoom(): Promise<void> {
+		try {
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			let room;
+			try {
+				room = await this.supabaseService.getPokemonAuctionRoom(this.roomId());
+			} catch {
+				await this.supabaseService.joinPokemonAuctionRoom(this.roomId());
+				await this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'pokemon_auction' } });
+				return;
+			}
+			if (room.status !== 'waiting') { this.state = 'error'; this.errorMessage = "Cette invitation n'est plus valide."; return; }
+			if (room.player2_id) { this.state = 'full'; this.errorMessage = 'Cette partie est déjà complète.'; return; }
+			if (currentUser?.id !== room.player1_id) await this.supabaseService.joinPokemonAuctionRoom(this.roomId());
+			await this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'pokemon_auction' } });
+		} catch {
+			this.state = 'error'; this.errorMessage = "Cette invitation n'est plus valide.";
 		}
 	}
 

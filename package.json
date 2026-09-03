@@ -9,6 +9,7 @@
     "test": "ng test",
     "generate:pokemon": "node scripts/fetch-pokemon.mjs",
     "generate:pokemon-sql": "node scripts/generate-pokemon-catalog-sql.mjs",
+    "verify:auction": "node scripts/verify-pokemon-auction.mjs",
     "add:ratings": "node scripts/add-ratings.js"
   },
   "overrides": {

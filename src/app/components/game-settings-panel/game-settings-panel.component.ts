@@ -9,6 +9,8 @@ import {
   WhoInitialHint,
 } from '../../models/game-settings.model';
 import { FirstPlayer } from '../../models/room.model';
+import { AuctionFormat } from '../../models/room.model';
+import { normalizeAuctionBudget } from '../../utils/auction-utils';
 
 @Component({
   selector: 'app-game-settings-panel',
@@ -51,6 +53,11 @@ export class GameSettingsPanelComponent {
     { value: 'pokedex_number', label: 'Numéro de Pokédex', icon: ICONS.pokedex },
     { value: 'description', label: 'Description', icon: ICONS.rules },
     { value: 'random', label: 'Aléatoire', icon: ICONS.dice },
+  ];
+  protected readonly auctionFormats: { value: AuctionFormat; label: string; description: string }[] = [
+    { value: 'live', label: 'En direct', description: 'Offres visibles et chrono prolongé.' },
+    { value: 'sealed', label: 'Secrètes', description: 'Une offre cachée et définitive.' },
+    { value: 'turn_based', label: 'Tours alternés', description: 'Miser ou passer chacun son tour.' },
   ];
 
   protected readonly definition = computed(() => getSettingsDefinition(this.mode()));
@@ -110,5 +117,14 @@ export class GameSettingsPanelComponent {
 
   protected setInitialHint(initialHint: WhoInitialHint): void {
     this.update({ initialHint });
+  }
+
+  protected setAuctionFormat(auctionFormat: AuctionFormat): void {
+    this.update({ auctionFormat });
+  }
+
+  protected setStartingBudget(event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    this.update({ startingBudget: normalizeAuctionBudget(value) });
   }
 }

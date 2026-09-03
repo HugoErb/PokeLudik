@@ -19,6 +19,13 @@ describe('game settings model', () => {
     expect(normalizeModeSettings('who_that_pokemon', null)).toEqual(DEFAULT_MODE_SETTINGS.who_that_pokemon);
     expect(normalizeModeSettings('stat_duel', null)).toEqual(DEFAULT_MODE_SETTINGS.stat_duel);
     expect(normalizeModeSettings('draft_duo', null)).toEqual(DEFAULT_MODE_SETTINGS.draft_duo);
+    expect(normalizeModeSettings('pokemon_auction', null)).toEqual(DEFAULT_MODE_SETTINGS.pokemon_auction);
+  });
+
+  it('compte le format et le budget des enchères lorsqu’ils diffèrent des valeurs standard', () => {
+    const settings = normalizeModeSettings('pokemon_auction', { auctionFormat: 'sealed', startingBudget: 2000 });
+    expect(getSettingsDefinition('pokemon_auction').controls).toContain('auctionFormat');
+    expect(getActiveSettingsCount('pokemon_auction', settings)).toBe(2);
   });
 
   it('counts only active controls supported by the current mode', () => {

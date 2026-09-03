@@ -9,6 +9,7 @@ Application web de mini-jeux Pokémon, jouables en solo ou en multijoueur temps 
 - **Team Builder Solo** : création d'une équipe de 6 Pokémon puis évaluation automatique.
 - **Team Builder Duo** : version multijoueur du Team Builder.
 - **Team Builder vs Dresseur** : draft solo contre des dresseurs prédéfinis.
+- **Enchères Pokémon** : deux joueurs gèrent un budget et se disputent les Pokémon pour composer leurs équipes.
 
 ## Fonctionnalités
 
@@ -57,6 +58,11 @@ export const environment = {
 
 Le schéma de référence est dans `sql-schema/ddb-schema.sql`. Il doit être appliqué à Supabase : les règles de jeu multijoueur et le catalogue de validation sont exécutés côté PostgreSQL.
 
+- Installation neuve : appliquer `sql-schema/ddb-schema.sql`, puis `sql-schema/pokemon-auction.sql`.
+- Base existante : appliquer `sql-schema/pokemon-auction-catalog.sql`, puis `sql-schema/pokemon-auction.sql`.
+
+Le fichier de catalogue intermédiaire ajoute les types et notes nécessaires au calcul sécurisé du résultat côté serveur.
+
 ## Scripts
 
 ```bash
@@ -81,7 +87,7 @@ Régénère `src/assets/pokemon.json` depuis PokéAPI.
 npm run generate:pokemon-sql
 ```
 
-Synchronise le catalogue Pokémon embarqué dans le schéma SQL après une régénération des données.
+Synchronise le catalogue Pokémon du schéma de référence et la migration de catalogue des enchères après une régénération des données.
 
 ```bash
 npm run add:ratings
