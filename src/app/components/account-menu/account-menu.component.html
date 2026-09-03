@@ -21,7 +21,6 @@
 </button>
 
 @if (isOpen()) {
-  <button type="button" aria-label="Fermer le menu du compte" class="fixed inset-0 z-40 cursor-default" (click)="close()"></button>
   <div role="menu" class="auth-card absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[min(19rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl p-2 shadow-2xl">
     <div class="flex items-center gap-3 border-b border-white/[0.07] p-2.5 pb-3">
       <label class="group/avatar relative flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 via-purple-500 to-cyan-500 text-lg font-black text-white shadow-lg" title="Changer l'avatar">

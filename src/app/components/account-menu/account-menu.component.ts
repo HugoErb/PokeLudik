@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, input, output, signal } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, HostListener, inject, input, output, signal } from '@angular/core';
 import { ICONS } from '../../constants/icons';
 
 @Component({
@@ -9,6 +9,8 @@ import { ICONS } from '../../constants/icons';
   templateUrl: './account-menu.component.html',
 })
 export class AccountMenuComponent {
+  private readonly elementRef = inject(ElementRef<HTMLElement>);
+
   username = input('');
   avatarUrl = input<string | null>(null);
   isUpdatingAvatar = input(false);
@@ -27,6 +29,17 @@ export class AccountMenuComponent {
 
   protected close(): void {
     this.isOpen.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected closeOnOutsideClick(event: MouseEvent): void {
+    const target = event.target;
+    if (target instanceof Node && !this.elementRef.nativeElement.contains(target)) this.close();
+  }
+
+  @HostListener('document:keydown.escape')
+  protected closeOnEscape(): void {
+    this.close();
   }
 
   protected onAvatarSelected(event: Event): void {
