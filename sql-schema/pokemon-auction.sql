@@ -30,6 +30,18 @@ CREATE TABLE IF NOT EXISTS public.pokemon_auction_bids (
   PRIMARY KEY (room_id, round, player_id)
 );
 
+-- Synchronisation des salons entre les deux joueurs via Supabase Realtime.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_catalog.pg_publication WHERE pubname='supabase_realtime')
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_publication_tables
+       WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='pokemon_auction_rooms'
+     ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.pokemon_auction_rooms;
+  END IF;
+END $$;
+
 ALTER TABLE public.pokemon_auction_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pokemon_auction_bids ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS pokemon_auction_rooms_insert ON public.pokemon_auction_rooms;

@@ -394,7 +394,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       const roomId = await this.supabaseService.createPokemonAuctionRoom();
       await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'pokemon_auction' } });
-    } catch {
+    } catch (error) {
+      console.error('[startPokemonAuction] échec de création du salon :', error);
       this.triggerToast('Impossible de créer la partie. Réessaie.', 'error');
     } finally {
       this.isCreating = false;
