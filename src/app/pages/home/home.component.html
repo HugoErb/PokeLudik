@@ -1,19 +1,28 @@
-<div class="min-h-screen bg-slate-900 text-white flex flex-col">
-	<app-header [icon]="ICONS.pokeball" iconClass="text-red-500" title="PokéLudik" />
+<div class="menu-surface min-h-screen text-white flex flex-col">
+	<app-header [icon]="ICONS.pokeball" iconClass="text-red-500" title="PokéLudik">
+		<app-account-menu
+			[username]="username"
+			[avatarUrl]="avatarUrl()"
+			[isUpdatingAvatar]="isUpdatingAvatar"
+			(avatarSelected)="onFileSelected($event)"
+			(editUsername)="openUsernameModal()"
+			(editPassword)="openPasswordModal()"
+			(logoutRequested)="logout()"
+		/>
+	</app-header>
 
 	<!-- Modale mot de passe -->
 	@if (showPasswordModal()) {
-		<div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" (click)="closePasswordModal()" [@modalAnimation]>
-			<div class="bg-slate-800 border border-slate-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4 modal-content" (click)="$event.stopPropagation()">
-				<h2 class="text-xl font-bold text-white uppercase tracking-wider text-center">Changer mon mot de passe</h2>
-				<p class="text-slate-400 text-sm text-center">Saisis tes informations ci-dessous.</p>
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-md sm:p-4" (click)="closePasswordModal()" [@modalAnimation]>
+			<div class="auth-card modal-content flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-[26px] p-5 sm:p-7" (click)="$event.stopPropagation()">
+				<div class="flex items-center gap-3"><div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-400/20 bg-rose-500/10"><iconify-icon [icon]="ICONS.password" class="text-xl text-rose-300"></iconify-icon></div><div><h2 class="text-xl font-black tracking-[-0.03em] text-white">Changer mon mot de passe</h2><p class="mt-0.5 text-xs text-slate-400">Sécurise l'accès à ton compte.</p></div></div>
 
 				<div class="space-y-4 my-2">
 					<div>
-						<label class="text-xs font-bold text-slate-500 uppercase  block mb-1.5 ml-1">Mot de passe actuel</label>
+						<label class="auth-label">Mot de passe actuel</label>
 						<div class="relative flex items-center">
 							<iconify-icon [icon]="ICONS.password" class="absolute left-3 text-slate-400"></iconify-icon>
-							<input [type]="showCurrentPassword() ? 'text' : 'password'" [(ngModel)]="currentPassword" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-12 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors" />
+							<input [type]="showCurrentPassword() ? 'text' : 'password'" [(ngModel)]="currentPassword" placeholder="••••••••" autocomplete="current-password" class="auth-field pl-10 pr-12" />
 							<button (click)="toggleCurrentPassword()" type="button" class="absolute right-0 w-12 h-full flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
 								<iconify-icon [icon]="showCurrentPassword() ? ICONS.eyeOff : ICONS.eye" class="text-xl"></iconify-icon>
 							</button>
@@ -21,10 +30,10 @@
 					</div>
 
 					<div>
-						<label class="text-xs font-bold text-slate-500 uppercase  block mb-1.5 ml-1">Nouveau mot de passe</label>
+						<label class="auth-label">Nouveau mot de passe</label>
 						<div class="relative flex items-center">
 							<iconify-icon [icon]="ICONS.password" class="absolute left-3 text-slate-400"></iconify-icon>
-							<input [type]="showNewPassword() ? 'text' : 'password'" [(ngModel)]="newPassword" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-12 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors" />
+							<input [type]="showNewPassword() ? 'text' : 'password'" [(ngModel)]="newPassword" placeholder="6 caractères minimum" autocomplete="new-password" class="auth-field pl-10 pr-12" />
 							<button (click)="toggleNewPassword()" type="button" class="absolute right-0 w-12 h-full flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
 								<iconify-icon [icon]="showNewPassword() ? ICONS.eyeOff : ICONS.eye" class="text-xl"></iconify-icon>
 							</button>
@@ -32,10 +41,10 @@
 					</div>
 
 					<div>
-						<label class="text-xs font-bold text-slate-500 uppercase  block mb-1.5 ml-1">Confirmation</label>
+						<label class="auth-label">Confirmation</label>
 						<div class="relative flex items-center">
 							<iconify-icon [icon]="ICONS.password" class="absolute left-3 text-slate-400"></iconify-icon>
-							<input [type]="showConfirmPassword() ? 'text' : 'password'" [(ngModel)]="confirmPassword" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-12 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors" />
+							<input [type]="showConfirmPassword() ? 'text' : 'password'" [(ngModel)]="confirmPassword" placeholder="Répète le mot de passe" autocomplete="new-password" class="auth-field pl-10 pr-12" />
 							<button (click)="toggleConfirmPassword()" type="button" class="absolute right-0 w-12 h-full flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
 								<iconify-icon [icon]="showConfirmPassword() ? ICONS.eyeOff : ICONS.eye" class="text-xl"></iconify-icon>
 							</button>
@@ -48,8 +57,8 @@
 				}
 
 				<div class="flex gap-3 mt-2">
-					<button (click)="closePasswordModal()" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-medium text-white transition-colors">Annuler</button>
-					<button (click)="changePassword()" [disabled]="isUpdatingPassword" class="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-xl text-sm font-bold text-white transition-colors shadow-lg shadow-red-600/20">
+					<button (click)="closePasswordModal()" class="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.045] py-2.5 text-sm font-bold text-slate-300 transition hover:bg-white/[0.08]">Annuler</button>
+					<button (click)="changePassword()" [disabled]="isUpdatingPassword" class="min-h-11 flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-red-500 py-2.5 text-sm font-black text-white shadow-lg shadow-rose-950/30 transition hover:brightness-110 disabled:opacity-50">
 						{{ isUpdatingPassword ? 'En cours...' : 'Valider' }}
 					</button>
 				</div>
@@ -59,17 +68,16 @@
 
 	<!-- Modale pseudo -->
 	@if (showUsernameModal()) {
-		<div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" (click)="closeUsernameModal()" [@modalAnimation]>
-			<div class="bg-slate-800 border border-slate-600 rounded-2xl p-6 max-w-[360px] w-full shadow-2xl flex flex-col gap-4 modal-content" (click)="$event.stopPropagation()">
-				<h2 class="text-xl font-bold text-white uppercase tracking-wider text-center">Modifier mon pseudo</h2>
-				<p class="text-slate-400 text-sm text-center">Choisis ton nouveau pseudo.</p>
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-md sm:p-4" (click)="closeUsernameModal()" [@modalAnimation]>
+			<div class="auth-card modal-content flex w-full max-w-sm flex-col gap-4 rounded-[26px] p-5 sm:p-7" (click)="$event.stopPropagation()">
+				<div class="flex items-center gap-3"><div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-500/10"><iconify-icon [icon]="ICONS.user" class="text-xl text-cyan-300"></iconify-icon></div><div><h2 class="text-xl font-black tracking-[-0.03em] text-white">Modifier mon pseudo</h2><p class="mt-0.5 text-xs text-slate-400">Choisis ton identité de dresseur.</p></div></div>
 
 				<div class="space-y-4 my-2">
 					<div>
-						<label class="text-xs font-bold text-slate-500 uppercase  block mb-1.5 ml-1">Nouveau pseudo</label>
+						<label class="auth-label">Nouveau pseudo</label>
 						<div class="relative">
 							<iconify-icon [icon]="ICONS.user" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
-							<input type="text" [(ngModel)]="newUsernameInput" placeholder="Ton pseudo" (keyup.enter)="changeUsername()" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors" />
+							<input type="text" [(ngModel)]="newUsernameInput" placeholder="Ton pseudo" autocomplete="username" (keyup.enter)="changeUsername()" class="auth-field pl-10" />
 						</div>
 					</div>
 				</div>
@@ -79,8 +87,8 @@
 				}
 
 				<div class="flex gap-3 mt-2">
-					<button (click)="closeUsernameModal()" class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-medium text-white transition-colors">Annuler</button>
-					<button (click)="changeUsername()" [disabled]="isUpdatingUsername" class="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-xl text-sm font-bold text-white transition-colors shadow-lg shadow-red-600/20">
+					<button (click)="closeUsernameModal()" class="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.045] py-2.5 text-sm font-bold text-slate-300 transition hover:bg-white/[0.08]">Annuler</button>
+					<button (click)="changeUsername()" [disabled]="isUpdatingUsername" class="min-h-11 flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 py-2.5 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/30 transition hover:brightness-110 disabled:opacity-50">
 						{{ isUpdatingUsername ? 'En cours...' : 'Valider' }}
 					</button>
 				</div>
@@ -89,31 +97,35 @@
 	}
 
 	<!-- Main content -->
-	<main class="flex-1 flex flex-col items-center justify-center px-4 py-8">
-		<h1 class="text-3xl font-bold mb-10 text-center">
-			Bienvenue,
-			<span class="text-red-400">{{ username || '...' }}</span>
-			&nbsp;!
-		</h1>
+	<main class="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 pb-8 pt-5 sm:pb-12 sm:pt-6">
+		<div class="menu-grid pointer-events-none absolute inset-0"></div>
+		<div class="relative mb-7 w-full max-w-7xl sm:mb-9">
+			<h1 class="text-3xl font-black tracking-[-0.045em] text-white sm:text-5xl">
+				Prêt à jouer, <span class="bg-gradient-to-r from-rose-300 to-red-500 bg-clip-text text-transparent">{{ username || '...' }}</span>&nbsp;?
+			</h1>
+			<p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">Choisis une expérience, invite tes amis et lance une partie en quelques secondes.</p>
+		</div>
 
-		<div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+		<div class="relative grid w-full max-w-7xl grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
 			<!-- Carte Jouer -->
-			<div #gameModesCard class="bg-slate-800 border border-slate-700 rounded-2xl px-8 pt-5 pb-6 shadow-xl flex flex-col gap-4 self-start">
-				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-xl bg-red-600/20 flex items-center justify-center border border-red-500/30">
-						<iconify-icon [icon]="ICONS.sword" class="text-2xl text-red-400"></iconify-icon>
+			<div #gameModesCard class="glass-panel flex flex-col gap-4 self-start rounded-[28px] p-4 sm:p-5 lg:col-span-8">
+				<div class="flex items-center justify-between gap-3 px-1">
+					<div class="flex items-center gap-3">
+					<div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-400/20 bg-rose-500/10">
+						<iconify-icon [icon]="ICONS.sword" class="text-xl text-rose-300"></iconify-icon>
 					</div>
-					<h2 class="text-lg font-bold text-white">Choix du mode de jeu</h2>
+					<div><h2 class="text-base font-black text-white">Choisis ton mode</h2><p class="text-xs text-slate-500">4 expériences disponibles</p></div>
+					</div>
 				</div>
 
-				<div class="flex flex-col gap-3">
+				<div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
 					<!-- Bouton Duel -->
 					<button
 						(click)="createGame()"
 						[disabled]="isCreating"
-						class="w-full rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-4 px-5 py-4"
+						class="group relative min-h-[112px] w-full overflow-hidden rounded-2xl border border-rose-400/20 bg-rose-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-rose-400/50 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						<div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-500/10">
 							@if (!isCreating) {
 								<iconify-icon [icon]="ICONS.guess" class="text-2xl text-red-400"></iconify-icon>
 							}
@@ -122,8 +134,8 @@
 							}
 						</div>
 						<div class="flex flex-col items-start">
-							<span class="text-base font-bold text-white">Guess my Pokémon</span>
-							<span class="text-xs font-medium text-slate-400">{{ isCreating ? 'En cours…' : 'Trouve le Pokémon adverse' }}</span>
+							<span class="text-sm font-black text-white sm:text-base">Guess my Pokémon</span>
+							<span class="mt-1 text-xs font-medium text-slate-400">{{ isCreating ? 'Création de la partie…' : 'Trouve le Pokémon adverse' }}</span>
 						</div>
 					</button>
 					@if (createError) {
@@ -133,102 +145,49 @@
 					<!-- Bouton Who's That Pokemon -->
 					<button
 						(click)="startWhoThatPokemon()"
-						class="w-full rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600/80 transition-all flex items-center gap-4 px-5 py-4"
+						class="group min-h-[112px] w-full rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-cyan-400/50 hover:bg-cyan-500/10"
 					>
-						<div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-500/10">
 							<iconify-icon [icon]="ICONS.whoPokemon" class="text-2xl text-cyan-300"></iconify-icon>
 						</div>
 						<div class="flex flex-col items-start">
-							<span class="text-base font-bold text-white">Who's That Pokémon ?</span>
-							<span class="text-xs font-medium text-slate-400">Devine le Pokémon mystère</span>
+							<span class="text-sm font-black text-white sm:text-base">Who's That Pokémon&nbsp;?</span>
+							<span class="mt-1 text-xs font-medium text-slate-400">Devine le Pokémon mystère</span>
 						</div>
 					</button>
 
 					<!-- Bouton Team Builder -->
 					<button
 						(click)="startDraft()"
-						class="w-full rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600/80 transition-all flex items-center gap-4 px-5 py-4"
+						class="group min-h-[112px] w-full rounded-2xl border border-purple-400/20 bg-purple-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-purple-400/50 hover:bg-purple-500/10"
 					>
-						<div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-500/10">
 							<iconify-icon [icon]="ICONS.draft" class="text-3xl text-purple-200"></iconify-icon>
 						</div>
 						<div class="flex flex-col items-start">
-							<span class="text-base font-bold text-white">Team Builder</span>
-							<span class="text-xs font-medium text-slate-400 ">Créé la meilleure équipe</span>
+							<span class="text-sm font-black text-white sm:text-base">Team Builder</span>
+							<span class="mt-1 text-xs font-medium text-slate-400">Crée la meilleure équipe</span>
 						</div>
 					</button>
 
 					<!-- Bouton Duel de Base Stats -->
 					<button
 						(click)="startStatDuel()"
-						class="w-full rounded-xl bg-slate-700 hover:bg-slate-600 border border-slate-600/80 transition-all flex items-center gap-4 px-5 py-4"
+						class="group min-h-[112px] w-full rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-amber-400/50 hover:bg-amber-500/10"
 					>
-						<div class="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10">
 							<iconify-icon [icon]="ICONS.statDuel" class="text-xl text-yellow-400"></iconify-icon>
 						</div>
 						<div class="flex flex-col items-start">
-							<span class="text-base font-bold text-white">Duel de Base Stats</span>
-							<span class="text-xs font-medium text-slate-400 ">Créé le meilleur Pokémon</span>
+							<span class="text-sm font-black text-white sm:text-base">Duel de Base Stats</span>
+							<span class="mt-1 text-xs font-medium text-slate-400">Crée le meilleur Pokémon</span>
 						</div>
 					</button>
 				</div>
 			</div>
 
-			<!-- Carte Compte -->
-			<div #accountCard class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-xl flex flex-col min-h-0 self-start">
-				<div class="h-24 avatar-gradient flex items-end px-8">
-					<div
-						class="group relative w-20 h-20 rounded-full border-4 border-slate-800 bg-slate-700 flex items-center justify-center text-3xl font-bold text-white translate-y-8 shadow-xl overflow-hidden cursor-pointer"
-						(click)="avatarInput.click()"
-					>
-						@if (avatarUrl()) {
-							<img [src]="avatarUrl()" alt="Avatar" class="w-full h-full object-cover" />
-						} @else if (username) {
-							{{ username.charAt(0).toUpperCase() }}
-						} @else {
-							<iconify-icon [icon]="ICONS.pokeball" class="text-slate-500"></iconify-icon>
-						}
-
-						<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-							<iconify-icon [icon]="ICONS.edit" class="text-white text-2xl"></iconify-icon>
-						</div>
-
-						<input
-							#avatarInput
-							type="file"
-							class="hidden"
-							accept="image/*"
-							(change)="onFileSelected($event)"
-						/>
-					</div>
-				</div>
-
-				<div class="pt-12 px-8 pb-8 flex flex-col flex-1">
-					<div class="flex flex-col gap-1 mb-6">
-						<h3 class="text-xl font-bold text-white capitalize">{{ username || 'Utilisateur' }}</h3>
-					</div>
-
-					<div class="mt-auto space-y-3">
-						<button (click)="openUsernameModal()" class="w-full py-3 bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 rounded-xl text-sm font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-3 group">
-							<iconify-icon [icon]="ICONS.user" class="text-lg text-slate-500 group-hover:text-red-400 transition-colors"></iconify-icon>
-							Modifier mon pseudo
-						</button>
-
-						<button (click)="openPasswordModal()" class="w-full py-3 bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 rounded-xl text-sm font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-3 group">
-							<iconify-icon [icon]="ICONS.password" class="text-lg text-slate-500 group-hover:text-red-400 transition-colors"></iconify-icon>
-							Changer de mot de passe
-						</button>
-
-						<button (click)="logout()" class="w-full py-3 bg-slate-800 border border-slate-700 hover:bg-red-900/20 hover:border-red-500/50 rounded-xl text-sm font-bold text-slate-400 hover:text-red-400 transition-all flex items-center justify-center gap-3 group">
-							<iconify-icon [icon]="ICONS.logout" class="text-lg text-slate-600 group-hover:text-red-500"></iconify-icon>
-							Se déconnecter
-						</button>
-					</div>
-				</div>
-			</div>
-
 			<!-- Carte Amis -->
-			<div #friendsCard class="flex flex-col gap-2 min-h-0 overflow-hidden self-start">
+			<div #friendsCard class="flex min-h-0 flex-col gap-2 self-start overflow-hidden lg:col-span-4">
 				<app-friends-card class="w-full h-full flex flex-col" (inviteRequested)="onInviteRequested($event)" />
 				@if (inviteError) {
 					<p class="text-xs text-red-400 px-1">{{ inviteError }}</p>

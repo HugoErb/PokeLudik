@@ -1,24 +1,33 @@
-    <button
-      (click)="selected.emit()"
-      [disabled]="disabled"
-      class="w-full h-full group bg-slate-800 border border-slate-700 rounded-2xl transition-all hover:scale-105 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed
-             flex flex-row items-center gap-4 px-5 py-4
-             sm:flex-col sm:gap-6 sm:p-10"
-      [ngClass]="isSelected ? accentClasses.selected : [accentClasses.border, accentClasses.shadow]"
-    >
-      <div
-        class="w-12 h-12 rounded-xl border flex items-center justify-center transition-colors flex-shrink-0
-               sm:w-20 sm:h-20"
-        [ngClass]="[accentClasses.bg, accentClasses.iconBorder, accentClasses.iconBgHover]"
-      >
-        @if (isLoading) {
-          <iconify-icon [icon]="ICONS.loading" class="text-2xl sm:text-5xl animate-spin" [ngClass]="accentClasses.text"></iconify-icon>
-        } @else {
-          <iconify-icon [icon]="icon" class="text-2xl sm:text-5xl" [ngClass]="accentClasses.text"></iconify-icon>
-        }
-      </div>
-      <div class="text-left sm:text-center">
-        <h2 class="text-base font-black text-white sm:text-lg sm:mb-2">{{ title }}</h2>
-        <p class="text-xs sm:text-sm text-slate-400 mt-0.5 sm:mt-0">{{ description }}</p>
-      </div>
-    </button>
+<button
+  (click)="selected.emit()"
+  [disabled]="disabled"
+  [attr.aria-pressed]="isSelected"
+  class="group relative flex h-full min-h-[112px] w-full overflow-hidden rounded-[22px] border border-white/10 bg-slate-900/70 p-4 text-left shadow-xl shadow-black/10 transition duration-300 hover:-translate-y-1 hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[230px] sm:flex-col sm:p-6"
+  [ngClass]="isSelected ? accentClasses.selected : [accentClasses.border, accentClasses.shadow]"
+>
+  <div class="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-100" [ngClass]="accentClasses.glow"></div>
+  @if (isSelected) {
+    <span class="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-white/[0.07] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white">
+      <span class="h-1.5 w-1.5 rounded-full" [ngClass]="accentClasses.pill"></span>
+      Sélectionné
+    </span>
+  }
+  <div
+    class="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border transition-colors sm:h-16 sm:w-16"
+    [ngClass]="[accentClasses.bg, accentClasses.iconBorder, accentClasses.iconBgHover]"
+  >
+    @if (isLoading) {
+      <iconify-icon [icon]="ICONS.loading" class="animate-spin text-2xl sm:text-3xl" [ngClass]="accentClasses.text"></iconify-icon>
+    } @else {
+      <iconify-icon [icon]="icon" class="text-2xl sm:text-3xl" [ngClass]="accentClasses.text"></iconify-icon>
+    }
+  </div>
+  <div class="relative min-w-0 flex-1 pl-4 sm:flex sm:flex-col sm:justify-end sm:pl-0">
+    <h2 class="pr-16 text-base font-black tracking-[-0.02em] text-white sm:pr-0 sm:text-xl">{{ title }}</h2>
+    <p class="mt-1 text-xs leading-relaxed text-slate-400 sm:mt-2 sm:text-sm">{{ description }}</p>
+    <div class="mt-4 hidden items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] sm:flex" [ngClass]="accentClasses.text">
+      {{ isSelected ? 'Configurer' : 'Choisir ce mode' }}
+      <span aria-hidden="true" class="transition-transform duration-300 group-hover:translate-x-1">→</span>
+    </div>
+  </div>
+</button>

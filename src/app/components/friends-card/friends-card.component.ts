@@ -160,7 +160,15 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 		} else {
 			const btn = event.currentTarget as HTMLElement;
 			const rect = btn.getBoundingClientRect();
-			this.menuPosition.set({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+			const viewportMargin = 12;
+			const menuGap = 8;
+			const estimatedMenuHeight = 238;
+			const opensUpward = rect.bottom + menuGap + estimatedMenuHeight > window.innerHeight;
+			const top = opensUpward
+				? Math.max(viewportMargin, rect.top - menuGap - estimatedMenuHeight)
+				: Math.min(rect.bottom + menuGap, window.innerHeight - estimatedMenuHeight - viewportMargin);
+			const right = Math.max(viewportMargin, window.innerWidth - rect.right);
+			this.menuPosition.set({ top, right });
 			this.openMenuFriend.set(friend);
 		}
 	}

@@ -6,13 +6,13 @@ type Accent = 'purple' | 'green' | 'yellow' | 'blue' | 'red';
 
 const ACCENT_CLASSES: Record<Accent, {
   border: string; shadow: string; bg: string; selected: string;
-  iconBorder: string; iconBgHover: string; text: string;
+  iconBorder: string; iconBgHover: string; text: string; glow: string; pill: string;
 }> = {
-  purple: { border: 'hover:border-purple-500', shadow: 'hover:shadow-purple-900/30', bg: 'bg-purple-600/20', selected: '!border-purple-500', iconBorder: 'border-purple-500/30', iconBgHover: 'group-hover:bg-purple-600/30', text: 'text-purple-300' },
-  green:  { border: 'hover:border-green-500',  shadow: 'hover:shadow-green-900/30',  bg: 'bg-green-600/20',  selected: '!border-green-500', iconBorder: 'border-green-500/30',  iconBgHover: 'group-hover:bg-green-600/30',  text: 'text-green-300'  },
-  yellow: { border: 'hover:border-yellow-500', shadow: 'hover:shadow-yellow-900/30', bg: 'bg-yellow-600/20', selected: '!border-yellow-500', iconBorder: 'border-yellow-500/30', iconBgHover: 'group-hover:bg-yellow-600/30', text: 'text-yellow-300' },
-  blue:   { border: 'hover:border-blue-500',   shadow: 'hover:shadow-blue-900/30',   bg: 'bg-blue-600/20',   selected: '!border-blue-500', iconBorder: 'border-blue-500/30',   iconBgHover: 'group-hover:bg-blue-600/30',   text: 'text-blue-300'   },
-  red:    { border: 'hover:border-red-500',    shadow: 'hover:shadow-red-900/30',    bg: 'bg-red-600/20',    selected: '!border-red-500', iconBorder: 'border-red-500/30',    iconBgHover: 'group-hover:bg-red-600/30',    text: 'text-red-400'    },
+  purple: { border: 'hover:border-purple-400/60', shadow: 'hover:shadow-purple-950/40', bg: 'bg-purple-500/10', selected: '!border-purple-400/70 ring-1 ring-purple-400/30', iconBorder: 'border-purple-400/20', iconBgHover: 'group-hover:bg-purple-500/15', text: 'text-purple-300', glow: 'bg-purple-500/15', pill: 'bg-purple-400' },
+  green:  { border: 'hover:border-emerald-400/60', shadow: 'hover:shadow-emerald-950/40', bg: 'bg-emerald-500/10', selected: '!border-emerald-400/70 ring-1 ring-emerald-400/30', iconBorder: 'border-emerald-400/20', iconBgHover: 'group-hover:bg-emerald-500/15', text: 'text-emerald-300', glow: 'bg-emerald-500/15', pill: 'bg-emerald-400' },
+  yellow: { border: 'hover:border-amber-400/60', shadow: 'hover:shadow-amber-950/40', bg: 'bg-amber-500/10', selected: '!border-amber-400/70 ring-1 ring-amber-400/30', iconBorder: 'border-amber-400/20', iconBgHover: 'group-hover:bg-amber-500/15', text: 'text-amber-300', glow: 'bg-amber-500/15', pill: 'bg-amber-400' },
+  blue:   { border: 'hover:border-cyan-400/60', shadow: 'hover:shadow-cyan-950/40', bg: 'bg-cyan-500/10', selected: '!border-cyan-400/70 ring-1 ring-cyan-400/30', iconBorder: 'border-cyan-400/20', iconBgHover: 'group-hover:bg-cyan-500/15', text: 'text-cyan-300', glow: 'bg-cyan-500/15', pill: 'bg-cyan-400' },
+  red:    { border: 'hover:border-rose-400/60', shadow: 'hover:shadow-rose-950/40', bg: 'bg-rose-500/10', selected: '!border-rose-400/70 ring-1 ring-rose-400/30', iconBorder: 'border-rose-400/20', iconBgHover: 'group-hover:bg-rose-500/15', text: 'text-rose-300', glow: 'bg-rose-500/15', pill: 'bg-rose-400' },
 };
 
 @Component({
@@ -20,7 +20,7 @@ const ACCENT_CLASSES: Record<Accent, {
   standalone: true,
   imports: [NgClass],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  host: { class: 'flex flex-1', '[attr.title]': 'null' },
+  host: { class: 'flex min-w-0 flex-1 basis-0', '[attr.title]': 'null' },
   templateUrl: './mode-select-card.component.html',
 })
 export class ModeSelectCardComponent {

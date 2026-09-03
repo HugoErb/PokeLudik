@@ -56,6 +56,21 @@ export class GameSettingsPanelComponent {
   protected readonly definition = computed(() => getSettingsDefinition(this.mode()));
   readonly activeCount = computed(() => getActiveSettingsCount(this.mode(), this.settings()));
 
+  protected activeSettingsLabel(): string {
+    const count = this.activeCount();
+    return count === 0 ? 'Standard' : `${count} actif${count > 1 ? 's' : ''}`;
+  }
+
+  protected generationSelectionLabel(): string {
+    const count = this.settings().generations.length;
+    return count === 0 ? 'Toutes' : `${count} sélectionnée${count > 1 ? 's' : ''}`;
+  }
+
+  protected categorySelectionLabel(): string {
+    const count = this.settings().categories.length;
+    return count === 0 ? 'Toutes' : `${count} sélectionnée${count > 1 ? 's' : ''}`;
+  }
+
   protected hasControl(control: SettingsControl): boolean {
     return this.definition().controls.includes(control);
   }

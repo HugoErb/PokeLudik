@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { SupabaseService } from '../../services/supabase.service';
@@ -25,6 +25,8 @@ export class ResetPasswordComponent implements OnInit, OnDestroy {
   infoMessage = '';
   isLoading = false;
   isReady = false; // true quand Supabase a établi la session PASSWORD_RECOVERY
+  showPassword = signal(false);
+  showConfirmPassword = signal(false);
 
   private readonly supabaseService = inject(SupabaseService);
   private readonly router = inject(Router);
@@ -41,6 +43,12 @@ export class ResetPasswordComponent implements OnInit, OnDestroy {
       { validators: passwordMatchValidator }
     );
   }
+
+  /** Bascule la visibilité du nouveau mot de passe. */
+  togglePassword(): void { this.showPassword.update(value => !value); }
+
+  /** Bascule la visibilité de la confirmation. */
+  toggleConfirmPassword(): void { this.showConfirmPassword.update(value => !value); }
 
   /**
    * Lifecycle Angular — s'abonne aux changements d'état d'authentification

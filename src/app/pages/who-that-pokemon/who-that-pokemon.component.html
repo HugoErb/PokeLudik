@@ -111,7 +111,7 @@
 
   @if (phase() === 'setup') {
     <main class="flex-1 min-h-0 overflow-y-auto">
-      <div class="min-h-full flex flex-col items-center justify-center pt-8 pb-20 px-4">
+      <div class="menu-surface min-h-full flex flex-col items-center justify-center pt-8 pb-20 px-4">
         <app-mode-select title="Who's That Pokémon ?" [icon]="ICONS.whoPokemon" iconColor="text-cyan-300" iconSize="text-4xl">
           <app-mode-select-card
             cardTitle="Un joueur"
@@ -133,9 +133,9 @@
         </app-mode-select>
 
         @if (whoConfigMode() === 'solo') {
-          <div class="settings-panel-reveal w-full max-w-2xl mt-5 bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-xl">
+          <div class="settings-panel-reveal settings-shell w-full max-w-2xl mt-5 rounded-[26px] p-3.5 sm:p-5">
             <app-game-settings-panel mode="who_that_pokemon" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
-            <button (click)="startSolo()" class="mt-4 w-full bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors flex items-center justify-center gap-2">
+            <button (click)="startSolo()" class="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-3 text-sm font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:brightness-110">
               <iconify-icon [icon]="ICONS.play" class="text-xl"></iconify-icon>
               Lancer la partie
             </button>

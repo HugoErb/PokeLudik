@@ -1,120 +1,180 @@
-﻿@if (definition().configurable) {
-  <div class="flex flex-col gap-2.5 text-left" [class.text-xs]="compact()">
-    @if (hasControl('generations')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col" [class.gap-2]="settings().generations.length > 0" [class.opacity-60]="readonly()">
-        <div class="flex items-start sm:items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="text-sm font-semibold text-white">Par génération</p>
-            <p class="text-xs text-slate-400">Restreindre aux Pokémon des générations choisies</p>
-          </div>
-          <button (click)="toggleGenMode()" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().generations.length > 0" [class.bg-slate-600]="settings().generations.length === 0">
-            <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().generations.length > 0"></span>
-          </button>
+@if (definition().configurable) {
+  <section class="text-left" [class.text-xs]="compact()">
+    <header class="mb-4 flex items-start justify-between gap-4 border-b border-white/[0.07] pb-4">
+      <div class="flex min-w-0 items-center gap-3">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-rose-400/20 bg-rose-500/10">
+          <iconify-icon [icon]="ICONS.dice" class="text-xl text-rose-300"></iconify-icon>
         </div>
-        <div class="grid transition-all duration-300 ease-in-out" [style.grid-template-rows]="settings().generations.length > 0 ? '1fr' : '0fr'">
-          <div class="overflow-hidden">
-            <div
-              class="flex flex-wrap gap-1 transition-all duration-300 ease-out"
-              [class.pt-1]="settings().generations.length > 0"
-              [class.opacity-100]="settings().generations.length > 0"
-              [class.translate-y-0]="settings().generations.length > 0"
-              [class.opacity-0]="settings().generations.length === 0"
-              [class.-translate-y-3]="settings().generations.length === 0"
+        <div class="min-w-0">
+          <h2 class="text-base font-black tracking-[-0.02em] text-white">Paramètres de la partie</h2>
+          <p class="mt-0.5 text-xs text-slate-400">
+            @if (readonly()) { Configuration définie par l'hôte } @else { Adapte les règles à ta façon de jouer }
+          </p>
+        </div>
+      </div>
+      <div class="shrink-0 rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+        {{ activeSettingsLabel() }}
+      </div>
+    </header>
+
+    <div class="grid gap-3">
+      @if (hasControl('generations')) {
+        <article class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3.5 sm:p-4" [class.opacity-60]="readonly()">
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-bold text-white">Générations</p>
+                <span class="rounded-md bg-slate-950/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                  {{ generationSelectionLabel() }}
+                </span>
+              </div>
+              <p class="mt-1 text-xs leading-relaxed text-slate-400">Choisis les régions présentes dans le tirage.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="Limiter les générations"
+              [attr.aria-checked]="settings().generations.length > 0"
+              (click)="toggleGenMode()"
+              [disabled]="readonly()"
+              class="relative h-7 w-12 shrink-0 rounded-full border transition duration-200"
+              [class.border-rose-400/50]="settings().generations.length > 0"
+              [class.bg-rose-500]="settings().generations.length > 0"
+              [class.border-white/10]="settings().generations.length === 0"
+              [class.bg-slate-700]="settings().generations.length === 0"
             >
-              @for (gen of ALL_GENERATIONS; track gen) {
-                <button (click)="toggleGeneration(gen)" [disabled]="readonly()" [class]="settings().generations.includes(gen) ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
-                  {{ gen }}
-                </button>
-              }
+              <span class="absolute left-0.5 top-0.5 h-[22px] w-[22px] rounded-full bg-white shadow-md transition-transform duration-200" [class.translate-x-5]="settings().generations.length > 0"></span>
+            </button>
+          </div>
+          <div class="grid transition-all duration-300 ease-out" [style.grid-template-rows]="settings().generations.length > 0 ? '1fr' : '0fr'">
+            <div class="overflow-hidden">
+              <div class="grid grid-cols-5 gap-1.5 pt-3 sm:grid-cols-9">
+                @for (gen of ALL_GENERATIONS; track gen) {
+                  <button
+                    type="button"
+                    (click)="toggleGeneration(gen)"
+                    [disabled]="readonly()"
+                    [attr.aria-pressed]="settings().generations.includes(gen)"
+                    class="min-h-9 rounded-xl border text-xs font-black transition"
+                    [class.border-rose-400/50]="settings().generations.includes(gen)"
+                    [class.bg-rose-500]="settings().generations.includes(gen)"
+                    [class.text-white]="settings().generations.includes(gen)"
+                    [class.shadow-lg]="settings().generations.includes(gen)"
+                    [class.shadow-rose-950/30]="settings().generations.includes(gen)"
+                    [class.border-white/10]="!settings().generations.includes(gen)"
+                    [class.bg-slate-900/60]="!settings().generations.includes(gen)"
+                    [class.text-slate-400]="!settings().generations.includes(gen)"
+                    [class.hover:bg-slate-800]="!settings().generations.includes(gen)"
+                  >{{ gen }}</button>
+                }
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    }
+        </article>
+      }
 
-    @if (hasControl('categories')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col" [class.gap-2]="settings().categories.length > 0" [class.opacity-60]="readonly()">
-        <div class="flex items-start sm:items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="text-sm font-semibold text-white">Par catégorie</p>
-            <p class="text-xs text-slate-400">Restreindre aux Pokémon des catégories choisies</p>
-          </div>
-          <button (click)="toggleCategoryMode()" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().categories.length > 0" [class.bg-slate-600]="settings().categories.length === 0">
-            <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().categories.length > 0"></span>
-          </button>
-        </div>
-        <div class="grid transition-all duration-300 ease-in-out" [style.grid-template-rows]="settings().categories.length > 0 ? '1fr' : '0fr'">
-          <div class="overflow-hidden">
-            <div
-              class="flex flex-wrap gap-1 transition-all duration-300 ease-out"
-              [class.pt-1]="settings().categories.length > 0"
-              [class.opacity-100]="settings().categories.length > 0"
-              [class.translate-y-0]="settings().categories.length > 0"
-              [class.opacity-0]="settings().categories.length === 0"
-              [class.-translate-y-3]="settings().categories.length === 0"
+      @if (hasControl('categories')) {
+        <article class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3.5 sm:p-4" [class.opacity-60]="readonly()">
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-bold text-white">Catégories</p>
+                <span class="rounded-md bg-slate-950/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                  {{ categorySelectionLabel() }}
+                </span>
+              </div>
+              <p class="mt-1 text-xs leading-relaxed text-slate-400">Compose précisément le catalogue de Pokémon.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="Limiter les catégories"
+              [attr.aria-checked]="settings().categories.length > 0"
+              (click)="toggleCategoryMode()"
+              [disabled]="readonly()"
+              class="relative h-7 w-12 shrink-0 rounded-full border transition duration-200"
+              [class.border-rose-400/50]="settings().categories.length > 0"
+              [class.bg-rose-500]="settings().categories.length > 0"
+              [class.border-white/10]="settings().categories.length === 0"
+              [class.bg-slate-700]="settings().categories.length === 0"
             >
-              @for (cat of ALL_CATEGORIES; track cat) {
-                <button (click)="toggleCategory(cat)" [disabled]="readonly()" [class]="settings().categories.includes(cat) ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
-                  {{ CATEGORY_LABELS[cat] }}
-                </button>
-              }
+              <span class="absolute left-0.5 top-0.5 h-[22px] w-[22px] rounded-full bg-white shadow-md transition-transform duration-200" [class.translate-x-5]="settings().categories.length > 0"></span>
+            </button>
+          </div>
+          <div class="grid transition-all duration-300 ease-out" [style.grid-template-rows]="settings().categories.length > 0 ? '1fr' : '0fr'">
+            <div class="overflow-hidden">
+              <div class="flex flex-wrap gap-1.5 pt-3">
+                @for (cat of ALL_CATEGORIES; track cat) {
+                  <button
+                    type="button"
+                    (click)="toggleCategory(cat)"
+                    [disabled]="readonly()"
+                    [attr.aria-pressed]="settings().categories.includes(cat)"
+                    class="min-h-9 rounded-xl border px-3 text-[11px] font-bold transition"
+                    [class.border-rose-400/50]="settings().categories.includes(cat)"
+                    [class.bg-rose-500]="settings().categories.includes(cat)"
+                    [class.text-white]="settings().categories.includes(cat)"
+                    [class.border-white/10]="!settings().categories.includes(cat)"
+                    [class.bg-slate-900/60]="!settings().categories.includes(cat)"
+                    [class.text-slate-400]="!settings().categories.includes(cat)"
+                    [class.hover:bg-slate-800]="!settings().categories.includes(cat)"
+                  >{{ CATEGORY_LABELS[cat] }}</button>
+                }
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    }
+        </article>
+      }
 
-    @if (hasControl('noPokedex')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-start sm:items-center justify-between gap-3" [class.opacity-60]="readonly()">
-        <div class="min-w-0"><p class="text-sm font-semibold text-white">Sans Pokédex</p><p class="text-xs text-slate-400">Les Pokémon n'affichent que leur nom</p></div>
-        <button (click)="update({ noPokedex: !settings().noPokedex })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().noPokedex" [class.bg-slate-600]="!settings().noPokedex">
-          <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().noPokedex"></span>
-        </button>
-      </div>
-    }
-
-    @if (hasControl('noSearch')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-start sm:items-center justify-between gap-3" [class.opacity-60]="readonly()">
-        <div class="min-w-0"><p class="text-sm font-semibold text-white">Sans filtres</p><p class="text-xs text-slate-400">Les filtres du Pokédex sont désactivés</p></div>
-        <button (click)="update({ noSearch: !settings().noSearch })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().noSearch" [class.bg-slate-600]="!settings().noSearch">
-          <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().noSearch"></span>
-        </button>
-      </div>
-    }
-
-    @if (hasControl('randomPokemon')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex items-start sm:items-center justify-between gap-3" [class.opacity-60]="readonly()">
-        <div class="min-w-0"><p class="text-sm font-semibold text-white">Pokémon aléatoire</p><p class="text-xs text-slate-400">Les Pokémon sont assignés automatiquement</p></div>
-        <button (click)="update({ randomPokemon: !settings().randomPokemon })" [disabled]="readonly()" class="w-11 h-6 rounded-full transition-colors duration-200 relative flex-shrink-0" [class.bg-red-600]="settings().randomPokemon" [class.bg-slate-600]="!settings().randomPokemon">
-          <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200" [class.translate-x-5]="settings().randomPokemon"></span>
-        </button>
-      </div>
-    }
-
-    @if (hasControl('firstPlayer')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col gap-2" [class.opacity-60]="readonly()">
-        <div><p class="text-sm font-semibold text-white">Premier joueur</p><p class="text-xs text-slate-400">Choisir le joueur qui commence</p></div>
-        <div class="flex flex-wrap sm:flex-nowrap gap-2">
-          @for (option of firstPlayerOptions; track option.value) {
-            <button (click)="setFirstPlayer(option.value)" [disabled]="readonly()" [class]="settings().firstPlayer === option.value ? 'flex-1 min-w-20 sm:min-w-0 px-2 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'flex-1 min-w-20 sm:min-w-0 px-2 py-1.5 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
-              {{ option.label }}
+      @if (hasControl('noPokedex') || hasControl('noSearch') || hasControl('randomPokemon')) {
+        <div class="grid gap-2 sm:grid-cols-2">
+          @if (hasControl('noPokedex')) {
+            <button type="button" (click)="update({ noPokedex: !settings().noPokedex })" [disabled]="readonly()" [attr.aria-pressed]="settings().noPokedex" class="flex min-h-[82px] items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition" [class.border-rose-400/40]="settings().noPokedex" [class.bg-rose-500/10]="settings().noPokedex" [class.border-white/[0.08]]="!settings().noPokedex" [class.bg-white/[0.035]]="!settings().noPokedex" [class.opacity-60]="readonly()">
+              <span><span class="block text-sm font-bold text-white">Sans Pokédex</span><span class="mt-1 block text-xs leading-snug text-slate-400">Masque les informations détaillées</span></span>
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border" [class.border-rose-400/50]="settings().noPokedex" [class.bg-rose-500]="settings().noPokedex" [class.border-white/10]="!settings().noPokedex" [class.bg-slate-800]="!settings().noPokedex"><iconify-icon [icon]="ICONS.check" class="text-sm text-white" [class.opacity-0]="!settings().noPokedex"></iconify-icon></span>
+            </button>
+          }
+          @if (hasControl('noSearch')) {
+            <button type="button" (click)="update({ noSearch: !settings().noSearch })" [disabled]="readonly()" [attr.aria-pressed]="settings().noSearch" class="flex min-h-[82px] items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition" [class.border-rose-400/40]="settings().noSearch" [class.bg-rose-500/10]="settings().noSearch" [class.border-white/[0.08]]="!settings().noSearch" [class.bg-white/[0.035]]="!settings().noSearch" [class.opacity-60]="readonly()">
+              <span><span class="block text-sm font-bold text-white">Sans filtres</span><span class="mt-1 block text-xs leading-snug text-slate-400">Désactive la recherche du Pokédex</span></span>
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border" [class.border-rose-400/50]="settings().noSearch" [class.bg-rose-500]="settings().noSearch" [class.border-white/10]="!settings().noSearch" [class.bg-slate-800]="!settings().noSearch"><iconify-icon [icon]="ICONS.check" class="text-sm text-white" [class.opacity-0]="!settings().noSearch"></iconify-icon></span>
+            </button>
+          }
+          @if (hasControl('randomPokemon')) {
+            <button type="button" (click)="update({ randomPokemon: !settings().randomPokemon })" [disabled]="readonly()" [attr.aria-pressed]="settings().randomPokemon" class="flex min-h-[82px] items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition" [class.border-rose-400/40]="settings().randomPokemon" [class.bg-rose-500/10]="settings().randomPokemon" [class.border-white/[0.08]]="!settings().randomPokemon" [class.bg-white/[0.035]]="!settings().randomPokemon" [class.opacity-60]="readonly()">
+              <span><span class="block text-sm font-bold text-white">Pokémon aléatoire</span><span class="mt-1 block text-xs leading-snug text-slate-400">Assigne automatiquement les Pokémon</span></span>
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border" [class.border-rose-400/50]="settings().randomPokemon" [class.bg-rose-500]="settings().randomPokemon" [class.border-white/10]="!settings().randomPokemon" [class.bg-slate-800]="!settings().randomPokemon"><iconify-icon [icon]="ICONS.check" class="text-sm text-white" [class.opacity-0]="!settings().randomPokemon"></iconify-icon></span>
             </button>
           }
         </div>
-      </div>
-    }
+      }
 
-    @if (hasControl('initialHint')) {
-      <div class="bg-slate-700/50 border border-slate-600 rounded-xl p-3 flex flex-col gap-2" [class.opacity-60]="readonly()">
-        <div><p class="text-sm font-semibold text-white">Indice de départ</p><p class="text-xs text-slate-400">Indice affiché au début de chaque manche</p></div>
-        <div class="flex flex-wrap gap-1">
-          @for (mode of hintModes; track mode.value) {
-            <button (click)="setInitialHint(mode.value)" [disabled]="readonly()" [class]="settings().initialHint === mode.value ? 'flex-1 sm:flex-none min-w-24 sm:min-w-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white border border-red-500 transition-colors' : 'flex-1 sm:flex-none min-w-24 sm:min-w-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-600 text-slate-300 border border-slate-500 hover:bg-slate-500 transition-colors'">
-              {{ mode.label }}
-            </button>
-          }
-        </div>
-      </div>
-    }
-  </div>
+      @if (hasControl('firstPlayer')) {
+        <article class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3.5 sm:p-4" [class.opacity-60]="readonly()">
+          <p class="text-sm font-bold text-white">Qui commence&nbsp;?</p>
+          <p class="mt-1 text-xs text-slate-400">Définis le premier tour de la partie.</p>
+          <div class="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-slate-950/70 p-1">
+            @for (option of firstPlayerOptions; track option.value) {
+              <button type="button" (click)="setFirstPlayer(option.value)" [disabled]="readonly()" [attr.aria-pressed]="settings().firstPlayer === option.value" class="min-h-9 rounded-lg px-2 text-xs font-bold transition" [class.bg-white]="settings().firstPlayer === option.value" [class.text-slate-950]="settings().firstPlayer === option.value" [class.shadow-lg]="settings().firstPlayer === option.value" [class.text-slate-400]="settings().firstPlayer !== option.value" [class.hover:text-white]="settings().firstPlayer !== option.value">{{ option.label }}</button>
+            }
+          </div>
+        </article>
+      }
+
+      @if (hasControl('initialHint')) {
+        <article class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3.5 sm:p-4" [class.opacity-60]="readonly()">
+          <p class="text-sm font-bold text-white">Premier indice</p>
+          <p class="mt-1 text-xs text-slate-400">Choisis l'information révélée au début de chaque manche.</p>
+          <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            @for (hint of hintModes; track hint.value) {
+              <button type="button" (click)="setInitialHint(hint.value)" [disabled]="readonly()" [attr.aria-pressed]="settings().initialHint === hint.value" class="flex min-h-[66px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-center transition" [class.border-cyan-400/50]="settings().initialHint === hint.value" [class.bg-cyan-500/10]="settings().initialHint === hint.value" [class.text-cyan-200]="settings().initialHint === hint.value" [class.border-white/[0.08]]="settings().initialHint !== hint.value" [class.bg-slate-950/50]="settings().initialHint !== hint.value" [class.text-slate-400]="settings().initialHint !== hint.value" [class.hover:bg-slate-800]="settings().initialHint !== hint.value">
+                <iconify-icon [icon]="hint.icon" class="text-xl"></iconify-icon>
+                <span class="text-[10px] font-bold leading-tight">{{ hint.label }}</span>
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  </section>
 }

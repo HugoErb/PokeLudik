@@ -127,7 +127,7 @@
 				}
 			</div>
 			@if (room()) {
-				<div class="w-full max-w-2xl lg:max-w-lg mx-auto lg:mx-0 bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xl lg:max-h-[90dvh] overflow-y-auto">
+				<div class="settings-shell w-full max-w-2xl lg:max-w-lg mx-auto lg:mx-0 rounded-[26px] p-3.5 sm:p-4 lg:max-h-[90dvh] overflow-y-auto">
 					<app-game-settings-panel [mode]="gameMode" [settings]="gameSettings" [readonly]="!isPlayer1() || isConfigLocked()" (settingsChange)="updateGameSettings($event)" />
 				</div>
 			}

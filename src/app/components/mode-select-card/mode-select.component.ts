@@ -13,6 +13,6 @@ export class ModeSelectComponent {
   @Input() title = '';
   @Input() icon = '';
   @Input() iconColor = 'text-white';
-  @Input() iconSize = 'text-6xl';
+  @Input() iconSize = 'text-3xl';
   @Input() maxWidth = 'max-w-2xl';
 }

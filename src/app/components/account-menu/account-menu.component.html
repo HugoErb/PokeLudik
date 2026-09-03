@@ -1,0 +1,63 @@
+<button
+  type="button"
+  (click)="toggle()"
+  [attr.aria-expanded]="isOpen()"
+  aria-haspopup="menu"
+  class="group flex min-h-10 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-1.5 pr-2.5 text-left transition hover:border-white/20 hover:bg-white/[0.08]"
+>
+  <span class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-rose-500 via-purple-500 to-cyan-500 text-xs font-black text-white shadow-lg">
+    @if (avatarUrl()) {
+      <img [src]="avatarUrl()" alt="" class="h-full w-full object-cover" />
+    } @else if (username()) {
+      {{ username().charAt(0).toUpperCase() }}
+    } @else {
+      <iconify-icon [icon]="ICONS.user" class="text-base"></iconify-icon>
+    }
+  </span>
+  <span class="hidden max-w-28 truncate text-xs font-bold text-slate-200 sm:block">{{ username() || 'Mon compte' }}</span>
+  <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200" [class.rotate-180]="isOpen()">
+    <path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+</button>
+
+@if (isOpen()) {
+  <button type="button" aria-label="Fermer le menu du compte" class="fixed inset-0 z-40 cursor-default" (click)="close()"></button>
+  <div role="menu" class="auth-card absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[min(19rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl p-2 shadow-2xl">
+    <div class="flex items-center gap-3 border-b border-white/[0.07] p-2.5 pb-3">
+      <label class="group/avatar relative flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 via-purple-500 to-cyan-500 text-lg font-black text-white shadow-lg" title="Changer l'avatar">
+        @if (avatarUrl()) {
+          <img [src]="avatarUrl()" alt="Avatar du compte" class="h-full w-full object-cover" />
+        } @else if (username()) {
+          {{ username().charAt(0).toUpperCase() }}
+        } @else {
+          <iconify-icon [icon]="ICONS.user" class="text-xl"></iconify-icon>
+        }
+        <span class="absolute inset-0 flex items-center justify-center bg-slate-950/65 opacity-0 transition group-hover/avatar:opacity-100">
+          <iconify-icon [icon]="isUpdatingAvatar() ? ICONS.loading : ICONS.edit" class="text-lg" [class.animate-spin]="isUpdatingAvatar()"></iconify-icon>
+        </span>
+        <input type="file" class="hidden" accept="image/*" [disabled]="isUpdatingAvatar()" (change)="onAvatarSelected($event)" />
+      </label>
+      <div class="min-w-0">
+        <p class="truncate text-sm font-black text-white">{{ username() || 'Utilisateur' }}</p>
+      </div>
+    </div>
+
+    <div class="py-1.5">
+      <button type="button" role="menuitem" (click)="requestUsernameEdit()" class="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-slate-300 transition hover:bg-white/[0.06] hover:text-white">
+        <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300"><iconify-icon [icon]="ICONS.user" class="text-base"></iconify-icon></span>
+        Modifier mon pseudo
+      </button>
+      <button type="button" role="menuitem" (click)="requestPasswordEdit()" class="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-slate-300 transition hover:bg-white/[0.06] hover:text-white">
+        <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-300"><iconify-icon [icon]="ICONS.password" class="text-base"></iconify-icon></span>
+        Changer de mot de passe
+      </button>
+    </div>
+
+    <div class="border-t border-white/[0.07] pt-1.5">
+      <button type="button" role="menuitem" (click)="requestLogout()" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300">
+        <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-300"><iconify-icon [icon]="ICONS.logout" class="text-base"></iconify-icon></span>
+        Se déconnecter
+      </button>
+    </div>
+  </div>
+}

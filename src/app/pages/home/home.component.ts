@@ -8,23 +8,18 @@ import { ICONS } from '../../constants/icons';
 import { modalAnimation } from '../../constants/animations';
 import { FriendsCardComponent } from '../../components/friends-card/friends-card.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
+import { AccountMenuComponent } from '../../components/account-menu/account-menu.component';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, FriendsCardComponent, AppHeaderComponent],
+  imports: [FormsModule, FriendsCardComponent, AppHeaderComponent, AccountMenuComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [modalAnimation],
   templateUrl: './home.component.html',
-  styles: [`
-    .avatar-gradient {
-      background: linear-gradient(135deg, #ef4444 0%, #3b82f6 100%);
-    }
-  `]
 })
 export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   protected readonly ICONS = ICONS;
   @ViewChild('gameModesCard') private gameModesCard?: ElementRef<HTMLElement>;
-  @ViewChild('accountCard') private accountCard?: ElementRef<HTMLElement>;
   @ViewChild('friendsCard') private friendsCard?: ElementRef<HTMLElement>;
   private readonly inviteToastModes: Record<GameMode, {
     label: string;
@@ -194,12 +189,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       const height = card.offsetHeight;
       if (height <= 0) return;
       const value = `${height}px`;
-      const accountCard = this.accountCard?.nativeElement;
       const friendsCard = this.friendsCard?.nativeElement;
-      if (accountCard) {
-        accountCard.style.height = value;
-        accountCard.style.maxHeight = value;
-      }
       if (friendsCard) {
         friendsCard.style.height = value;
         friendsCard.style.maxHeight = value;

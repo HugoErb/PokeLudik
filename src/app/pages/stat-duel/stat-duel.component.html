@@ -78,7 +78,7 @@
 		<!-- ----------------------------------- Phase : mode-select --- -->
 		@if (phase() === "mode-select") {
 			<div class="flex-1 min-h-0 overflow-y-auto">
-				<div class="min-h-full flex flex-col items-center justify-center pt-8 pb-20 px-4 relative">
+				<div class="menu-surface min-h-full flex flex-col items-center justify-center pt-8 pb-20 px-4 relative">
 					<app-mode-select title="Duel de Base Stats" [icon]="ICONS.statDuel" iconColor="text-yellow-300" iconSize="text-4xl">
 						<app-mode-select-card
 							cardTitle="Un joueur"
@@ -98,14 +98,14 @@
 					</app-mode-select>
 
 					@if (statConfigMode() === 'solo') {
-						<div class="settings-panel-reveal w-full max-w-2xl mt-5 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
+						<div class="settings-panel-reveal settings-shell w-full max-w-2xl mt-5 rounded-[26px] p-3.5 sm:p-5">
 							<app-game-settings-panel mode="stat_duel" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
 							@if (configurationError()) {
 								<p class="mt-3 text-sm text-red-400" role="alert">{{ configurationError() }}</p>
 							}
 							<button
 								(click)="startSolo()"
-								class="mt-4 w-full bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors flex items-center justify-center gap-2"
+								class="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-3 text-sm font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:brightness-110"
 							>
 								<iconify-icon [icon]="ICONS.play" class="text-xl"></iconify-icon>
 								Lancer la partie
