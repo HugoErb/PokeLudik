@@ -1,4 +1,4 @@
-<div class="menu-surface relative flex h-dvh flex-col overflow-hidden text-white">
+<div [class]="'menu-surface relative flex h-dvh flex-col overflow-hidden text-white ' + modeSurfaceClass">
 	<div class="menu-grid pointer-events-none absolute inset-0 opacity-60"></div>
 	<app-header [icon]="modeConfig.icon" [iconClass]="modeConfig.iconClass" [iconSizeClass]="modeConfig.iconSizeClass || 'text-2xl'" [title]="modeConfig.title" [subtitle]="modeSubtitle" />
 
@@ -46,8 +46,8 @@
 								<span class="absolute bottom-0 right-0 h-4 w-4 rounded-full border-[3px] border-slate-900 bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.75)]"></span>
 							</div>
 						} @else {
-							<div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-400/25 bg-rose-500/10 md:mx-0">
-								<iconify-icon [icon]="ICONS.loading" class="animate-spin text-2xl text-rose-300"></iconify-icon>
+							<div [class]="'mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border md:mx-0 ' + waitingBoxClass">
+								<iconify-icon [icon]="ICONS.loading" [class]="'animate-spin text-2xl ' + modeConfig.iconClass"></iconify-icon>
 							</div>
 						}
 						<p class="mt-4 text-[10px] font-black uppercase tracking-[0.2em]" [class.text-emerald-300]="hasOpponent()" [class.text-slate-500]="!hasOpponent()">{{ !hasOpponent() ? 'Recherche en cours' : isPlayer1() ? 'Adversaire connecté' : 'Partie rejointe' }}</p>
@@ -57,7 +57,7 @@
 							@else { Vous avez rejoint la partie de {{ opponentProfile()?.username || "l'hôte" }} }
 						</h1>
 						<p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-400 md:mx-0">
-							@if (!hasOpponent() && isPlayer1()) { Partage l'invitation pendant que tu ajustes les règles. }
+							@if (!hasOpponent() && isPlayer1()) { Partage le lien de la partie puis modifie les paramètres en attendant ton adversaire ! }
 							@else if (hasOpponent() && isPlayer1()) { Vérifie les paramètres puis lance la partie quand tu es prêt. }
 							@else { Les règles sont définies par {{ opponentProfile()?.username || "l'hôte" }}. La partie démarrera dès qu'il la lancera. }
 						</p>

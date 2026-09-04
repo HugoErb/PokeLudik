@@ -173,6 +173,30 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		return this.MODE_CONFIG[this.gameMode];
 	}
 
+	/** Retourne les couleurs du bloc d'attente pour le mode courant. */
+	get waitingBoxClass(): string {
+		const classes: Record<GameMode, string> = {
+			guess_my_pokemon: 'border-rose-400/25 bg-rose-500/10',
+			stat_duel: 'border-amber-400/25 bg-amber-500/10',
+			draft_duo: 'border-purple-400/25 bg-purple-500/10',
+			who_that_pokemon: 'border-cyan-400/25 bg-cyan-500/10',
+			pokemon_auction: 'border-orange-400/25 bg-orange-500/10',
+		};
+		return classes[this.gameMode];
+	}
+
+	/** Retourne le thème de fond associé au mode courant. */
+	get modeSurfaceClass(): string {
+		const classes: Record<GameMode, string> = {
+			guess_my_pokemon: 'mode-theme-rose',
+			stat_duel: 'mode-theme-amber',
+			draft_duo: 'mode-theme-purple',
+			who_that_pokemon: 'mode-theme-cyan',
+			pokemon_auction: 'mode-theme-orange',
+		};
+		return classes[this.gameMode];
+	}
+
 	/** Retourne le sous-titre du mode courant. */
 	get modeSubtitle(): string {
 		if (this.gameMode === 'guess_my_pokemon') return '';

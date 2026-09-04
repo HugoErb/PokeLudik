@@ -8,6 +8,8 @@
   --surface-900: #0b1120;
   --surface-800: #111a2e;
   --line-soft: rgba(148, 163, 184, 0.14);
+  --mode-accent-primary: 225, 29, 72;
+  --mode-accent-secondary: 34, 211, 238;
 }
 
 html {
@@ -54,9 +56,34 @@ input:focus-visible {
 
 .menu-surface {
   background:
-    radial-gradient(circle at 12% 8%, rgba(225, 29, 72, 0.13), transparent 28rem),
-    radial-gradient(circle at 88% 18%, rgba(34, 211, 238, 0.09), transparent 26rem),
+    radial-gradient(circle at 12% 8%, rgba(var(--mode-accent-primary), 0.13), transparent 28rem),
+    radial-gradient(circle at 88% 18%, rgba(var(--mode-accent-secondary), 0.09), transparent 26rem),
     linear-gradient(145deg, #070b14 0%, #0b1120 48%, #090d18 100%);
+}
+
+.mode-theme-rose {
+  --mode-accent-primary: 225, 29, 72;
+  --mode-accent-secondary: 251, 113, 133;
+}
+
+.mode-theme-purple {
+  --mode-accent-primary: 147, 51, 234;
+  --mode-accent-secondary: 192, 132, 252;
+}
+
+.mode-theme-amber {
+  --mode-accent-primary: 245, 158, 11;
+  --mode-accent-secondary: 250, 204, 21;
+}
+
+.mode-theme-cyan {
+  --mode-accent-primary: 6, 182, 212;
+  --mode-accent-secondary: 34, 211, 238;
+}
+
+.mode-theme-orange {
+  --mode-accent-primary: 234, 88, 12;
+  --mode-accent-secondary: 251, 146, 60;
 }
 
 .menu-grid {

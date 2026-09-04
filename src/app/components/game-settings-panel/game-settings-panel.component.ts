@@ -11,6 +11,15 @@ import { FirstPlayer } from '../../models/room.model';
 import { AuctionFormat } from '../../models/room.model';
 import { normalizeAuctionBudget } from '../../utils/auction-utils';
 
+const SETTINGS_ACCENTS: Record<SettingsMode, { box: string; text: string }> = {
+  guess_my_pokemon: { box: 'border-rose-400/20 bg-rose-500/10', text: 'text-rose-300' },
+  stat_duel: { box: 'border-amber-400/20 bg-amber-500/10', text: 'text-amber-300' },
+  draft_duo: { box: 'border-purple-400/20 bg-purple-500/10', text: 'text-purple-300' },
+  draft_trainer: { box: 'border-purple-400/20 bg-purple-500/10', text: 'text-purple-300' },
+  who_that_pokemon: { box: 'border-cyan-400/20 bg-cyan-500/10', text: 'text-cyan-300' },
+  pokemon_auction: { box: 'border-orange-400/20 bg-orange-500/10', text: 'text-orange-300' },
+};
+
 @Component({
   selector: 'app-game-settings-panel',
   standalone: true,
@@ -66,6 +75,10 @@ export class GameSettingsPanelComponent {
   ];
 
   protected readonly definition = computed(() => getSettingsDefinition(this.mode()));
+
+  protected get settingsAccent(): { box: string; text: string } {
+    return SETTINGS_ACCENTS[this.mode()];
+  }
 
   protected generationSelectionLabel(): string {
     const count = this.settings().generations.length;

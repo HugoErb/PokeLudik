@@ -9,6 +9,7 @@ export const ICONS = {
   loading: 'mdi:loading',       // animé : animate-spin
   refresh: 'mdi:refresh',       // animé : animate-spin
   edit: 'mdi:pencil',
+  settings: 'mdi:cog-outline',
 
   // Jeu
   dice: 'mdi:dice-multiple',    // animé : animate-bounce

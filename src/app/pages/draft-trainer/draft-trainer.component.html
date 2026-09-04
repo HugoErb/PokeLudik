@@ -1,4 +1,4 @@
-<div class="h-dvh bg-slate-900 text-white flex flex-col overflow-hidden">
+<div class="menu-surface mode-theme-purple flex h-dvh flex-col overflow-hidden text-white">
 	@if (showDuelIntro() && duelPlayer1() && duelPlayer2()) {
 		<app-duel-intro [player1]="duelPlayer1()!" [player2]="duelPlayer2()!" (closed)="onDuelIntroClosed()" />
 	}
