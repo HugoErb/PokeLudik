@@ -1,7 +1,6 @@
 ﻿import { Component, computed, input, output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { ICONS } from '../../constants/icons';
 import {
-  getActiveSettingsCount,
   getSettingsDefinition,
   ModeSettings,
   SettingsControl,
@@ -67,12 +66,6 @@ export class GameSettingsPanelComponent {
   ];
 
   protected readonly definition = computed(() => getSettingsDefinition(this.mode()));
-  readonly activeCount = computed(() => getActiveSettingsCount(this.mode(), this.settings()));
-
-  protected activeSettingsLabel(): string {
-    const count = this.activeCount();
-    return count === 0 ? 'Standard' : `${count} actif${count > 1 ? 's' : ''}`;
-  }
 
   protected generationSelectionLabel(): string {
     const count = this.settings().generations.length;

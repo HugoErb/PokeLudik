@@ -27,7 +27,7 @@
     <p class="mt-1 text-xs leading-relaxed text-slate-400 sm:mt-2 sm:text-sm">{{ description }}</p>
     <div class="mt-4 hidden items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] sm:flex" [ngClass]="accentClasses.text">
       {{ isSelected ? 'Configurer' : 'Choisir ce mode' }}
-      <span aria-hidden="true" class="transition-transform duration-300 group-hover:translate-x-1">→</span>
+      <iconify-icon aria-hidden="true" icon="mdi:arrow-right" class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none transition-transform duration-300 group-hover:translate-x-1"></iconify-icon>
     </div>
   </div>
 </button>
