@@ -55,7 +55,10 @@ export class SupabaseService implements OnDestroy {
             this.userSubject.next(user);
             this.currentUserSignal.set(user);
             if (event === 'PASSWORD_RECOVERY') this.passwordRecoverySubject.next(true);
-            if (event === 'SIGNED_OUT') this.passwordRecoverySubject.next(false);
+            if (event === 'SIGNED_OUT') {
+                this.passwordRecoverySubject.next(false);
+                this.clearFriendshipCache();
+            }
 
             // Crée le profil à la première connexion (cas confirmation email activée)
             if (event === 'SIGNED_IN' && user) {
@@ -127,6 +130,7 @@ export class SupabaseService implements OnDestroy {
             this.supabase.removeChannel(this.presenceChannel);
             this.presenceChannel = null;
         }
+        this.clearFriendshipCache();
         const { error } = await this.supabase.auth.signOut();
         if (error) throw error;
     }
@@ -793,6 +797,29 @@ export class SupabaseService implements OnDestroy {
     // ─── Amis ────────────────────────────────────────────────────────────────────
 
     /** Envoie une demande d'ami à l'utilisateur portant le pseudo donné. */
+    private friendsCache: { userId: string; value: FriendWithStatus[] } | null = null;
+    private pendingRequestsCache: { userId: string; value: FriendRequest[] } | null = null;
+
+    /** Retourne immédiatement la liste en mémoire, lorsqu'elle a déjà été chargée pendant cette session. */
+    getCachedFriendsWithStatus(): FriendWithStatus[] | null {
+        const userId = this.getCurrentUser()?.id;
+        if (!userId || this.friendsCache?.userId !== userId) return null;
+        return this.friendsCache.value.map((friend) => ({ ...friend }));
+    }
+
+    /** Retourne immédiatement les demandes en mémoire, lorsqu'elles ont déjà été chargées pendant cette session. */
+    getCachedPendingRequests(): FriendRequest[] | null {
+        const userId = this.getCurrentUser()?.id;
+        if (!userId || this.pendingRequestsCache?.userId !== userId) return null;
+        return this.pendingRequestsCache.value.map((request) => ({ ...request }));
+    }
+
+    /** Invalide les données structurelles sans interrompre le suivi des présences. */
+    private clearFriendshipCache(): void {
+        this.friendsCache = null;
+        this.pendingRequestsCache = null;
+    }
+
     async sendFriendRequest(username: string): Promise<void> {
         const me = this.getCurrentUser();
         if (!me) throw new Error('Non connecté');
@@ -822,9 +849,13 @@ export class SupabaseService implements OnDestroy {
     }
 
     /** Récupère la liste des amis acceptés avec leurs profils. */
-    async getFriendsWithStatus(): Promise<FriendWithStatus[]> {
+    async getFriendsWithStatus(forceRefresh = false): Promise<FriendWithStatus[]> {
         const me = this.getCurrentUser();
         if (!me) return [];
+
+        if (!forceRefresh && this.friendsCache?.userId === me.id) {
+            return this.friendsCache.value.map((friend) => ({ ...friend }));
+        }
 
         const { data: friendships } = await this.supabase
             .from('friendships')
@@ -832,23 +863,32 @@ export class SupabaseService implements OnDestroy {
             .eq('status', 'accepted')
             .or(`requester_id.eq.${me.id},recipient_id.eq.${me.id}`);
 
-        if (!friendships?.length) return [];
+        if (!friendships?.length) {
+            this.friendsCache = { userId: me.id, value: [] };
+            return [];
+        }
 
         const friendIds = friendships.map((f: Friendship) => (f.requester_id === me.id ? f.recipient_id : f.requester_id));
         const { data: profiles } = await this.supabase.from('profiles').select('id, username, avatar_url').in('id', friendIds);
         const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
-        return friendships.map((f: Friendship) => {
+        const friends = friendships.map((f: Friendship) => {
             const friendId = f.requester_id === me.id ? f.recipient_id : f.requester_id;
             const profile = profileMap.get(friendId);
             return { id: f.id, friendId, username: profile?.username ?? 'Inconnu', avatarUrl: profile?.avatar_url, status: 'offline' as FriendStatus };
         });
+        this.friendsCache = { userId: me.id, value: friends };
+        return friends.map((friend) => ({ ...friend }));
     }
 
     /** Récupère les demandes d'amitié en attente adressées à l'utilisateur courant. */
-    async getPendingRequests(): Promise<FriendRequest[]> {
+    async getPendingRequests(forceRefresh = false): Promise<FriendRequest[]> {
         const me = this.getCurrentUser();
         if (!me) return [];
+
+        if (!forceRefresh && this.pendingRequestsCache?.userId === me.id) {
+            return this.pendingRequestsCache.value.map((request) => ({ ...request }));
+        }
 
         const { data: friendships } = await this.supabase
             .from('friendships')
@@ -856,34 +896,42 @@ export class SupabaseService implements OnDestroy {
             .eq('status', 'pending')
             .eq('recipient_id', me.id);
 
-        if (!friendships?.length) return [];
+        if (!friendships?.length) {
+            this.pendingRequestsCache = { userId: me.id, value: [] };
+            return [];
+        }
 
         const requesterIds = friendships.map((f: Friendship) => f.requester_id);
         const { data: profiles } = await this.supabase.from('profiles').select('id, username, avatar_url').in('id', requesterIds);
         const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
-        return friendships.map((f: Friendship) => {
+        const requests = friendships.map((f: Friendship) => {
             const profile = profileMap.get(f.requester_id);
             return { id: f.id, requesterId: f.requester_id, username: profile?.username ?? 'Inconnu', avatarUrl: profile?.avatar_url };
         });
+        this.pendingRequestsCache = { userId: me.id, value: requests };
+        return requests.map((request) => ({ ...request }));
     }
 
     /** Accepte une demande d'amitié. */
     async acceptFriendRequest(friendshipId: string): Promise<void> {
         const { error } = await this.supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
         if (error) throw error;
+        this.clearFriendshipCache();
     }
 
     /** Refuse (supprime) une demande d'amitié. */
     async declineFriendRequest(friendshipId: string): Promise<void> {
         const { error } = await this.supabase.from('friendships').delete().eq('id', friendshipId);
         if (error) throw error;
+        this.clearFriendshipCache();
     }
 
     /** Supprime une relation d'amitie. */
     async removeFriend(friendshipId: string): Promise<void> {
         const { error } = await this.supabase.from('friendships').delete().eq('id', friendshipId);
         if (error) throw error;
+        this.clearFriendshipCache();
     }
 
     /** S'abonne aux changements de la table friendships pour l'utilisateur courant. */

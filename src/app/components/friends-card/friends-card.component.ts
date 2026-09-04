@@ -54,7 +54,7 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 	async ngOnInit(): Promise<void> {
 		await this.reload();
 		this.friendshipsSub = this.supabaseService.subscribeToFriendships().subscribe(() => {
-			void this.reload(false);
+			void this.reload(false, true);
 		});
 	}
 
@@ -65,15 +65,25 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 	}
 
 	/** Recharge les amis et demandes d'amitie. */
-	private async reload(showSpinner = true): Promise<void> {
-		if (showSpinner) this.isLoadingFriends.set(true);
-		const [friends, requests] = await Promise.all([
-			this.supabaseService.getFriendsWithStatus(),
-			this.supabaseService.getPendingRequests(),
-		]);
+	private async reload(showSpinner = true, forceRefresh = false): Promise<void> {
+		const cachedFriends = forceRefresh ? null : this.supabaseService.getCachedFriendsWithStatus();
+		const cachedRequests = forceRefresh ? null : this.supabaseService.getCachedPendingRequests();
+		let friends: FriendWithStatus[];
+		let requests: FriendRequest[];
+
+		if (cachedFriends !== null && cachedRequests !== null) {
+			friends = cachedFriends;
+			requests = cachedRequests;
+		} else {
+			if (showSpinner) this.isLoadingFriends.set(true);
+			[friends, requests] = await Promise.all([
+				this.supabaseService.getFriendsWithStatus(forceRefresh),
+				this.supabaseService.getPendingRequests(forceRefresh),
+			]);
+		}
 		this.friends.set(friends);
 		this.pendingRequests.set(requests);
-		if (showSpinner) this.isLoadingFriends.set(false);
+		this.isLoadingFriends.set(false);
 
 		this.presenceSub?.unsubscribe();
 		const friendIds = friends.map((f) => f.friendId);
