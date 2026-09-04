@@ -17,6 +17,12 @@ import { normalizeAuctionBudget } from '../../utils/auction-utils';
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './game-settings-panel.component.html',
+  styles: [`
+    :host button:disabled,
+    :host input:disabled {
+      cursor: not-allowed;
+    }
+  `],
 })
 export class GameSettingsPanelComponent {
   mode = input.required<SettingsMode>();

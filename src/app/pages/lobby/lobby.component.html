@@ -50,15 +50,16 @@
 								<iconify-icon [icon]="ICONS.loading" class="animate-spin text-2xl text-rose-300"></iconify-icon>
 							</div>
 						}
-						<p class="mt-4 text-[10px] font-black uppercase tracking-[0.2em]" [class.text-emerald-300]="hasOpponent()" [class.text-slate-500]="!hasOpponent()">{{ hasOpponent() ? 'Adversaire connecté' : 'Recherche en cours' }}</p>
+						<p class="mt-4 text-[10px] font-black uppercase tracking-[0.2em]" [class.text-emerald-300]="hasOpponent()" [class.text-slate-500]="!hasOpponent()">{{ !hasOpponent() ? 'Recherche en cours' : isPlayer1() ? 'Adversaire connecté' : 'Partie rejointe' }}</p>
 						<h1 class="mt-2 text-xl font-black tracking-[-0.025em] sm:text-2xl">
 							@if (!hasOpponent()) { En attente de ton adversaire… }
-							@else { {{ opponentProfile()?.username || 'Ton adversaire' }} a rejoint la partie }
+							@else if (isPlayer1()) { {{ opponentProfile()?.username || 'Ton adversaire' }} a rejoint la partie }
+							@else { Vous avez rejoint la partie de {{ opponentProfile()?.username || "l'hôte" }} }
 						</h1>
 						<p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-400 md:mx-0">
 							@if (!hasOpponent() && isPlayer1()) { Partage l'invitation pendant que tu ajustes les règles. }
 							@else if (hasOpponent() && isPlayer1()) { Vérifie les paramètres puis lance la partie quand tu es prêt. }
-							@else { Les règles sont définies par l'hôte. La partie démarrera dès qu'il la lancera. }
+							@else { Les règles sont définies par {{ opponentProfile()?.username || "l'hôte" }}. La partie démarrera dès qu'il la lancera. }
 						</p>
 					</div>
 

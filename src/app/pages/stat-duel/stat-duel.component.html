@@ -146,9 +146,9 @@
 							} @else {
 								<div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border md:mx-0" [class.border-emerald-400/25]="isDevMode()" [class.bg-emerald-500/10]="isDevMode()" [class.border-amber-400/25]="!isDevMode()" [class.bg-amber-500/10]="!isDevMode()"><iconify-icon [icon]="isDevMode() ? ICONS.play : ICONS.loading" class="text-2xl" [class.animate-spin]="!isDevMode()" [class.text-emerald-300]="isDevMode()" [class.text-amber-300]="!isDevMode()"></iconify-icon></div>
 							}
-							<p class="mt-4 text-[10px] font-black uppercase tracking-[0.2em]" [class.text-emerald-300]="room()?.player2_id || isDevMode()" [class.text-slate-500]="!room()?.player2_id && !isDevMode()">{{ isDevMode() ? 'Mode développement' : room()?.player2_id ? 'Adversaire connecté' : 'Recherche en cours' }}</p>
-							<h1 class="mt-2 text-xl font-black tracking-tight sm:text-2xl">@if (isDevMode()) { Prêt à jouer } @else if (!room()?.player2_id) { En attente de ton adversaire… } @else { {{ opponentProfile()?.username || 'Ton adversaire' }} a rejoint la partie }</h1>
-							<p class="mt-2 text-sm leading-relaxed text-slate-400">@if (isPlayer1() || isDevMode()) { Vérifie les règles du duel avant de lancer la partie. } @else { L'hôte lancera la partie dès que tout sera prêt. }</p>
+							<p class="mt-4 text-[10px] font-black uppercase tracking-[0.2em]" [class.text-emerald-300]="room()?.player2_id || isDevMode()" [class.text-slate-500]="!room()?.player2_id && !isDevMode()">{{ isDevMode() ? 'Mode développement' : !room()?.player2_id ? 'Recherche en cours' : isPlayer1() ? 'Adversaire connecté' : 'Partie rejointe' }}</p>
+							<h1 class="mt-2 text-xl font-black tracking-tight sm:text-2xl">@if (isDevMode()) { Prêt à jouer } @else if (!room()?.player2_id) { En attente de ton adversaire… } @else if (isPlayer1()) { {{ opponentProfile()?.username || 'Ton adversaire' }} a rejoint la partie } @else { Vous avez rejoint la partie de {{ opponentProfile()?.username || "l'hôte" }} }</h1>
+							<p class="mt-2 text-sm leading-relaxed text-slate-400">@if (isPlayer1() || isDevMode()) { Vérifie les règles du duel avant de lancer la partie. } @else { Les règles sont définies par {{ opponentProfile()?.username || "l'hôte" }}. La partie démarrera dès qu'il la lancera. }</p>
 						</div>
 
 						<div class="flex flex-col justify-center space-y-3 p-4 sm:p-5 md:p-6">
