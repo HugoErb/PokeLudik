@@ -23,6 +23,7 @@ import {
   nextSoloState,
   pickWhoPokemonSequence,
   resolveWhoInitialHint,
+  WHO_BASE_SCORE,
   WHO_MAX_HINTS,
   WHO_TOTAL_ROUNDS,
   WhoInitialHintMode,
@@ -97,7 +98,12 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   readonly isPlayer1 = signal(false);
   readonly linkCopied = signal(false);
   readonly isBusy = signal(false);
+  readonly isRevealingHint = signal(false);
+  readonly isSkippingPokemon = signal(false);
+  readonly isSubmittingGuess = signal(false);
   readonly guessInput = signal('');
+  readonly activeSuggestionIndex = signal(-1);
+  readonly suggestionsOpen = signal(true);
   readonly feedback = signal('');
   readonly toastMessage = signal('');
   readonly toastKind = signal<'success' | 'error'>('success');
@@ -186,11 +192,36 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     return this.isPlayer1() ? r.p2_score : r.p1_score;
   });
 
+  readonly hasCompletedRound = computed(() => {
+    const room = this.room();
+    if (!room || room.status !== 'playing') return false;
+    return this.isPlayer1() ? room.p1_ready : room.p2_ready;
+  });
+
+  readonly opponentCompletedRound = computed(() => {
+    const room = this.room();
+    if (!room || room.status !== 'playing') return false;
+    return this.isPlayer1() ? room.p2_ready : room.p1_ready;
+  });
+
   readonly canGuess = computed(() => {
     if (this.phase() === 'solo') return this.soloState().status === 'playing';
     const r = this.room();
-    return this.phase() === 'duo' && !!r && r.status === 'playing';
+    return this.phase() === 'duo' && !!r && r.status === 'playing' && !this.hasCompletedRound();
   });
+
+  readonly potentialPoints = computed(() =>
+    this.hasCompletedRound() ? 0 : Math.max(0, WHO_BASE_SCORE - this.myHintsRevealed()),
+  );
+  readonly canRevealHint = computed(() =>
+    this.canGuess() && this.myHintsRevealed() < WHO_MAX_HINTS && !this.isRevealingHint() && !this.isSkippingPokemon() && !this.isSubmittingGuess(),
+  );
+  readonly canSkipPokemon = computed(() =>
+    this.canGuess() && !this.isRevealingHint() && !this.isSkippingPokemon() && !this.isSubmittingGuess(),
+  );
+  readonly canSubmitGuess = computed(() =>
+    this.canGuess() && !this.isRevealingHint() && !this.isSkippingPokemon() && !this.isSubmittingGuess(),
+  );
 
   readonly hasGuessQuery = computed(() => this.guessInput().trim().length > 0);
   readonly guessSuggestions = computed(() => {
@@ -212,16 +243,14 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     if (!target) return [];
     const room = this.room();
     const roundSeed = room ? room.round : this.soloState().roundIndex + 1;
-    const playerSeed = room ? (this.isPlayer1() ? 101 : 202) : 0;
-    return getWhoHintOrder(target.id + roundSeed + playerSeed, this.initialHint()).slice(0, this.myHintsRevealed());
+    return getWhoHintOrder(target.id + roundSeed, this.initialHint()).slice(0, this.myHintsRevealed());
   });
   readonly initialHint = computed<WhoInitialHintMode>(() => {
     const target = this.targetPokemon();
     if (!target) return 'silhouette';
     const room = this.room();
     const roundSeed = room ? room.round : this.soloState().roundIndex + 1;
-    const playerSeed = room ? (this.isPlayer1() ? 101 : 202) : 0;
-    return resolveWhoInitialHint(target.id + roundSeed + playerSeed, this.settings().initialHint ?? 'silhouette');
+    return resolveWhoInitialHint(target.id + roundSeed, this.settings().initialHint ?? 'silhouette');
   });
   readonly visibleHints = computed<WhoRevealedHint[]>(() => [this.initialHint(), ...this.revealedHints()]);
   readonly targetAnimationKey = computed(() => this.targetPokemon()?.id ?? 0);
@@ -310,10 +339,136 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Révèle volontairement l'indice suivant contre un point potentiel. */
+  async revealHint(): Promise<void> {
+    if (!this.canRevealHint()) return;
+
+    if (this.phase() === 'solo') {
+      this.soloState.update((state) => ({
+        ...state,
+        hintsRevealed: Math.min(WHO_MAX_HINTS, state.hintsRevealed + 1),
+      }));
+      return;
+    }
+
+    const room = this.room();
+    const roomId = this.roomId();
+    if (!room || !roomId) return;
+
+    this.isRevealingHint.set(true);
+    this.feedback.set('');
+    try {
+      await this.supabaseService.revealWhoPokemonHint(roomId, room.round);
+      this.room.set(await this.supabaseService.getWhoPokemonRoom(roomId));
+    } catch {
+      this.feedback.set("Impossible de révéler l'indice pour le moment.");
+    } finally {
+      this.isRevealingHint.set(false);
+    }
+  }
+
+  /** Passe immédiatement au Pokémon suivant sans attribuer de point. */
+  async skipPokemon(): Promise<void> {
+    if (!this.canSkipPokemon()) return;
+
+    const target = this.targetPokemon();
+    if (this.phase() === 'solo') {
+      const stateWithAllHints = { ...this.soloState(), hintsRevealed: WHO_MAX_HINTS };
+      const next = nextSoloState(stateWithAllHints, false);
+      this.soloState.set(next);
+      this.guessInput.set('');
+      this.feedback.set('');
+      if (target) this.showToast(`C'était ${target.name}.`, 'error', target);
+      if (next.status !== 'playing') this.phase.set('complete');
+      return;
+    }
+
+    const room = this.room();
+    const roomId = this.roomId();
+    if (!room || !roomId) return;
+
+    this.isSkippingPokemon.set(true);
+    this.guessInput.set('');
+    this.feedback.set('');
+    try {
+      await this.supabaseService.skipWhoPokemonRound(roomId, room.round);
+      this.room.set(await this.supabaseService.getWhoPokemonRoom(roomId));
+      if (target) this.showToast(`C'était ${target.name}.`, 'error', target);
+    } catch {
+      this.feedback.set('Impossible de passer ce Pokémon pour le moment.');
+    } finally {
+      this.isSkippingPokemon.set(false);
+    }
+  }
+
+  /** Rouvre les suggestions et réinitialise la navigation après une saisie. */
+  onGuessInput(): void {
+    this.activeSuggestionIndex.set(-1);
+    this.suggestionsOpen.set(true);
+  }
+
+  /** Sélectionne une suggestion sans soumettre immédiatement le formulaire. */
+  selectGuessSuggestion(pokemon: Pokemon): void {
+    this.guessInput.set(pokemon.name);
+    this.activeSuggestionIndex.set(-1);
+    this.suggestionsOpen.set(false);
+  }
+
+  /** Efface la réponse courante et réactive l'autocomplétion. */
+  clearGuessInput(): void {
+    this.guessInput.set('');
+    this.activeSuggestionIndex.set(-1);
+    this.suggestionsOpen.set(true);
+  }
+
+  /** Gère la complétion avec Tab, la navigation avec les flèches et la validation avec Entrée. */
+  handleGuessKeydown(event: KeyboardEvent): void {
+    const suggestions = this.guessSuggestions();
+
+    if (event.key === 'Escape') {
+      this.activeSuggestionIndex.set(-1);
+      this.suggestionsOpen.set(false);
+      return;
+    }
+
+    if (!this.suggestionsOpen() || suggestions.length === 0) return;
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      const current = this.activeSuggestionIndex();
+      const next = current < 0
+        ? (direction > 0 ? 0 : suggestions.length - 1)
+        : (current + direction + suggestions.length) % suggestions.length;
+      this.activeSuggestionIndex.set(next);
+      requestAnimationFrame(() => {
+        document.getElementById(`who-guess-option-${suggestions[next].id}`)?.scrollIntoView({ block: 'nearest' });
+      });
+      return;
+    }
+
+    if (event.key === 'Tab' && !event.shiftKey) {
+      event.preventDefault();
+      const selected = suggestions[Math.max(0, this.activeSuggestionIndex())];
+      if (selected) this.selectGuessSuggestion(selected);
+      return;
+    }
+
+    if (event.key === 'Enter' && this.activeSuggestionIndex() >= 0) {
+      event.preventDefault();
+      const selected = suggestions[this.activeSuggestionIndex()];
+      if (!selected) return;
+      this.selectGuessSuggestion(selected);
+      void this.submitGuess();
+    }
+  }
+
   async submitGuess(): Promise<void> {
     const guessed = this.findPokemonByName(this.guessInput());
-    if (!guessed || !this.canGuess()) return;
+    if (!guessed || !this.canSubmitGuess()) return;
     this.guessInput.set('');
+    this.activeSuggestionIndex.set(-1);
+    this.suggestionsOpen.set(false);
 
     if (this.phase() === 'solo') {
       const target = this.targetPokemon();
@@ -335,17 +490,21 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     const target = this.targetPokemon();
     const isCorrect = guessed.id === target?.id;
     const hadAllHints = this.myHintsRevealed() >= WHO_MAX_HINTS;
+    this.isSubmittingGuess.set(true);
     try {
       await this.supabaseService.submitWhoPokemonGuess(this.roomId()!, this.room()!.round, guessed.id);
+      this.room.set(await this.supabaseService.getWhoPokemonRoom(this.roomId()!));
       if (isCorrect) {
         this.feedback.set('');
         this.showToast(target?.name ?? guessed.name, 'success', target);
       } else {
         this.feedback.set('');
-        this.showToast(hadAllHints && target ? `C'était ${target.name}.` : 'Mauvaise réponse, indice débloqué.', 'error', hadAllHints ? target : null);
+        this.showToast(hadAllHints ? 'Mauvaise réponse. Tu peux continuer ou passer.' : 'Mauvaise réponse, indice débloqué.', 'error');
       }
     } catch {
       this.feedback.set('Réponse impossible pour le moment.');
+    } finally {
+      this.isSubmittingGuess.set(false);
     }
   }
 

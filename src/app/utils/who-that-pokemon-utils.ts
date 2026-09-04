@@ -26,6 +26,8 @@ export interface WhoDuoRoundState {
   p2Score: number;
   p1Lives: number;
   p2Lives: number;
+  p1Ready: boolean;
+  p2Ready: boolean;
   status: 'playing' | 'finished';
 }
 
@@ -89,17 +91,22 @@ export function resolveDuoGuess(
   pokemonId: number,
 ): WhoDuoRoundState {
   if (state.status !== 'playing') return state;
+  const playerReady = player === 'player1' ? state.p1Ready : state.p2Ready;
+  if (playerReady) return state;
   const playerLives = player === 'player1' ? state.p1Lives : state.p2Lives;
   if (pokemonId === state.targetPokemonId) {
     const score = Math.max(0, WHO_BASE_SCORE - playerLives);
-    return advanceDuoRound({
+    const next = {
       ...state,
       p1Score: state.p1Score + (player === 'player1' ? score : 0),
       p2Score: state.p2Score + (player === 'player2' ? score : 0),
-    });
+      p1Ready: player === 'player1' ? true : state.p1Ready,
+      p2Ready: player === 'player2' ? true : state.p2Ready,
+    };
+    return next.p1Ready && next.p2Ready ? advanceDuoRound(next) : next;
   }
 
-  if (playerLives >= WHO_MAX_HINTS) return advanceDuoRound(state);
+  if (playerLives >= WHO_MAX_HINTS) return state;
 
   const next = {
     ...state,
@@ -110,6 +117,17 @@ export function resolveDuoGuess(
   return next;
 }
 
+export function resolveDuoSkip(state: WhoDuoRoundState, player: 'player1' | 'player2'): WhoDuoRoundState {
+  if (state.status !== 'playing') return state;
+  if (player === 'player1' ? state.p1Ready : state.p2Ready) return state;
+  const next = {
+    ...state,
+    p1Ready: player === 'player1' ? true : state.p1Ready,
+    p2Ready: player === 'player2' ? true : state.p2Ready,
+  };
+  return next.p1Ready && next.p2Ready ? advanceDuoRound(next) : next;
+}
+
 function advanceDuoRound(state: WhoDuoRoundState): WhoDuoRoundState {
   const round = state.round + 1;
   return {
@@ -117,6 +135,8 @@ function advanceDuoRound(state: WhoDuoRoundState): WhoDuoRoundState {
     round,
     p1Lives: 0,
     p2Lives: 0,
+    p1Ready: false,
+    p2Ready: false,
     status: round > WHO_TOTAL_ROUNDS ? 'finished' : 'playing',
   };
 }

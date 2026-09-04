@@ -22,6 +22,8 @@ export const ICONS = {
   sound: 'mdi:volume-high',
   play: 'mdi:play',
   pause: 'mdi:pause',
+  hint: 'mdi:lightbulb-on-outline',
+  skip: 'mdi:skip-next-outline',
   auction: 'mdi:currency-usd',
   money: 'mdi:cash',
 

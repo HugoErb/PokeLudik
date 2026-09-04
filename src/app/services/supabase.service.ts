@@ -633,6 +633,25 @@ export class SupabaseService implements OnDestroy {
         if (error) throw error;
     }
 
+    /** Révèle l'indice suivant et retire un point potentiel au joueur courant. */
+    async revealWhoPokemonHint(roomId: string, round: number): Promise<void> {
+        const { error } = await this.supabase.rpc('submit_who_that_pokemon_guess', {
+            p_room_id: roomId,
+            p_round: round,
+            p_pokemon_id: null,
+        });
+        if (error) throw error;
+    }
+
+    /** Termine la manche courante sans attribuer de point au joueur. */
+    async skipWhoPokemonRound(roomId: string, round: number): Promise<void> {
+        const { error } = await this.supabase.rpc('skip_who_that_pokemon_round', {
+            p_room_id: roomId,
+            p_round: round,
+        });
+        if (error) throw error;
+    }
+
     subscribeToWhoPokemonRoom(roomId: string): Observable<WhoPokemonRoom> {
         return new Observable<WhoPokemonRoom>((observer) => {
             const user = this.getCurrentUser();

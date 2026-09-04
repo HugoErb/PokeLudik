@@ -380,6 +380,8 @@ declare
   v_p2_lives integer;
   v_p1_score integer;
   v_p2_score integer;
+  v_p1_ready boolean;
+  v_p2_ready boolean;
   v_round integer;
   v_status text := 'playing';
   v_winner text := null;
@@ -405,32 +407,56 @@ begin
   v_p2_lives := v_room.p2_lives;
   v_p1_score := v_room.p1_score;
   v_p2_score := v_room.p2_score;
+  v_p1_ready := v_room.p1_ready;
+  v_p2_ready := v_room.p2_ready;
   v_round := v_room.round;
   v_target := v_room.target_pokemon_id;
   v_used := v_room.used_pokemon_ids;
 
-  if p_pokemon_id = v_room.target_pokemon_id then
+  if (v_is_p1 and v_p1_ready) or (not v_is_p1 and v_p2_ready) then
+    raise exception 'round_already_completed';
+  end if;
+
+  if p_pokemon_id = 0 then
+    if v_is_p1 then
+      v_p1_ready := true;
+    else
+      v_p2_ready := true;
+    end if;
+  elsif p_pokemon_id is null then
+    if (v_is_p1 and v_p1_lives >= 3) or (not v_is_p1 and v_p2_lives >= 3) then
+      raise exception 'all_hints_revealed';
+    end if;
+    if v_is_p1 then
+      v_p1_lives := least(3, v_p1_lives + 1);
+    else
+      v_p2_lives := least(3, v_p2_lives + 1);
+    end if;
+  elsif p_pokemon_id = v_room.target_pokemon_id then
     if v_is_p1 then
       v_p1_score := v_p1_score + greatest(0, 5 - v_p1_lives);
+      v_p1_ready := true;
     else
       v_p2_score := v_p2_score + greatest(0, 5 - v_p2_lives);
+      v_p2_ready := true;
     end if;
-    v_round := v_round + 1;
   else
-    if (v_is_p1 and v_p1_lives >= 3) or (not v_is_p1 and v_p2_lives >= 3) then
-      v_round := v_round + 1;
+    if v_is_p1 then
+      v_p1_lives := least(3, v_p1_lives + 1);
     else
-      if v_is_p1 then
-        v_p1_lives := least(3, v_p1_lives + 1);
-      else
-        v_p2_lives := least(3, v_p2_lives + 1);
-      end if;
+      v_p2_lives := least(3, v_p2_lives + 1);
     end if;
+  end if;
+
+  if v_p1_ready and v_p2_ready then
+    v_round := v_round + 1;
   end if;
 
   if v_round > 10 then
     v_status := 'finished';
     v_target := null;
+    v_p1_ready := false;
+    v_p2_ready := false;
     if v_p1_score > v_p2_score then v_winner := 'player1';
     elsif v_p2_score > v_p1_score then v_winner := 'player2';
     else v_winner := 'draw';
@@ -459,6 +485,8 @@ begin
     v_used := array_append(v_used, v_target);
     v_p1_lives := 0;
     v_p2_lives := 0;
+    v_p1_ready := false;
+    v_p2_ready := false;
   end if;
 
   update public.who_that_pokemon_rooms
@@ -469,10 +497,27 @@ begin
       p2_score = v_p2_score,
       p1_lives = v_p1_lives,
       p2_lives = v_p2_lives,
+      p1_ready = v_p1_ready,
+      p2_ready = v_p2_ready,
       status = v_status,
       winner = v_winner
   where id = p_room_id;
 end;
+$$;
+
+
+--
+-- Name: skip_who_that_pokemon_round(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.skip_who_that_pokemon_round(p_room_id uuid, p_round integer) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  -- L'identifiant 0 représente un abandon volontaire et ne peut correspondre à aucun Pokémon.
+  PERFORM public.submit_who_that_pokemon_guess(p_room_id, p_round, 0);
+END;
 $$;
 
 

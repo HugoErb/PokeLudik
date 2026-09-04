@@ -50,8 +50,9 @@
             <ol class="space-y-3 text-sm text-slate-300 list-none">
               <li class="flex gap-3"><span class="text-cyan-300 font-bold shrink-0">1.</span><span>Un Pokémon mystère est tiré au hasard parmi les générations et catégories sélectionnées.</span></li>
               <li class="flex gap-3"><span class="text-cyan-300 font-bold shrink-0">2.</span><span>Tu commences avec le premier indice choisi dans les paramètres.</span></li>
-              <li class="flex gap-3"><span class="text-cyan-300 font-bold shrink-0">3.</span><span>Chaque mauvaise réponse révèle un nouvel indice aléatoire.</span></li>
-              <li class="flex gap-3"><span class="text-cyan-300 font-bold shrink-0">4.</span><span>Après 3 indices révélés, une nouvelle mauvaise réponse passe au Pokémon suivant sans point.</span></li>
+              <li class="flex gap-3"><span class="text-cyan-300 font-bold shrink-0">3.</span><span>Chaque mauvaise réponse ou demande d'indice révèle l'indice suivant et retire un point potentiel.</span></li>
+              <li class="flex gap-3"><span class="text-cyan-300 font-bold shrink-0">4.</span><span>Tu peux passer immédiatement le Pokémon : la manche se termine alors avec 0 point.</span></li>
+              <li class="flex gap-3"><span class="text-cyan-300 font-bold shrink-0">5.</span><span>En multijoueur, chacun peut chercher aussi longtemps qu'il le souhaite. Le Pokémon suivant arrive lorsque les deux joueurs ont trouvé ou passé.</span></li>
             </ol>
           </div>
         </section>
@@ -59,8 +60,8 @@
         <section class="space-y-3">
           <app-help-section-title label="Score"></app-help-section-title>
           <div class="grid gap-2">
-            <app-help-card title="Bonne réponse" text="Une bonne réponse rapporte 5 points moins le nombre d'indices révélés." example="Trouvé sans indice ajouté : 5 points. Trouvé après 2 indices : 3 points."></app-help-card>
-            <app-help-card title="Aucun point" text="Si tu te trompes après avoir débloqué 3 indices, la manche se termine avec 0 point."></app-help-card>
+            <app-help-card title="Bonne réponse" text="Une bonne réponse rapporte tes points potentiels : 5 points moins le nombre d'indices supplémentaires révélés." example="Trouvé sans indice ajouté : 5 points. Trouvé après 2 indices : 3 points."></app-help-card>
+            <app-help-card title="Aucun point" text="Passer un Pokémon termine ta participation à la manche et ne rapporte aucun point."></app-help-card>
           </div>
         </section>
 
@@ -68,7 +69,9 @@
           <app-help-section-title label="Indices"></app-help-section-title>
           <div class="grid gap-2">
             <app-help-card title="Premier indice" text="Avant de lancer la partie, tu choisis l'indice de départ : silhouette, cri, numéro du Pokédex ou description."></app-help-card>
-            <app-help-card title="Indices aléatoires" text="Les indices débloqués ensuite sont tirés au hasard parmi les indices restants." example="Si tu commences avec le cri, la silhouette peut apparaître plus tard."></app-help-card>
+            <app-help-card title="Révéler un indice" text="Tu peux demander l'indice suivant sans proposer une mauvaise réponse. Chaque nouvel indice retire un point potentiel."></app-help-card>
+            <app-help-card title="Passer un Pokémon" text="Tu peux abandonner la manche à tout moment. Le Pokémon est révélé et tu ne remportes aucun point."></app-help-card>
+            <app-help-card title="Ordre des indices" text="Les indices suivants sont tirés parmi les indices restants. En multijoueur, les deux joueurs les obtiennent toujours dans le même ordre."></app-help-card>
           </div>
         </section>
 
@@ -76,7 +79,7 @@
           <app-help-section-title label="Modes"></app-help-section-title>
           <div class="grid gap-2">
             <app-help-card title="Un joueur" text="Tu joues seul sur 10 Pokémon. Le but est de faire le meilleur score possible."></app-help-card>
-            <app-help-card title="Deux joueurs en ligne" text="Les deux joueurs devinent le même Pokémon. Le premier qui trouve marque les points de la manche, puis tout le monde passe au Pokémon suivant."></app-help-card>
+            <app-help-card title="Deux joueurs en ligne" text="Les deux joueurs reçoivent les mêmes Pokémon et les mêmes indices. Chacun gagne ses propres points lorsqu'il trouve, puis attend que l'autre trouve ou passe."></app-help-card>
           </div>
         </section>
         <button (click)="showHelpModal.set(false)" class="w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-bold text-white transition-colors">Fermer</button>
@@ -124,7 +127,7 @@
           />
           <app-mode-select-card
             cardTitle="Deux joueurs en ligne"
-            description="Affronte un ami sur le même Pokémon. Le premier qui trouve marque jusqu'à 5 points, selon ses indices."
+            description="Devinez la même liste de Pokémon, avec les mêmes indices. Chacun marque jusqu'à 5 points avant de trouver ou de passer."
             [icon]="ICONS.friends"
             accent="green"
             [isLoading]="isBusy()"
@@ -197,12 +200,26 @@
 
   @if (phase() === 'solo' || phase() === 'duo') {
     <main class="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-3 sm:p-4 gap-3 sm:gap-5 sm:-translate-y-4">
-      <div class="text-xs font-black uppercase tracking-widest text-slate-400">
-        Indices {{ myHintsRevealed() }} / {{ maxHints }}
+      <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-black uppercase tracking-widest text-slate-400">
+        <span>Indices {{ myHintsRevealed() }} / {{ maxHints }}</span>
+        <span class="text-cyan-300">{{ potentialPoints() }} point{{ potentialPoints() > 1 ? 's' : '' }} potentiel{{ potentialPoints() > 1 ? 's' : '' }}</span>
       </div>
 
       @if (targetPokemon(); as target) {
-        <section class="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-3 sm:p-5 flex flex-col items-center gap-3 sm:gap-5 shadow-xl">
+        <section class="relative w-full max-w-lg overflow-hidden bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-3 sm:p-5 flex flex-col items-center gap-3 sm:gap-5 shadow-xl">
+          @if (room() && hasCompletedRound()) {
+            <div class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-slate-950/90 p-6 text-center backdrop-blur-sm">
+              <img [src]="target.sprite" [alt]="target.name" class="h-28 w-28 object-contain drop-shadow-2xl sm:h-36 sm:w-36" />
+              <div>
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Manche terminée</p>
+                <p class="mt-1 text-xl font-black text-white">C'était {{ target.name }}</p>
+              </div>
+              <div class="flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-2.5 text-sm font-bold text-cyan-200">
+                <iconify-icon [icon]="ICONS.loading" class="animate-spin text-lg"></iconify-icon>
+                En attente de l'adversaire…
+              </div>
+            </div>
+          }
           <div class="w-full flex flex-col items-center gap-3">
             @for (hint of visibleHints(); track hint + '-' + targetAnimationKey(); let isFirst = $first) {
               <div class="w-full flex justify-center" [class.who-hint-slide]="!isFirst">
@@ -255,13 +272,47 @@
             }
           </div>
 
+          <div class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              (click)="revealHint()"
+              [disabled]="!canRevealHint()"
+              class="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3 py-2.5 text-sm font-black text-cyan-200 transition duration-200 hover:border-cyan-300/45 hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900/45 disabled:text-slate-500"
+            >
+              <iconify-icon [icon]="isRevealingHint() ? ICONS.loading : ICONS.hint" class="shrink-0 text-lg" [class.animate-spin]="isRevealingHint()"></iconify-icon>
+              <span class="min-w-0">{{ myHintsRevealed() >= maxHints ? 'Tous les indices sont révélés' : isRevealingHint() ? 'Révélation…' : 'Révéler un indice' }}</span>
+              @if (myHintsRevealed() < maxHints) {
+                <span class="shrink-0 rounded-full bg-slate-950/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-cyan-300">−1 point</span>
+              }
+            </button>
+
+            <button
+              type="button"
+              (click)="skipPokemon()"
+              [disabled]="!canSkipPokemon()"
+              class="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-600/70 bg-slate-700/45 px-3 py-2.5 text-sm font-black text-slate-300 transition duration-200 hover:border-slate-500 hover:bg-slate-700/70 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <iconify-icon [icon]="isSkippingPokemon() ? ICONS.loading : ICONS.skip" class="shrink-0 text-lg" [class.animate-spin]="isSkippingPokemon()"></iconify-icon>
+              <span>{{ isSkippingPokemon() ? 'Passage…' : 'Passer ce Pokémon' }}</span>
+              <span class="shrink-0 rounded-full bg-slate-950/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-400">0 point</span>
+            </button>
+          </div>
+
           <form class="w-full flex flex-col sm:flex-row gap-2" (ngSubmit)="submitGuess()">
             <div class="flex-1 relative">
               <iconify-icon [icon]="ICONS.search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base leading-none flex"></iconify-icon>
               <input
                 [(ngModel)]="guessInput"
                 name="guess"
-                [disabled]="!canGuess()"
+                [disabled]="!canSubmitGuess()"
+                (input)="onGuessInput()"
+                (keydown)="handleGuessKeydown($event)"
+                (focus)="suggestionsOpen.set(true)"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="who-guess-suggestions"
+                [attr.aria-expanded]="suggestionsOpen() && guessSuggestions().length > 0"
+                [attr.aria-activedescendant]="activeSuggestionIndex() >= 0 ? 'who-guess-option-' + guessSuggestions()[activeSuggestionIndex()].id : null"
                 placeholder="Rechercher un Pokémon..."
                 autocomplete="off"
                 class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 disabled:opacity-50 transition-colors"
@@ -269,19 +320,26 @@
               @if (guessInput()) {
                 <button
                   type="button"
-                  (click)="guessInput.set('')"
+                  (click)="clearGuessInput()"
                   class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
                 >
                   <iconify-icon [icon]="ICONS.close" class="text-base leading-none flex"></iconify-icon>
                 </button>
               }
-              @if (guessSuggestions().length > 0) {
-                <div class="absolute left-0 right-0 bottom-full mb-2 sm:top-full sm:bottom-auto sm:mt-2 sm:mb-0 z-30 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-[35dvh] sm:max-h-[180px] overflow-y-auto">
-                  @for (pokemon of guessSuggestions(); track pokemon.id) {
+              @if (suggestionsOpen() && guessSuggestions().length > 0) {
+                <div id="who-guess-suggestions" role="listbox" class="absolute left-0 right-0 bottom-full mb-2 sm:top-full sm:bottom-auto sm:mt-2 sm:mb-0 z-30 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-[35dvh] sm:max-h-[180px] overflow-y-auto">
+                  @for (pokemon of guessSuggestions(); track pokemon.id; let suggestionIndex = $index) {
                     <button
+                      [id]="'who-guess-option-' + pokemon.id"
+                      role="option"
+                      [attr.aria-selected]="activeSuggestionIndex() === suggestionIndex"
                       type="button"
-                      (click)="guessInput.set(pokemon.name)"
+                      (mousedown)="$event.preventDefault()"
+                      (mouseenter)="activeSuggestionIndex.set(suggestionIndex)"
+                      (click)="selectGuessSuggestion(pokemon)"
                       class="w-full flex items-center gap-3 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                      [class.bg-cyan-500/15]="activeSuggestionIndex() === suggestionIndex"
+                      [class.text-cyan-100]="activeSuggestionIndex() === suggestionIndex"
                     >
                       <span class="font-bold">{{ pokemon.name }}</span>
                     </button>
@@ -289,8 +347,15 @@
                 </div>
               }
             </div>
-            <button [disabled]="!canGuess()" class="px-4 py-2 sm:py-0 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-sm font-bold transition-colors">Valider</button>
+            <button [disabled]="!canSubmitGuess()" class="px-4 py-2 sm:py-0 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-sm font-bold transition-colors">Valider</button>
           </form>
+          <p class="-mt-1 text-center text-[10px] font-bold text-slate-500">
+            <kbd class="rounded border border-slate-600 bg-slate-900/70 px-1.5 py-0.5 text-slate-400">Tab</kbd> compléter
+            <span class="px-1">·</span>
+            <kbd class="rounded border border-slate-600 bg-slate-900/70 px-1.5 py-0.5 text-slate-400">↑↓</kbd> parcourir
+            <span class="px-1">·</span>
+            <kbd class="rounded border border-slate-600 bg-slate-900/70 px-1.5 py-0.5 text-slate-400">Entrée</kbd> valider
+          </p>
         </section>
       }
 
@@ -298,7 +363,13 @@
         <p class="text-sm text-slate-300">{{ feedback() }}</p>
       }
       @if (room()) {
-        <p class="text-xs text-slate-500">Indices adversaire : {{ opponentHintsRevealed() }} / {{ maxHints }}</p>
+        <p class="text-xs text-slate-500">
+          @if (opponentCompletedRound()) {
+            Adversaire prêt pour la manche suivante
+          } @else {
+            Indices adversaire : {{ opponentHintsRevealed() }} / {{ maxHints }}
+          }
+        </p>
       }
     </main>
   }
