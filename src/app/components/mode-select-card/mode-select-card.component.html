@@ -1,11 +1,12 @@
+<div class="group/mode-card flex h-full min-w-0 w-full">
 <button
   (click)="selected.emit()"
   [disabled]="disabled"
   [attr.aria-pressed]="isSelected"
-  class="group relative flex h-full min-h-[112px] w-full overflow-hidden rounded-[22px] border border-white/10 bg-slate-900/70 p-4 text-left shadow-xl shadow-black/10 transition duration-300 hover:-translate-y-1 hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[230px] sm:flex-col sm:p-6"
+  class="relative flex h-full min-h-[112px] w-full transform-gpu will-change-transform overflow-hidden rounded-[22px] border border-white/10 bg-slate-900/70 p-4 text-left shadow-xl shadow-black/10 transition-[transform,border-color,box-shadow] duration-300 ease-out group-hover/mode-card:-translate-y-1 group-hover/mode-card:shadow-2xl disabled:cursor-not-allowed disabled:opacity-50 disabled:group-hover/mode-card:translate-y-0 disabled:group-hover/mode-card:shadow-xl sm:min-h-[230px] sm:flex-col sm:p-6"
   [ngClass]="isSelected ? accentClasses.selected : [accentClasses.border, accentClasses.shadow]"
 >
-  <div class="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-100" [ngClass]="accentClasses.glow"></div>
+  <div class="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full opacity-0 blur-3xl transition-opacity duration-300 group-hover/mode-card:opacity-100" [ngClass]="accentClasses.glow"></div>
   @if (isSelected) {
     <span class="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-white/[0.07] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white">
       <span class="h-1.5 w-1.5 rounded-full" [ngClass]="accentClasses.pill"></span>
@@ -22,12 +23,13 @@
       <iconify-icon [icon]="icon" class="text-2xl sm:text-3xl" [ngClass]="accentClasses.text"></iconify-icon>
     }
   </div>
-  <div class="relative min-w-0 flex-1 pl-4 sm:flex sm:flex-col sm:justify-end sm:pl-0">
+  <div class="relative min-w-0 flex-1 pl-[18px] sm:mt-[18px] sm:flex sm:flex-col sm:justify-end sm:pl-0">
     <h2 class="pr-16 text-base font-black tracking-[-0.02em] text-white sm:pr-0 sm:text-xl">{{ title }}</h2>
     <p class="mt-1 text-xs leading-relaxed text-slate-400 sm:mt-2 sm:text-sm">{{ description }}</p>
-    <div class="mt-4 hidden items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] sm:flex" [ngClass]="accentClasses.text">
-      {{ isSelected ? 'Configurer' : 'Choisir ce mode' }}
-      <iconify-icon aria-hidden="true" icon="mdi:arrow-right" class="flex h-4 w-4 shrink-0 items-center justify-center text-sm leading-none transition-transform duration-300 group-hover:translate-x-1"></iconify-icon>
+    <div class="mt-4 hidden h-4 items-center text-[10px] font-black uppercase tracking-[0.14em] sm:flex" [ngClass]="accentClasses.text">
+      <span class="inline-flex h-4 items-center leading-none">{{ isSelected ? 'Configurer' : 'Choisir ce mode' }}</span>
+      <iconify-icon aria-hidden="true" icon="mdi:arrow-right" class="relative top-0 ml-1.5 block h-[15px] w-[15px] shrink-0 text-[15px] leading-none transition-transform duration-300 ease-out will-change-transform group-hover/mode-card:translate-x-1"></iconify-icon>
     </div>
   </div>
 </button>
+</div>
