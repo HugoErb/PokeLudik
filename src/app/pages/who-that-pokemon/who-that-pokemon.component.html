@@ -1,4 +1,5 @@
-<div class="h-dvh bg-slate-900 text-white flex flex-col overflow-hidden relative">
+<div class="menu-surface relative flex h-dvh flex-col overflow-hidden text-white">
+  <div class="menu-grid pointer-events-none absolute inset-0 opacity-60"></div>
   <app-header [icon]="ICONS.whoPokemon" iconClass="text-cyan-300" title="Who's That Pokémon ?" />
 
   <div class="relative z-20 bg-slate-800/50 border-b border-slate-700 px-3 py-2 flex items-center justify-between gap-2 sm:gap-3 shrink-0">
@@ -150,22 +151,47 @@
   }
 
   @if (phase() === 'waiting') {
-    <main class="flex-1 flex items-start sm:items-center justify-center overflow-y-auto p-3 sm:p-4">
-      <section class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center shadow-xl my-auto sm:my-0">
-        <iconify-icon [icon]="room()?.player2_id ? ICONS.checkCircle : ICONS.loading" class="text-5xl mb-4" [class.animate-spin]="!room()?.player2_id" [class.text-green-400]="room()?.player2_id" [class.text-cyan-300]="!room()?.player2_id"></iconify-icon>
-        <h2 class="text-xl font-black mb-2">{{ room()?.player2_id ? 'Adversaire connecté' : 'En attente' }}</h2>
-        @if (isPlayer1()) {
-          <div class="flex flex-col sm:flex-row gap-2 mb-4">
-            <input [value]="inviteLink" readonly class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 truncate" />
-            <button (click)="copyLink()" class="h-10 sm:h-auto px-3 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-center">
-              <iconify-icon [icon]="linkCopied() ? ICONS.check : ICONS.copy"></iconify-icon>
-            </button>
+    <main class="relative min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:py-8">
+      <div class="relative mx-auto flex w-full max-w-5xl flex-col gap-4 sm:gap-5">
+        <section class="glass-panel overflow-hidden rounded-[26px] md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)]">
+          <div class="border-b border-white/[0.07] bg-gradient-to-br from-cyan-500/[0.08] to-transparent px-5 pb-5 pt-6 text-center sm:px-6 sm:py-6 md:border-b-0 md:border-r md:text-left">
+            @if (room()?.player2_id) {
+              <div class="relative mx-auto h-16 w-16 md:mx-0">
+                <div class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-emerald-400/40 bg-slate-800 text-xl font-black text-white">
+                  @if (opponentProfile()?.avatar_url) { <img [src]="opponentProfile()!.avatar_url" [alt]="'Photo de profil de ' + opponentProfile()!.username" class="h-full w-full object-cover" /> }
+                  @else { <span>{{ (opponentProfile()?.username || 'A').charAt(0).toUpperCase() }}</span> }
+                </div>
+                <span class="absolute bottom-0 right-0 h-4 w-4 rounded-full border-[3px] border-slate-900 bg-emerald-400"></span>
+              </div>
+            } @else {
+              <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-500/10 md:mx-0"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-2xl text-cyan-300"></iconify-icon></div>
+            }
+            <p class="mt-4 text-[10px] font-black uppercase tracking-[0.2em]" [class.text-emerald-300]="room()?.player2_id" [class.text-slate-500]="!room()?.player2_id">{{ room()?.player2_id ? 'Adversaire connecté' : 'Recherche en cours' }}</p>
+            <h1 class="mt-2 text-xl font-black tracking-tight sm:text-2xl">@if (!room()?.player2_id) { En attente de ton adversaire… } @else { {{ opponentProfile()?.username || 'Ton adversaire' }} a rejoint la partie }</h1>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">@if (isPlayer1()) { Invite un ami puis choisis l'ordre des indices. } @else { L'hôte finalise les règles avant de lancer la partie. }</p>
           </div>
-          <button (click)="launchDuoGame()" [disabled]="!room()?.player2_id || isBusy()" class="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-xl py-3 font-bold">Lancer</button>
-        } @else {
-          <p class="text-sm text-slate-400">En attente du lancement par l'hôte.</p>
-        }
-      </section>
+
+          <div class="flex flex-col justify-center space-y-3 p-4 sm:p-5 md:p-6">
+            @if (isPlayer1()) {
+              <div class="flex min-w-0 gap-2">
+                <input [value]="inviteLink" readonly aria-label="Lien d'invitation" class="min-w-0 flex-1 truncate rounded-xl border border-white/[0.09] bg-slate-950/65 px-3 py-2.5 text-xs text-slate-300 outline-none" />
+                <button type="button" (click)="copyLink()" [attr.aria-label]="linkCopied() ? 'Lien copié' : 'Copier le lien'" class="flex w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.055] text-slate-300 transition hover:bg-white/[0.09] hover:text-white"><iconify-icon [icon]="linkCopied() ? ICONS.check : ICONS.copy" class="text-lg"></iconify-icon></button>
+              </div>
+              <button type="button" (click)="launchDuoGame()" [disabled]="!room()?.player2_id || isBusy()" class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400">
+                @if (isBusy() || !room()?.player2_id) { <iconify-icon [icon]="ICONS.loading" class="animate-spin text-lg"></iconify-icon> }
+                {{ isBusy() ? 'Lancement…' : !room()?.player2_id ? "En attente de l'adversaire" : 'Lancer la partie' }}
+              </button>
+              @if (feedback()) { <p role="alert" class="rounded-xl border border-rose-400/20 bg-rose-500/10 p-2.5 text-center text-xs text-rose-300">{{ feedback() }}</p> }
+            } @else {
+              <div class="flex items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-3 text-sm font-bold text-slate-400"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-cyan-300"></iconify-icon>En attente du lancement</div>
+            }
+          </div>
+        </section>
+
+        <section class="settings-shell min-w-0 rounded-[26px] p-3.5 sm:p-5">
+          <app-game-settings-panel mode="who_that_pokemon" [settings]="settings()" [readonly]="!isPlayer1()" (settingsChange)="updateGameSettings($event)" />
+        </section>
+      </div>
     </main>
   }
 

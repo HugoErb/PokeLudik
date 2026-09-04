@@ -13,7 +13,7 @@ import { ModeSelectCardComponent } from '../../components/mode-select-card/mode-
 import { ModeSelectComponent } from '../../components/mode-select-card/mode-select.component';
 import { ICONS } from '../../constants/icons';
 import { Pokemon } from '../../models/pokemon.model';
-import { DEFAULT_WHO_SETTINGS, WhoPokemonRoom } from '../../models/room.model';
+import { DEFAULT_WHO_SETTINGS, Profile, WhoPokemonRoom } from '../../models/room.model';
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toWhoSettings } from '../../models/game-settings.model';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
@@ -111,6 +111,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   readonly showCancelModal = signal(false);
   readonly isCancelling = signal(false);
   readonly opponentLeft = signal(false);
+  readonly opponentProfile = signal<Pick<Profile, 'id' | 'username' | 'avatar_url'> | null>(null);
 
   private roomSub?: Subscription;
   private broadcastSub?: Subscription;
@@ -461,12 +462,14 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     }
     this.room.set(room);
     this.isPlayer1.set(room.player1_id === user.id);
+    await this.loadWaitingOpponentProfile(room);
     this.settings.set(normalizeModeSettings('who_that_pokemon', room.settings));
     this.phase.set(room.status === 'waiting' ? 'waiting' : room.status === 'playing' ? 'duo' : 'complete');
 
     this.roomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()!).subscribe(updated => {
       this.room.set(updated);
       this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
+      if (updated.status === 'waiting') void this.loadWaitingOpponentProfile(updated);
       if (updated.status === 'finished' && updated.winner === null && this.phase() === 'complete') {
         this.opponentLeft.set(true);
       }
@@ -481,6 +484,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         const updated = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
         this.room.set(updated);
         this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
+        if (updated.status === 'waiting') void this.loadWaitingOpponentProfile(updated);
         if (updated.status === 'finished' && updated.winner === null) {
           if (this.phase() === 'complete') this.opponentLeft.set(true);
           else void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
@@ -536,6 +540,22 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       p1_ready: false,
       p2_ready: false,
     });
+  }
+
+  /** Charge l'identité de l'autre joueur pour l'écran de préparation. */
+  private async loadWaitingOpponentProfile(room: WhoPokemonRoom): Promise<void> {
+    const opponentId = this.isPlayer1() ? room.player2_id : room.player1_id;
+    if (!opponentId) {
+      this.opponentProfile.set(null);
+      return;
+    }
+    if (this.opponentProfile()?.id === opponentId) return;
+    try {
+      const profile = await this.supabaseService.getProfile(opponentId);
+      this.opponentProfile.set({ id: profile.id, username: profile.username, avatar_url: profile.avatar_url });
+    } catch {
+      this.opponentProfile.set({ id: opponentId, username: 'Adversaire', avatar_url: undefined });
+    }
   }
 
   private findPokemonByName(name: string): Pokemon | null {

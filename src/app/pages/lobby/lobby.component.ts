@@ -9,7 +9,7 @@ import { GameService } from '../../services/game.service';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
-import { DraftDuoRoom, GameMode, PokemonAuctionRoom, Room, StatDuelRoom, WhoPokemonRoom } from '../../models/room.model';
+import { DraftDuoRoom, GameMode, PokemonAuctionRoom, Profile, Room, StatDuelRoom, WhoPokemonRoom } from '../../models/room.model';
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, resolvePendingSettingsAfterSave, toAuctionSettings, toGuessSettings, toWhoSettings } from '../../models/game-settings.model';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
@@ -66,6 +66,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				});
 			}
 		});
+
+		effect(() => {
+			const opponentId = this.opponentId();
+			untracked(() => void this.loadOpponentProfile(opponentId));
+		});
 	}
 
 	// États
@@ -101,6 +106,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		const r = this.room();
 		return !!r?.player2_id || (this.gameMode === 'guess_my_pokemon' && r?.status === 'ready');
 	});
+	opponentId = computed(() => {
+		const r = this.room();
+		const user = this.supabaseService.currentUserSignal();
+		if (!r || !user) return null;
+		return r.player1_id === user.id ? r.player2_id ?? null : r.player1_id;
+	});
+	opponentProfile = signal<Pick<Profile, 'id' | 'username' | 'avatar_url'> | null>(null);
+	private loadingOpponentProfileId: string | null = null;
 
 	// Sélection Pokémon
 	allPokemons: Pokemon[] = [];
@@ -147,16 +160,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private pollInterval: ReturnType<typeof setInterval> | null = null;
 	private pendingLocalSettings: ModeSettings | null = null;
 
-	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel'; playRoute: string }> = {
+	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel' | 'auction'; playRoute: string }> = {
 		guess_my_pokemon: { title: 'Guess my Pokémon', icon: ICONS.guess, iconClass: 'text-red-400', playRoute: '/game' },
 		stat_duel: { title: 'Duel de Base Stats', subtitle: 'Deux joueurs en ligne', icon: ICONS.statDuel, iconClass: 'text-yellow-400', helpMode: 'stat-duel', playRoute: '/stat-duel' },
 		draft_duo: { title: 'Team Builder', subtitle: 'Deux joueurs en ligne', icon: ICONS.draft, iconClass: 'text-purple-200', iconSizeClass: 'text-4xl', playRoute: '/draft-duo' },
 		who_that_pokemon: { title: "Who's That Pokémon ?", subtitle: 'Deux joueurs en ligne', icon: ICONS.whoPokemon, iconClass: 'text-cyan-300', playRoute: '/who-that-pokemon' },
-		pokemon_auction: { title: 'Enchères Pokémon', subtitle: 'Deux joueurs en ligne', icon: ICONS.auction, iconClass: 'text-orange-300', playRoute: '/pokemon-auction' },
+		pokemon_auction: { title: 'Enchères Pokémon', subtitle: 'Deux joueurs en ligne', icon: ICONS.auction, iconClass: 'text-orange-300', helpMode: 'auction', playRoute: '/pokemon-auction' },
 	};
 
 	/** Retourne la configuration d'affichage du mode courant. */
-	get modeConfig(): { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel'; playRoute: string } {
+	get modeConfig(): { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel' | 'auction'; playRoute: string } {
 		return this.MODE_CONFIG[this.gameMode];
 	}
 
@@ -515,6 +528,30 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 	private sameSettings(a: ModeSettings | null | undefined, b: ModeSettings | null | undefined): boolean {
 		return JSON.stringify(a) === JSON.stringify(b);
+	}
+
+	/** Charge l'identité du joueur situé de l'autre côté de la room. */
+	private async loadOpponentProfile(opponentId: string | null): Promise<void> {
+		if (!opponentId) {
+			this.opponentProfile.set(null);
+			this.loadingOpponentProfileId = null;
+			return;
+		}
+		if (this.opponentProfile()?.id === opponentId || this.loadingOpponentProfileId === opponentId) return;
+
+		this.loadingOpponentProfileId = opponentId;
+		try {
+			const profile = await this.supabaseService.getProfile(opponentId);
+			if (this.opponentId() === opponentId) {
+				this.opponentProfile.set({ id: profile.id, username: profile.username, avatar_url: profile.avatar_url });
+			}
+		} catch {
+			if (this.opponentId() === opponentId) {
+				this.opponentProfile.set({ id: opponentId, username: 'Adversaire', avatar_url: undefined });
+			}
+		} finally {
+			if (this.loadingOpponentProfileId === opponentId) this.loadingOpponentProfileId = null;
+		}
 	}
 
 	/**

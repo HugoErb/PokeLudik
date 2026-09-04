@@ -15,7 +15,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
-import { DraftDuoRoom } from '../../models/room.model';
+import { DraftDuoRoom, Profile } from '../../models/room.model';
 import { normalizeModeSettings } from '../../models/game-settings.model';
 import { ICONS } from '../../constants/icons';
 import { TYPE_COLORS, TYPE_ICONS } from '../../constants/type-chart';
@@ -31,6 +31,7 @@ import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
+import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
 import {
   canUseRoomForDuoComplete,
   computeDuoCoverageScore as computePokemonDuoCoverageScore,
@@ -51,7 +52,7 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 
 @Component({
   selector: 'app-draft-duo',
-  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent],
+  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft-duo.component.html',
@@ -90,6 +91,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   readonly selectedPokemon = signal<Pokemon | null>(null);
   readonly showCancelModal = signal(false);
   readonly isCancelling = signal(false);
+  readonly waitingSettings = computed(() => normalizeModeSettings('draft_duo', this.room()?.settings));
+  readonly opponentProfile = signal<Pick<Profile, 'id' | 'username' | 'avatar_url'> | null>(null);
 
   // ─── Draft local ────────────────────────────────────────────────────────────
   readonly slots = signal<(Pokemon | null)[]>([null, null, null, null, null, null]);
@@ -216,9 +219,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
         await this.enterCompletePhase(room);
       } else {
         this.phase.set('waiting');
-        if (room.player2_id) {
-          await this.loadPlayer2Username(room.player2_id);
-        }
+        await this.loadWaitingOpponentProfile(room);
       }
 
       const inviteId = this.route.snapshot.queryParamMap.get('inviteId');
@@ -276,6 +277,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     // P2 vient de rejoindre
     if (!prev?.player2_id && updated.player2_id && this.phase() === 'waiting') {
       await this.loadPlayer2Username(updated.player2_id);
+      await this.loadWaitingOpponentProfile(updated);
     }
 
     // La partie a démarré (P1 a cliqué "Lancer")
@@ -328,6 +330,22 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
       this.player2Username.set(profile.username);
     } catch {
       this.player2Username.set('Adversaire');
+    }
+  }
+
+  /** Charge le profil visible dans l'écran d'attente, quel que soit le rôle courant. */
+  private async loadWaitingOpponentProfile(room: DraftDuoRoom): Promise<void> {
+    const opponentId = this.isPlayer1() ? room.player2_id : room.player1_id;
+    if (!opponentId) {
+      this.opponentProfile.set(null);
+      return;
+    }
+    if (this.opponentProfile()?.id === opponentId) return;
+    try {
+      const profile = await this.supabaseService.getProfile(opponentId);
+      this.opponentProfile.set({ id: profile.id, username: profile.username, avatar_url: profile.avatar_url });
+    } catch {
+      this.opponentProfile.set({ id: opponentId, username: 'Adversaire', avatar_url: undefined });
     }
   }
 

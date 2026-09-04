@@ -6,7 +6,7 @@ import { Subscription } from 'rxjs';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
-import { StatDuelRoom, StatPick } from '../../models/room.model';
+import { Profile, StatDuelRoom, StatPick } from '../../models/room.model';
 import { ICONS } from '../../constants/icons';
 import { DuelIntroComponent } from '../../components/duel-intro/duel-intro.component';
 import { ModeSelectCardComponent } from '../../components/mode-select-card/mode-select-card.component';
@@ -141,6 +141,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     showDuelIntro = signal(false);
     duelPlayer1 = signal<{ username: string; avatar_url?: string } | null>(null);
     duelPlayer2 = signal<{ username: string; avatar_url?: string } | null>(null);
+    opponentProfile = signal<Pick<Profile, 'id' | 'username' | 'avatar_url'> | null>(null);
     private duelShown = false;
 
     // --- Replay state ------------------------------------------------------------
@@ -299,6 +300,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             const refreshed = await this.supabaseService.getStatDuelRoom(roomId);
             this.room.set(refreshed);
         }
+        await this.loadWaitingOpponentProfile(this.room() ?? room);
 
         if (room.status === 'playing' || room.status === 'finished') {
             await this.loadPokemonAndStartMulti(room);
@@ -308,6 +310,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.roomSub = this.supabaseService.subscribeToStatDuelRoom(roomId).subscribe(async (updated) => {
             this.room.set(updated);
             this.settings.set(normalizeModeSettings('stat_duel', updated.settings));
+            if (this.phase() === 'waiting') await this.loadWaitingOpponentProfile(updated);
             if (updated.status === 'finished' && updated.winner === null) {
                 if (this.phase() === 'result') {
                     this.stopClock();
@@ -376,6 +379,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
             if (!this.room()?.player2_id && refreshed.player2_id) {
                 this.room.set(refreshed);
+                await this.loadWaitingOpponentProfile(refreshed);
             }
 
             if (refreshed.status === 'playing' && this.phase() === 'waiting') {
@@ -731,6 +735,22 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         if (available.length === 0) return;
         const randomKey = available[Math.floor(Math.random() * available.length)];
         this.pickStat(randomKey);
+    }
+
+    /** Charge le profil affiché dans l'écran d'attente pour l'hôte comme pour l'invité. */
+    private async loadWaitingOpponentProfile(room: StatDuelRoom): Promise<void> {
+        const opponentId = this.isPlayer1() ? room.player2_id : room.player1_id;
+        if (!opponentId) {
+            this.opponentProfile.set(null);
+            return;
+        }
+        if (this.opponentProfile()?.id === opponentId) return;
+        try {
+            const profile = await this.supabaseService.getProfile(opponentId);
+            this.opponentProfile.set({ id: profile.id, username: profile.username, avatar_url: profile.avatar_url });
+        } catch {
+            this.opponentProfile.set({ id: opponentId, username: 'Adversaire', avatar_url: undefined });
+        }
     }
 
     /** Ajoute séquentiellement les choix automatiques manquants jusqu'à la manche demandée. */

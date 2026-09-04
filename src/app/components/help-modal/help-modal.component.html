@@ -13,16 +13,16 @@
 
 				<div class="flex items-center gap-3 pr-10">
 					<div class="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0"
-						[ngClass]="mode() === 'guess' ? 'bg-cyan-600/20 border-cyan-500/30' : 'bg-yellow-600/20 border-yellow-500/30'">
+						[ngClass]="mode() === 'guess' ? 'bg-cyan-600/20 border-cyan-500/30' : mode() === 'stat-duel' ? 'bg-yellow-600/20 border-yellow-500/30' : 'bg-orange-600/20 border-orange-500/30'">
 						<iconify-icon
-							[icon]="mode() === 'guess' ? ICONS.help : ICONS.statDuel"
+							[icon]="ICONS.help"
 							class="text-2xl"
-							[ngClass]="mode() === 'guess' ? 'text-cyan-400' : 'text-yellow-400'"
+							[ngClass]="mode() === 'guess' ? 'text-cyan-400' : mode() === 'stat-duel' ? 'text-yellow-400' : 'text-orange-300'"
 						></iconify-icon>
 					</div>
 					<div>
 						<h2 class="text-lg font-bold text-white uppercase tracking-wider">
-							{{ mode() === 'guess' ? 'Guess my Pokémon' : 'Duel de Base Stats' }}
+							{{ mode() === 'guess' ? 'Guess my Pokémon' : mode() === 'stat-duel' ? 'Duel de Base Stats' : 'Enchères Pokémon' }}
 						</h2>
 						<p class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em]">Aide du mode</p>
 					</div>
@@ -61,7 +61,7 @@
 							</div>
 						</section>
 					}
-				} @else {
+				} @else if (mode() === 'stat-duel') {
 					<section class="space-y-3">
 						<app-help-section-title label="Déroulement"></app-help-section-title>
 						<div class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4">
@@ -83,6 +83,36 @@
 						</div>
 					</section>
 
+				} @else {
+					<section class="space-y-3">
+						<app-help-section-title label="Déroulement"></app-help-section-title>
+						<div class="rounded-xl border border-orange-400/15 bg-orange-500/[0.045] p-4">
+							<ol class="space-y-3 text-sm text-slate-300 list-none">
+								<li class="flex gap-3"><span class="shrink-0 font-bold text-orange-300">1.</span><span>Un Pokémon est présenté aux deux joueurs au début de chaque enchère.</span></li>
+								<li class="flex gap-3"><span class="shrink-0 font-bold text-orange-300">2.</span><span>Utilise ton budget pour miser avant la fin du chrono de 15 secondes.</span></li>
+								<li class="flex gap-3"><span class="shrink-0 font-bold text-orange-300">3.</span><span>La meilleure offre remporte le Pokémon et son montant est retiré du budget du gagnant.</span></li>
+								<li class="flex gap-3"><span class="shrink-0 font-bold text-orange-300">4.</span><span>Les égalités sont remises en jeu plus tard. Chaque joueur doit compléter une équipe de 6 Pokémon.</span></li>
+								<li class="flex gap-3"><span class="shrink-0 font-bold text-orange-300">5.</span><span>À la fin, la puissance globale et la couverture de types des deux équipes déterminent le vainqueur.</span></li>
+							</ol>
+						</div>
+					</section>
+
+					<section class="space-y-3">
+						<app-help-section-title label="Formats d'enchère"></app-help-section-title>
+						<div class="grid gap-2">
+							<app-help-card title="En direct" text="Les offres sont visibles. Tu peux surenchérir tant que le chrono et ton budget le permettent."></app-help-card>
+							<app-help-card title="Offres secrètes" text="Chaque joueur envoie une seule offre cachée. Les deux montants sont révélés ensemble à la fin."></app-help-card>
+							<app-help-card title="Tours alternés" text="Les joueurs agissent chacun leur tour et choisissent de miser davantage ou de passer."></app-help-card>
+						</div>
+					</section>
+
+					<section class="space-y-3">
+						<app-help-section-title label="Budget et stratégie"></app-help-section-title>
+						<div class="grid gap-2">
+							<app-help-card title="Réserve obligatoire" text="L'offre maximale conserve toujours au moins 10 ₽ pour chaque place encore vide après l'achat."></app-help-card>
+							<app-help-card title="Construire son équipe" text="Une grosse mise peut sécuriser un Pokémon puissant, mais réduire tes options pour les enchères suivantes."></app-help-card>
+						</div>
+					</section>
 				}
 
 				<button

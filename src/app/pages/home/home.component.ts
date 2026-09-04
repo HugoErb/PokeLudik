@@ -104,7 +104,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   username = '';
   avatarUrl = signal<string | null>(null);
-  isCreating = false;
+  creatingMode: GameMode | null = null;
   inviteError = '';
   isLoadingProfile = true;
   isUpdatingPassword = false;
@@ -355,25 +355,27 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Traite une demande d'invitation envoyee a un ami. */
   async onInviteRequested(event: { friendId: string; username: string; gameMode: GameMode }): Promise<void> {
-    this.isCreating = true;
+    if (this.isCreating) return;
+    this.creatingMode = event.gameMode;
     this.inviteError = '';
     try {
       const { roomId, inviteId } = await this.supabaseService.sendGameInvite(event.friendId, event.gameMode);
       if (event.gameMode === 'stat_duel') {
-        this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'stat_duel', inviteId, friendName: event.username } });
+        await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'stat_duel', inviteId, friendName: event.username } });
       } else if (event.gameMode === 'draft_duo') {
-        this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'draft_duo', inviteId, friendName: event.username } });
+        await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'draft_duo', inviteId, friendName: event.username } });
       } else if (event.gameMode === 'who_that_pokemon') {
-        this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'who_that_pokemon', inviteId, friendName: event.username } });
+        await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'who_that_pokemon', inviteId, friendName: event.username } });
       } else if (event.gameMode === 'pokemon_auction') {
-        this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'pokemon_auction', inviteId, friendName: event.username } });
+        await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'pokemon_auction', inviteId, friendName: event.username } });
       } else {
-        this.router.navigate(['/lobby', roomId], { queryParams: { inviteId, friendName: event.username } });
+        await this.router.navigate(['/lobby', roomId], { queryParams: { inviteId, friendName: event.username } });
       }
     } catch (err) {
       console.error('[onInviteRequested] erreur:', err);
       this.inviteError = 'Impossible d\'inviter l\'ami. Réessaie.';
-      this.isCreating = false;
+    } finally {
+      this.creatingMode = null;
     }
   }
 
@@ -381,21 +383,22 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Navigue vers le mode draft. */
   startDraft(): void {
-    void this.router.navigate(['/draft']);
+    void this.navigateToMode('draft_duo', ['/draft']);
   }
 
   /** Navigue vers le Duel de Base Stats. */
   startStatDuel(): void {
-    void this.router.navigate(['/stat-duel']);
+    void this.navigateToMode('stat_duel', ['/stat-duel']);
   }
 
   /** Navigue vers Who's That Pokemon. */
   startWhoThatPokemon(): void {
-    void this.router.navigate(['/who-that-pokemon']);
+    void this.navigateToMode('who_that_pokemon', ['/who-that-pokemon']);
   }
 
   async startPokemonAuction(): Promise<void> {
-    this.isCreating = true;
+    if (this.isCreating) return;
+    this.creatingMode = 'pokemon_auction';
     try {
       const roomId = await this.supabaseService.createPokemonAuctionRoom();
       await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'pokemon_auction' } });
@@ -403,22 +406,44 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       console.error('[startPokemonAuction] échec de création du salon :', error);
       this.triggerToast('Impossible de créer la partie. Réessaie.', 'error');
     } finally {
-      this.isCreating = false;
+      this.creatingMode = null;
     }
   }
 
   /** Cree une nouvelle partie. */
   async createGame(): Promise<void> {
-    this.isCreating = true;
+    if (this.isCreating) return;
+    this.creatingMode = 'guess_my_pokemon';
     this.inviteError = '';
     localStorage.removeItem('gmp:filters');
     try {
       const roomId = await this.supabaseService.createRoom();
-      this.router.navigate(['/lobby', roomId]);
+      await this.router.navigate(['/lobby', roomId]);
     } catch {
       this.triggerToast('Impossible de créer la partie. Réessaie.', 'error');
     } finally {
-      this.isCreating = false;
+      this.creatingMode = null;
+    }
+  }
+
+  /** Indique si une création ou une navigation de mode est déjà en cours. */
+  get isCreating(): boolean {
+    return this.creatingMode !== null;
+  }
+
+  /** Indique si le mode donné est celui qui affiche actuellement le chargement. */
+  isModeCreating(mode: GameMode): boolean {
+    return this.creatingMode === mode;
+  }
+
+  /** Ouvre un écran de mode tout en affichant le chargement sur sa propre carte. */
+  private async navigateToMode(mode: GameMode, commands: string[]): Promise<void> {
+    if (this.isCreating) return;
+    this.creatingMode = mode;
+    try {
+      await this.router.navigate(commands);
+    } finally {
+      this.creatingMode = null;
     }
   }
 

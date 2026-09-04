@@ -103,7 +103,7 @@
 			<h1 class="text-3xl font-black tracking-[-0.045em] text-white sm:text-5xl">
 				Prêt à jouer, <span class="bg-gradient-to-r from-rose-300 to-red-500 bg-clip-text text-transparent">{{ username || '...' }}</span>&nbsp;?
 			</h1>
-			<p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">Choisis une expérience, invite tes amis et lance une partie en quelques secondes.</p>
+			<p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">Choisis un mode, invite tes amis et lance une partie en quelques secondes.</p>
 		</div>
 
 		<div class="relative grid w-full max-w-7xl grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
@@ -114,7 +114,7 @@
 					<div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-400/20 bg-rose-500/10">
 						<iconify-icon [icon]="ICONS.sword" class="text-xl text-rose-300"></iconify-icon>
 					</div>
-					<div><h2 class="text-base font-black text-white">Choisis ton mode</h2><p class="text-xs text-slate-500">5 expériences disponibles</p></div>
+					<div><h2 class="text-base font-black text-white">Choisis ton mode</h2><p class="text-xs text-slate-500">5 modes disponibles</p></div>
 					</div>
 				</div>
 
@@ -123,66 +123,76 @@
 					<button
 						(click)="createGame()"
 						[disabled]="isCreating"
-						class="group relative min-h-[112px] w-full overflow-hidden rounded-2xl border border-rose-400/20 bg-rose-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-rose-400/50 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+						[attr.aria-busy]="isModeCreating('guess_my_pokemon') ? 'true' : null"
+						[class.opacity-50]="isCreating && !isModeCreating('guess_my_pokemon')"
+						class="group relative min-h-[112px] w-full overflow-hidden rounded-2xl border border-rose-400/20 bg-rose-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-rose-400/50 hover:bg-rose-500/10 disabled:cursor-not-allowed"
 					>
 						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-500/10">
-							@if (!isCreating) {
-								<iconify-icon [icon]="ICONS.guess" class="text-2xl text-red-400"></iconify-icon>
-							}
-							@if (isCreating) {
+							@if (isModeCreating('guess_my_pokemon')) {
 								<iconify-icon [icon]="ICONS.loading" class="text-xl text-red-400 animate-spin"></iconify-icon>
+							} @else {
+								<iconify-icon [icon]="ICONS.guess" class="text-2xl text-red-400"></iconify-icon>
 							}
 						</div>
 						<div class="flex flex-col items-start">
 							<span class="text-sm font-black text-white sm:text-base">Guess my Pokémon</span>
-							<span class="mt-1 text-xs font-medium text-slate-400">{{ isCreating ? 'Création de la partie…' : 'Trouve le Pokémon adverse' }}</span>
+							<span class="mt-1 text-xs font-medium leading-relaxed text-slate-400">{{ isModeCreating('guess_my_pokemon') ? 'Création de la partie…' : 'Pose les bonnes questions et trouve le Pokémon adverse' }}</span>
 						</div>
 					</button>
 					<!-- Bouton Who's That Pokemon -->
 					<button
 						(click)="startWhoThatPokemon()"
-						class="group min-h-[112px] w-full rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-cyan-400/50 hover:bg-cyan-500/10"
+						[disabled]="isCreating"
+						[attr.aria-busy]="isModeCreating('who_that_pokemon') ? 'true' : null"
+						[class.opacity-50]="isCreating && !isModeCreating('who_that_pokemon')"
+						class="group min-h-[112px] w-full rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-cyan-400/50 hover:bg-cyan-500/10 disabled:cursor-not-allowed"
 					>
 						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-500/10">
-							<iconify-icon [icon]="ICONS.whoPokemon" class="text-2xl text-cyan-300"></iconify-icon>
+							<iconify-icon [icon]="isModeCreating('who_that_pokemon') ? ICONS.loading : ICONS.whoPokemon" class="text-2xl text-cyan-300" [class.animate-spin]="isModeCreating('who_that_pokemon')"></iconify-icon>
 						</div>
 						<div class="flex flex-col items-start">
 							<span class="text-sm font-black text-white sm:text-base">Who's That Pokémon&nbsp;?</span>
-							<span class="mt-1 text-xs font-medium text-slate-400">Devine le Pokémon mystère</span>
+							<span class="mt-1 text-xs font-medium leading-relaxed text-slate-400">{{ isModeCreating('who_that_pokemon') ? 'Ouverture du mode…' : 'Révèle des indices et devine le Pokémon mystère' }}</span>
 						</div>
 					</button>
 
 					<!-- Bouton Team Builder -->
 					<button
 						(click)="startDraft()"
-						class="group min-h-[112px] w-full rounded-2xl border border-purple-400/20 bg-purple-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-purple-400/50 hover:bg-purple-500/10"
+						[disabled]="isCreating"
+						[attr.aria-busy]="isModeCreating('draft_duo') ? 'true' : null"
+						[class.opacity-50]="isCreating && !isModeCreating('draft_duo')"
+						class="group min-h-[112px] w-full rounded-2xl border border-purple-400/20 bg-purple-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-purple-400/50 hover:bg-purple-500/10 disabled:cursor-not-allowed"
 					>
 						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-500/10">
-							<iconify-icon [icon]="ICONS.draft" class="text-3xl text-purple-200"></iconify-icon>
+							<iconify-icon [icon]="isModeCreating('draft_duo') ? ICONS.loading : ICONS.draft" class="text-3xl text-purple-200" [class.animate-spin]="isModeCreating('draft_duo')"></iconify-icon>
 						</div>
 						<div class="flex flex-col items-start">
 							<span class="text-sm font-black text-white sm:text-base">Team Builder</span>
-							<span class="mt-1 text-xs font-medium text-slate-400">Crée la meilleure équipe</span>
+							<span class="mt-1 text-xs font-medium leading-relaxed text-slate-400">{{ isModeCreating('draft_duo') ? 'Ouverture du mode…' : 'Compose une équipe équilibrée et vise le meilleur score' }}</span>
 						</div>
 					</button>
 
 					<!-- Bouton Duel de Base Stats -->
 					<button
 						(click)="startStatDuel()"
-						class="group min-h-[112px] w-full rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-amber-400/50 hover:bg-amber-500/10"
+						[disabled]="isCreating"
+						[attr.aria-busy]="isModeCreating('stat_duel') ? 'true' : null"
+						[class.opacity-50]="isCreating && !isModeCreating('stat_duel')"
+						class="group min-h-[112px] w-full rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-amber-400/50 hover:bg-amber-500/10 disabled:cursor-not-allowed"
 					>
 						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10">
-							<iconify-icon [icon]="ICONS.statDuel" class="text-xl text-yellow-400"></iconify-icon>
+							<iconify-icon [icon]="isModeCreating('stat_duel') ? ICONS.loading : ICONS.statDuel" class="text-xl text-yellow-400" [class.animate-spin]="isModeCreating('stat_duel')"></iconify-icon>
 						</div>
 						<div class="flex flex-col items-start">
 							<span class="text-sm font-black text-white sm:text-base">Duel de Base Stats</span>
-							<span class="mt-1 text-xs font-medium text-slate-400">Crée le meilleur Pokémon</span>
+							<span class="mt-1 text-xs font-medium leading-relaxed text-slate-400">{{ isModeCreating('stat_duel') ? 'Ouverture du mode…' : 'Choisis les meilleures stats pour dominer chaque manche' }}</span>
 						</div>
 					</button>
 
-					<button (click)="startPokemonAuction()" [disabled]="isCreating" class="group min-h-[112px] w-full rounded-2xl border border-orange-400/20 bg-orange-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-orange-400/50 hover:bg-orange-500/10 disabled:opacity-50">
-						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-orange-400/20 bg-orange-500/10"><iconify-icon [icon]="ICONS.auction" class="text-2xl text-orange-300"></iconify-icon></div>
-						<div class="flex flex-col items-start"><span class="text-sm font-black text-white sm:text-base">Enchères Pokémon</span><span class="mt-1 text-xs font-medium text-slate-400">Construis ton équipe au meilleur prix</span></div>
+					<button (click)="startPokemonAuction()" [disabled]="isCreating" [attr.aria-busy]="isModeCreating('pokemon_auction') ? 'true' : null" [class.opacity-50]="isCreating && !isModeCreating('pokemon_auction')" class="group min-h-[112px] w-full rounded-2xl border border-orange-400/20 bg-orange-500/[0.07] p-4 text-left transition duration-300 hover:-translate-y-0.5 hover:border-orange-400/50 hover:bg-orange-500/10 disabled:cursor-not-allowed">
+						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-orange-400/20 bg-orange-500/10"><iconify-icon [icon]="isModeCreating('pokemon_auction') ? ICONS.loading : ICONS.auction" class="text-2xl text-orange-300" [class.animate-spin]="isModeCreating('pokemon_auction')"></iconify-icon></div>
+						<div class="flex flex-col items-start"><span class="text-sm font-black text-white sm:text-base">Enchères Pokémon</span><span class="mt-1 text-xs font-medium leading-relaxed text-slate-400">{{ isModeCreating('pokemon_auction') ? 'Création de la partie…' : "Mise intelligemment et construis l'équipe la plus forte" }}</span></div>
 					</button>
 				</div>
 			</div>
