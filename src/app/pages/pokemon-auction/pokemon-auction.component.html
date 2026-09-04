@@ -50,7 +50,7 @@
                 <h1 class="text-2xl font-black capitalize tracking-tight">{{ pokemon.name }}</h1>
                 <div class="mt-2 flex gap-1.5">@for (type of pokemon.types; track type) { <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black" [ngClass]="typeColor(type)"><iconify-icon [icon]="typeIcon(type)"></iconify-icon>{{ type }}</span> }</div>
               </div>
-              <app-pokemon-stats-grid [pokemon]="pokemon" />
+              <app-pokemon-stats-grid [pokemon]="pokemon" variant="bars" />
             } @else {
               <div class="flex min-h-72 items-center justify-center"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-4xl text-orange-300"></iconify-icon></div>
             }

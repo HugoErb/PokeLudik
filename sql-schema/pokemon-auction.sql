@@ -84,7 +84,7 @@ BEGIN
   UPDATE public.pokemon_auction_rooms SET current_pokemon_id=v_next,
     used_pokemon_ids=CASE WHEN v_next=ANY(used_pokemon_ids) THEN used_pokemon_ids ELSE array_append(used_pokemon_ids,v_next) END,
     requeue_pokemon_ids=coalesce(v_queue,'{}'), round=round+1,
-    auction_start_at=clock_timestamp()+interval '1 second', auction_end_at=clock_timestamp()+interval '16 seconds',
+    auction_start_at=clock_timestamp()+interval '1 second', auction_end_at=clock_timestamp()+interval '31 seconds',
     current_bid=0,current_bidder=NULL,current_turn=CASE WHEN settings->>'auctionFormat'='turn_based' THEN CASE WHEN random()<.5 THEN 'player1' ELSE 'player2' END END,
     p1_passed=false,p2_passed=false,p1_bid_submitted=false,p2_bid_submitted=false WHERE id=p_room_id;
 END; $$;
@@ -193,7 +193,7 @@ BEGIN
   PERFORM public.auction_assert_bid_allowed(v_room,v_role,p_amount);
   v_other_passed:=CASE WHEN v_role='player1' THEN v_room.p2_passed ELSE v_room.p1_passed END;
   UPDATE public.pokemon_auction_rooms SET current_bid=p_amount,current_bidder=v_role,
-    auction_end_at=CASE WHEN settings->>'auctionFormat'='turn_based' THEN clock_timestamp()+interval '15 seconds' WHEN auction_end_at-clock_timestamp()<=interval '5 seconds' THEN clock_timestamp()+interval '5 seconds' ELSE auction_end_at END,
+    auction_end_at=CASE WHEN settings->>'auctionFormat'='turn_based' THEN clock_timestamp()+interval '30 seconds' WHEN auction_end_at-clock_timestamp()<=interval '5 seconds' THEN clock_timestamp()+interval '5 seconds' ELSE auction_end_at END,
     current_turn=CASE WHEN settings->>'auctionFormat'='turn_based' THEN CASE WHEN v_role='player1' THEN 'player2' ELSE 'player1' END ELSE current_turn END WHERE id=p_room_id;
   IF v_other_passed THEN PERFORM public.resolve_pokemon_auction(p_room_id,true); END IF;
 END; $$;
@@ -206,7 +206,7 @@ BEGIN
   v_role:=CASE WHEN auth.uid()=v_room.player1_id THEN 'player1' WHEN auth.uid()=v_room.player2_id THEN 'player2' END;
   IF v_role IS NULL OR v_room.status<>'playing' OR v_room.current_pokemon_id IS NULL OR v_room.settings->>'auctionFormat'<>'turn_based' OR v_room.current_turn<>v_role OR clock_timestamp() NOT BETWEEN v_room.auction_start_at AND v_room.auction_end_at THEN RAISE EXCEPTION 'pass_not_allowed'; END IF;
   v_other:=CASE WHEN v_role='player1' THEN v_room.p2_passed ELSE v_room.p1_passed END;
-  UPDATE public.pokemon_auction_rooms SET p1_passed=CASE WHEN v_role='player1' THEN true ELSE p1_passed END,p2_passed=CASE WHEN v_role='player2' THEN true ELSE p2_passed END,current_turn=CASE WHEN v_role='player1' THEN 'player2' ELSE 'player1' END,auction_end_at=clock_timestamp()+interval '15 seconds' WHERE id=p_room_id;
+  UPDATE public.pokemon_auction_rooms SET p1_passed=CASE WHEN v_role='player1' THEN true ELSE p1_passed END,p2_passed=CASE WHEN v_role='player2' THEN true ELSE p2_passed END,current_turn=CASE WHEN v_role='player1' THEN 'player2' ELSE 'player1' END,auction_end_at=clock_timestamp()+interval '30 seconds' WHERE id=p_room_id;
   IF v_room.current_bid>0 OR v_other THEN PERFORM public.resolve_pokemon_auction(p_room_id,true); END IF;
 END; $$;
 
@@ -234,7 +234,7 @@ BEGIN
   IF v_room.settings->>'auctionFormat'='turn_based' THEN
     v_first_pass:=v_room.p1_passed OR v_room.p2_passed;
     IF v_room.current_turn='player1' THEN UPDATE public.pokemon_auction_rooms SET p1_passed=true WHERE id=p_room_id; ELSE UPDATE public.pokemon_auction_rooms SET p2_passed=true WHERE id=p_room_id; END IF;
-    IF v_room.current_bid=0 AND NOT v_first_pass THEN UPDATE public.pokemon_auction_rooms SET current_turn=CASE WHEN v_room.current_turn='player1' THEN 'player2' ELSE 'player1' END,auction_end_at=clock_timestamp()+interval '15 seconds' WHERE id=p_room_id; RETURN; END IF;
+    IF v_room.current_bid=0 AND NOT v_first_pass THEN UPDATE public.pokemon_auction_rooms SET current_turn=CASE WHEN v_room.current_turn='player1' THEN 'player2' ELSE 'player1' END,auction_end_at=clock_timestamp()+interval '30 seconds' WHERE id=p_room_id; RETURN; END IF;
   END IF;
   PERFORM public.resolve_pokemon_auction(p_room_id,true);
 END; $$;

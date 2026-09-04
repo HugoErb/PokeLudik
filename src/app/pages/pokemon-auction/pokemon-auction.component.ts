@@ -72,10 +72,10 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     const start = new Date(this.room()?.auction_start_at ?? 0).getTime();
     const end = new Date(this.room()?.auction_end_at ?? 0).getTime();
     const remaining = Math.max(0, end - Math.max(this.now(), start));
-    return Math.min(100, (remaining / 15_000) * 100);
+    return Math.min(100, (remaining / 30_000) * 100);
   });
-  readonly timerColor = computed(() => this.timeLeft() <= 3 ? 'text-red-400' : this.timeLeft() <= 6 ? 'text-yellow-400' : 'text-green-400');
-  readonly timerBarColor = computed(() => this.timeLeft() <= 3 ? 'bg-red-500' : this.timeLeft() <= 6 ? 'bg-yellow-500' : 'bg-green-500');
+  readonly timerColor = computed(() => this.timeLeft() <= 5 ? 'text-red-400' : this.timeLeft() <= 10 ? 'text-yellow-400' : 'text-green-400');
+  readonly timerBarColor = computed(() => this.timeLeft() <= 5 ? 'bg-red-500' : this.timeLeft() <= 10 ? 'bg-yellow-500' : 'bg-green-500');
   readonly hasStarted = computed(() => this.now() >= new Date(this.room()?.auction_start_at ?? 0).getTime());
   readonly myTurn = computed(() => this.room()?.current_turn === this.myRole());
   readonly myBidSubmitted = computed(() => this.isPlayer1() ? !!this.room()?.p1_bid_submitted : !!this.room()?.p2_bid_submitted);

@@ -1,8 +1,35 @@
-<div class="grid grid-cols-3 gap-2">
-  @for (stat of stats; track stat.key) {
-    <div class="flex flex-col items-center justify-center rounded-xl border px-2 py-2 transition" [ngClass]="highlightHighest() && isHighest(stat.key) ? 'bg-yellow-500/10 border-yellow-400/70 shadow-[0_0_0_1px_rgba(250,204,21,0.22)]' : 'bg-slate-900/60 border-slate-800'">
-      <span class="text-[10px] font-black uppercase" [ngClass]="stat.color">{{ stat.label }}</span>
-      <span class="text-sm font-black text-white">{{ pokemon().stats[stat.key] }}</span>
-    </div>
-  }
-</div>
+@if (variant() === 'bars') {
+  <div class="flex w-full flex-col gap-1.5" aria-label="Statistiques du Pokémon">
+    @for (stat of stats; track stat.key) {
+      <div
+        class="flex min-w-0 items-center gap-2 rounded-lg border px-2 py-1.5 transition"
+        [ngClass]="highlightHighest() && isHighest(stat.key) ? 'border-yellow-400/35 bg-yellow-500/[0.06]' : 'border-transparent'"
+      >
+        <span class="w-11 shrink-0 text-right text-[10px] font-black uppercase" [ngClass]="stat.color">{{ stat.label }}</span>
+        <div
+          class="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-700/80"
+          role="progressbar"
+          [attr.aria-label]="stat.label"
+          aria-valuemin="0"
+          aria-valuemax="200"
+          [attr.aria-valuenow]="pokemon().stats[stat.key]"
+        >
+          <div
+            class="h-full rounded-full transition-all duration-500"
+            [ngClass]="stat.barColor"
+            [style.width]="getStatBarWidth(pokemon().stats[stat.key])"
+          ></div>
+        </div>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="grid grid-cols-3 gap-2">
+    @for (stat of stats; track stat.key) {
+      <div class="flex flex-col items-center justify-center rounded-xl border px-2 py-2 transition" [ngClass]="highlightHighest() && isHighest(stat.key) ? 'bg-yellow-500/10 border-yellow-400/70 shadow-[0_0_0_1px_rgba(250,204,21,0.22)]' : 'bg-slate-900/60 border-slate-800'">
+        <span class="text-[10px] font-black uppercase" [ngClass]="stat.color">{{ stat.label }}</span>
+        <span class="text-sm font-black text-white">{{ pokemon().stats[stat.key] }}</span>
+      </div>
+    }
+  </div>
+}
