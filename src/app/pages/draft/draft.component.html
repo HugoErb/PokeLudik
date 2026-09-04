@@ -206,9 +206,9 @@
 
 	<!-- Phase résultats -->
 	@if (phase() === 'complete') {
-		<main class="flex-1 flex flex-col items-center justify-start md:justify-center px-4 py-3 md:py-10 gap-3 md:gap-8 min-h-0 overflow-y-auto md:overflow-hidden">
+		<main class="flex min-h-0 flex-1 flex-col items-center justify-start gap-3 overflow-x-hidden overflow-y-auto px-4 pb-8 pt-5 sm:pb-10 sm:pt-6 md:gap-8 lg:pb-12 lg:pt-8">
 
-			<h2 class="text-base md:text-2xl font-black text-white text-center uppercase tracking-widest shrink-0 mb-2 md:mb-0">
+			<h2 class="mb-2 mt-auto shrink-0 text-center text-base font-black uppercase tracking-widest text-white md:mb-0 md:text-2xl">
 				Ton équipe est prête&nbsp;!
 			</h2>
 
@@ -267,7 +267,7 @@
 				</div>
 			}
 
-			<app-end-game-actions replayMode="solo" maxWidth="xs" (replay)="replay()" (goHome)="goHome()" />
+			<app-end-game-actions class="mb-auto" replayMode="solo" maxWidth="xs" (replay)="replay()" (goHome)="goHome()" />
 		</main>
 	}
 

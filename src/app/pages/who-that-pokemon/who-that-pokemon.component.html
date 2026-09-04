@@ -304,8 +304,8 @@
   }
 
   @if (phase() === 'complete') {
-    <main class="flex-1 flex flex-col items-center justify-center overflow-y-auto p-3 sm:p-4 gap-4 sm:gap-5 text-center">
-      <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-sm shadow-xl">
+    <main class="flex min-h-0 flex-1 flex-col items-center justify-start gap-4 overflow-x-hidden overflow-y-auto px-3 pb-8 pt-5 text-center sm:gap-5 sm:px-4 sm:pb-10 sm:pt-6 lg:pb-12 lg:pt-8">
+      <div class="mt-auto w-full max-w-sm rounded-xl border border-slate-700 bg-slate-800 p-4 shadow-xl sm:rounded-2xl sm:p-6">
         @if (isVictory()) {
           <iconify-icon [icon]="ICONS.trophy" class="text-5xl text-yellow-400 mb-3 animate-bounce"></iconify-icon>
         } @else if (statusTitle() === 'Défaite') {
@@ -314,7 +314,7 @@
         <h2 class="text-2xl font-black mb-2">{{ statusTitle() }}</h2>
         <p class="text-slate-200 text-2xl font-black">Score : {{ myScore() }} @if (room()) { - {{ opponentScore() }} }</p>
       </div>
-      <app-end-game-actions [replayMode]="room() ? 'multi' : 'solo'" [iWantReplay]="isPlayer1() ? !!room()?.p1_ready : !!room()?.p2_ready" [opponentWantsReplay]="isPlayer1() ? !!room()?.p2_ready : !!room()?.p1_ready" [opponentLeft]="opponentLeft()" (replay)="replay()" (goHome)="goHome()" />
+      <app-end-game-actions class="mb-auto" [replayMode]="room() ? 'multi' : 'solo'" [iWantReplay]="isPlayer1() ? !!room()?.p1_ready : !!room()?.p2_ready" [opponentWantsReplay]="isPlayer1() ? !!room()?.p2_ready : !!room()?.p1_ready" [opponentLeft]="opponentLeft()" (replay)="replay()" (goHome)="goHome()" />
     </main>
   }
 

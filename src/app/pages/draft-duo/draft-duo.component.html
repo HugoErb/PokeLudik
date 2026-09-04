@@ -257,13 +257,13 @@
 
 	<!-- ═══ PHASE COMPLETE ══════════════════════════════════════════════════════ -->
 	@if (phase() === 'complete') {
-		<main class="flex-1 min-h-0 overflow-y-auto px-4 py-4 md:py-8 pb-12 md:pb-8 flex flex-col items-center gap-6 md:gap-8">
+		<main class="flex min-h-0 flex-1 flex-col items-center gap-6 overflow-x-hidden overflow-y-auto px-4 pb-8 pt-5 sm:pb-10 sm:pt-6 md:gap-8 lg:pb-12 lg:pt-8">
 
 			<!-- Bannière résultat -->
 			@if (showScores()) {
 				<div
 					[@scoreReveal]
-					class="w-full max-w-xl rounded-2xl px-6 py-4 text-center border"
+					class="mt-auto w-full max-w-xl rounded-2xl border px-6 py-4 text-center"
 					[class.bg-yellow-900/30]="winner() === 'me'"
 					[class.border-yellow-500/50]="winner() === 'me'"
 					[class.bg-red-900/20]="winner() === 'opponent'"
@@ -423,6 +423,7 @@
 			</div>
 
 			<app-end-game-actions
+				class="mb-auto"
 				replayMode="multi"
 				maxWidth="xs"
 				[iWantReplay]="iWantReplay()"
