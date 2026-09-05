@@ -42,7 +42,12 @@ export function computeRating(pokemon: Pokemon, range: RatingRange): number {
 export function computeStatsScore(team: Pokemon[], range: RatingRange): number {
   if (team.length === 0) return 0;
   const ratings = team.map(pokemon => computeRating(pokemon, range));
-  return Math.round((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length) * 10) / 10;
+  return Math.round(ratings.reduce((sum, rating) => sum + Math.round(rating * 10), 0) / ratings.length) / 10;
+}
+
+/** Moyenne de deux notes au dixième, sans erreur d'arrondi binaire à x,x5. */
+export function computeFinalScore(stats: number, coverage: number): number {
+  return Math.round((Math.round(stats * 10) + Math.round(coverage * 10)) / 2) / 10;
 }
 
 /** Calcule le score de couverture offensive et defensive d'une equipe contre une autre. */
@@ -64,18 +69,16 @@ export function computeDuoCoverageScore(myTeam: Pokemon[], opponentTeam: Pokemon
       coveredOpponentTypes++;
     }
   }
-  const offensiveScore = opponentTypes.size > 0 ? (coveredOpponentTypes / opponentTypes.size) * 10 : 0;
 
   let exploitedPokemon = 0;
   for (const opponentPokemon of opponentTeam) {
     if (opponentPokemon.id === ARCEUS_ID) continue;
 
     const canHit = myTypeList.some(myType =>
-      opponentPokemon.types.some(opponentType => (TYPE_OFFENSIVE[myType] ?? []).includes(opponentType))
+      effectiveMultiplier(opponentPokemon.types, myType) > 1
     );
     if (canHit) exploitedPokemon++;
   }
-  const pokemonScore = (exploitedPokemon / opponentTeam.length) * 10;
 
   let resistedTypes = 0;
   if (!opponentHasArceus) {
@@ -85,10 +88,11 @@ export function computeDuoCoverageScore(myTeam: Pokemon[], opponentTeam: Pokemon
       }
     }
   }
-  const defensiveScore = opponentTypes.size > 0 ? (resistedTypes / opponentTypes.size) * 10 : 0;
-
-  const raw = 0.5 * offensiveScore + 0.3 * pokemonScore + 0.2 * defensiveScore;
-  return Math.round(raw * 10) / 10;
+  // Mettre les fractions au même dénominateur avant l'arrondi, comme le SQL numeric.
+  const typeCount = Math.max(1, opponentTypes.size);
+  const numerator = (50 * coveredOpponentTypes + 20 * resistedTypes) * opponentTeam.length
+    + 30 * exploitedPokemon * typeCount;
+  return Math.round(numerator / (typeCount * opponentTeam.length)) / 10;
 }
 
 /** Retourne la classe CSS de couleur associee a un score. */
@@ -160,6 +164,27 @@ export function pickNUnique(pool: Pokemon[], exclude: Set<number>, count: number
     [available[i], available[j]] = [available[j], available[i]];
   }
   return available.slice(0, count);
+}
+
+/** Remplit les places libres sans réintroduire un Pokémon déjà verrouillé. */
+export function buildDraftSlots(pool: Pokemon[], locked: (Pokemon | null)[], usedIds = new Set<number>()): Pokemon[] {
+  if (!hasEnoughPokemonForDraft(pool)) throw new Error('Au moins six Pokémon distincts sont nécessaires');
+  const slots = [...locked];
+  const reserved = new Set(locked.filter((p): p is Pokemon => p !== null).map(p => p.id));
+  // Réserver les catégories spéciales avant de remplir les places ordinaires.
+  for (const index of [0, 5, 1, 2, 3, 4]) {
+    if (slots[index]) continue;
+    const available = pool.filter(p => !reserved.has(p.id));
+    const preferred = available.filter(p => index === 0 ? p.category === 'starter'
+      : index === 5 ? ['légendaire', 'fabuleux'].includes(p.category) : true);
+    const source = preferred.length ? preferred : available;
+    const unseen = source.filter(p => !usedIds.has(p.id));
+    const choices = unseen.length ? unseen : source;
+    const picked = choices[Math.floor(Math.random() * choices.length)];
+    slots[index] = picked;
+    reserved.add(picked.id);
+  }
+  return slots as Pokemon[];
 }
 
 /** Precharge les images donnees. */

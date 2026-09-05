@@ -420,38 +420,7 @@ export class GameService implements OnDestroy {
 
         this.replayLaunchInProgress = true;
         try {
-            const settings = room.settings ?? DEFAULT_SETTINGS;
-            if (settings.randomPokemon) {
-                let pokemons = await firstValueFrom(this.pokemonService.loadAll());
-                if (settings.generations.length > 0) {
-                    pokemons = pokemons.filter((p) => settings.generations.includes(p.generation));
-                }
-                if (settings.categories.length > 0) {
-                    pokemons = pokemons.filter((p) => settings.categories.includes(p.category));
-                }
-                const [p1, p2] = this.pickTwoDifferent(pokemons);
-                await this.supabaseService.updateRoom(roomId, {
-                    status: 'playing',
-                    pokemon_p1: p1.id,
-                    pokemon_p2: p2.id,
-                    p1_ready: false,
-                    p2_ready: false,
-                    winner_id: null,
-                    current_turn: this.resolveFirstTurn({ ...room, settings }),
-                    last_guess: null,
-                });
-            } else {
-                await this.supabaseService.updateRoom(roomId, {
-                    status: 'selecting',
-                    pokemon_p1: null,
-                    pokemon_p2: null,
-                    p1_ready: false,
-                    p2_ready: false,
-                    winner_id: null,
-                    current_turn: null,
-                    last_guess: null,
-                });
-            }
+            await this.supabaseService.replayGuessPokemonRoom(roomId);
 
             const finalRoom = await this.supabaseService.getRoomById(roomId);
             this.currentRoom.set(finalRoom);

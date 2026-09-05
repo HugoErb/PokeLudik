@@ -10,6 +10,7 @@
     "generate:pokemon": "node scripts/fetch-pokemon.mjs",
     "generate:pokemon-sql": "node scripts/generate-pokemon-catalog-sql.mjs",
     "verify:auction": "node scripts/verify-pokemon-auction.mjs",
+    "verify:functional-sql": "node scripts/verify-functional-sql.mjs",
     "add:ratings": "node scripts/add-ratings.js"
   },
   "overrides": {
@@ -35,6 +36,7 @@
     "@angular/build": "^21.2.22",
     "@angular/cli": "^21.2.22",
     "@angular/compiler-cli": "^21.2.22",
+    "@electric-sql/pglite": "^0.5.8",
     "@types/canvas-confetti": "^1.9.0",
     "@types/jasmine": "~5.1.0",
     "autoprefixer": "^10.4.27",

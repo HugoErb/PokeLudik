@@ -13,7 +13,7 @@ import { EndGameActionsComponent } from '../../components/end-game-actions/end-g
 import { PokemonStatsGridComponent } from '../../components/pokemon-stats-grid/pokemon-stats-grid.component';
 import { ICONS } from '../../constants/icons';
 import { TYPE_COLORS, TYPE_ICONS } from '../../constants/type-chart';
-import { computeDuoCoverageScore, computeStatsScore } from '../../utils/draft-utils';
+import { computeDuoCoverageScore, computeFinalScore, computeStatsScore } from '../../utils/draft-utils';
 import { auctionFormatLabel, getMaximumAuctionBid } from '../../utils/auction-utils';
 
 @Component({
@@ -251,7 +251,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     const totals = this.allPokemon().map(p => Object.values(p.stats).reduce((a, b) => a + b, 0));
     const stats = computeStatsScore(team, { min: Math.min(...totals), max: Math.max(...totals) });
     const coverage = computeDuoCoverageScore(team, opponent);
-    return { stats, coverage, final: Math.round(((stats + coverage) / 2) * 10) / 10 };
+    return { stats, coverage, final: computeFinalScore(stats, coverage) };
   }
 
   private teamFor(role: 'player1' | 'player2'): Pokemon[] {

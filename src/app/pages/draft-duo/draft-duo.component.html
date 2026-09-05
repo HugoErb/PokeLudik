@@ -3,6 +3,10 @@
 
 	<app-header [icon]="ICONS.draft" iconClass="text-purple-200" iconSizeClass="text-4xl" title="Team Builder" subtitle="Deux joueurs en ligne" />
 
+	@if (saveError()) {
+		<p role="alert" class="relative shrink-0 bg-red-950 px-4 py-3 text-sm text-red-200">{{ saveError() }}</p>
+	}
+
 	<!-- Sous-header (Timer, Compteur, Aide et Quitter) -->
 	@if (phase() !== 'loading') {
 		<div class="relative bg-slate-800/50 border-b border-slate-700 px-3 py-2 flex items-center justify-between gap-2 shrink-0">

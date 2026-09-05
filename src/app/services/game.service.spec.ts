@@ -34,12 +34,14 @@ describe('GameService', () => {
       'getCurrentUser',
       'getRoomById',
       'updateRoom',
+      'replayGuessPokemonRoom',
       'submitGuessPokemonGuess',
       'broadcastGuess',
       'broadcastPlayerLeft',
     ]);
     supabaseService.getCurrentUser.and.returnValue(user as any);
     supabaseService.updateRoom.and.resolveTo();
+    supabaseService.replayGuessPokemonRoom.and.resolveTo();
     supabaseService.submitGuessPokemonGuess.and.resolveTo(true);
     supabaseService.broadcastGuess.and.resolveTo();
     supabaseService.broadcastPlayerLeft.and.resolveTo();
@@ -107,5 +109,29 @@ describe('GameService', () => {
       p2_ready: false,
     }));
     expect(service.currentRoom()).toBeNull();
+  });
+
+  it('relance une revanche acceptée via la RPC dédiée puis rafraîchit la room', async () => {
+    const player1 = { id: 'player-1' };
+    supabaseService.getCurrentUser.and.returnValue(player1 as any);
+    (supabaseService.currentUserSignal as jasmine.Spy).and.returnValue(player1);
+    const finished = room({ status: 'finished', p1_ready: true, p2_ready: true, winner_id: 'player-2' });
+    const replay = room({ status: 'selecting', pokemon_p1: null, pokemon_p2: null });
+    service.currentRoom.set(finished);
+    supabaseService.getRoomById.and.returnValues(Promise.resolve(finished), Promise.resolve(replay));
+
+    await service.requestReplay('room-1');
+
+    expect(supabaseService.replayGuessPokemonRoom).toHaveBeenCalledOnceWith('room-1');
+    expect(supabaseService.updateRoom).toHaveBeenCalledOnceWith('room-1', { p1_ready: true });
+    expect(service.currentRoom()).toEqual(replay);
+  });
+
+  it('attend les deux accords avant de relancer', async () => {
+    const finished = room({ status: 'finished', p1_ready: false, p2_ready: true });
+    service.currentRoom.set(finished);
+    supabaseService.getRoomById.and.resolveTo(finished);
+    await service.requestReplay('room-1');
+    expect(supabaseService.replayGuessPokemonRoom).not.toHaveBeenCalled();
   });
 });

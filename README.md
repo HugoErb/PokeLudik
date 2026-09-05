@@ -64,6 +64,13 @@ Le schéma de référence est dans `sql-schema/ddb-schema.sql`. Il doit être ap
 Le fichier de catalogue intermédiaire est une migration additive autonome : il crée uniquement `pokemon_catalog` si cette table manque, puis synchronise les données nécessaires au calcul sécurisé du résultat côté serveur.
 La migration des enchères active également `pokemon_auction_rooms` dans Supabase Realtime.
 
+Pour une base existante, appliquer `sql-schema/pokemon-auction-catalog.sql`, puis
+`sql-schema/functional-fixes.sql` avant de déployer le frontend corrigé. Cette migration
+ajoute la RPC de revanche Guess, aligne le gagnant du Draft Duo sur la moyenne des
+notes de statistiques et de couverture, et corrige les immunités dans le calcul de couverture.
+Elle est transactionnelle et peut être réexécutée. Ces fonctions sont déjà incluses
+dans `ddb-schema.sql` pour une installation neuve.
+
 ## Scripts
 
 ```bash
@@ -101,3 +108,11 @@ npm test
 ```
 
 Lance les tests Angular.
+
+```bash
+npm run verify:functional-sql
+```
+
+Exécute les fonctions SQL dans un PostgreSQL local en mémoire (PGlite), vérifie les
+revanches, les permissions, la migration et la parité des scores avec le TypeScript.
+Ce contrôle ne se connecte pas au projet Supabase.

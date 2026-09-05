@@ -310,10 +310,7 @@ BEGIN
   FOR v_opponent_pokemon IN SELECT * FROM public.pokemon_catalog WHERE id=ANY(p_opponent) AND id<>493 LOOP
     v_hit:=false;
     FOREACH v_my_type IN ARRAY v_my_types LOOP
-      FOREACH v_opponent_type IN ARRAY v_opponent_pokemon.types LOOP
-        IF public.auction_type_multiplier(v_my_type,v_opponent_type)>1 THEN v_hit:=true; EXIT; END IF;
-      END LOOP;
-      IF v_hit THEN EXIT; END IF;
+      IF public.auction_effective_multiplier(v_opponent_pokemon.types,v_my_type)>1 THEN v_hit:=true; EXIT; END IF;
     END LOOP;
     IF v_hit THEN v_exploited:=v_exploited+1; END IF;
   END LOOP;

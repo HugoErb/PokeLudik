@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
@@ -33,17 +33,16 @@ import { AppHeaderComponent } from '../../components/app-header/app-header.compo
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
 import {
+  buildDraftSlots,
   canUseRoomForDuoComplete,
   computeDuoCoverageScore as computePokemonDuoCoverageScore,
+  computeFinalScore,
   computeRating as computePokemonRating,
   computeStatsScore as computePokemonStatsScore,
   computeTotal as computePokemonTotal,
   getRatingWidth as getPokemonRatingWidth,
   getScoreBarColor as getPokemonScoreBarColor,
   getScoreColor as getPokemonScoreColor,
-  pickNUnique as pickNUniquePokemon,
-  pickOneLegendary as pickOneLegendaryPokemon,
-  pickOneStarter as pickOneStarterPokemon,
   preloadImages as preloadPokemonImages,
 } from '../../utils/draft-utils';
 
@@ -91,6 +90,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   readonly selectedPokemon = signal<Pokemon | null>(null);
   readonly showCancelModal = signal(false);
   readonly isCancelling = signal(false);
+  readonly saveError = signal('');
   readonly waitingSettings = computed(() => normalizeModeSettings('draft_duo', this.room()?.settings));
   readonly opponentProfile = signal<Pick<Profile, 'id' | 'username' | 'avatar_url'> | null>(null);
 
@@ -158,13 +158,13 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     const s = this.myStatsScore();
     const c = this.myCoverageScore();
     if (s === 0 && c === 0) return 0;
-    return Math.round(((s + c) / 2) * 10) / 10;
+    return computeFinalScore(s, c);
   });
   readonly opponentFinalScore = computed(() => {
     const s = this.opponentStatsScore();
     const c = this.opponentCoverageScore();
     if (s === 0 && c === 0) return 0;
-    return Math.round(((s + c) / 2) * 10) / 10;
+    return computeFinalScore(s, c);
   });
 
   readonly winner = computed((): 'me' | 'opponent' | 'draw' => {
@@ -183,6 +183,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   private confettiFired = false;
   private isLockingPick = false;
   private replayLaunchInProgress = false;
+  private destroyed = false;
 
   // ─── Cycle de vie ────────────────────────────────────────────────────────────
 
@@ -248,6 +249,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
   /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stopTimer();
     this.roomSub?.unsubscribe();
     this.inviteResponseSub?.unsubscribe();
@@ -373,7 +375,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     const opponentTeamIds = this.isPlayer1() ? room.p2_team : room.p1_team;
     this.opponentPickCount.set(opponentTeamIds.length);
 
-    const all = this.allPokemon();
+    const all = this.allPokemon().length ? this.allPokemon() : await firstValueFrom(this.pokemonService.loadAll());
+    if (this.destroyed) return;
     if (all.length > 0) {
       const byId = new Map(all.map(p => [p.id, p]));
       this.opponentLockedPokemons.set(
@@ -381,18 +384,13 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
       );
     }
 
-    // Si Pokémon pas encore chargés, attendre
-    if (this.allPokemon().length === 0) {
-      const unsub = this.pokemonService.loadAll().subscribe(all => {
-        if (all.length > 0) {
-          unsub.unsubscribe();
-          this.initDraft();
-          this.phase.set('playing');
-          this.startTimer();
-        }
-      });
+    const myTeam = this.isPlayer1() ? room.p1_team : room.p2_team;
+    this.initDraft(myTeam);
+    if (canUseRoomForDuoComplete(room)) {
+      await this.enterCompletePhase(room);
+    } else if (myTeam.length === 6) {
+      this.phase.set('waiting-opponent');
     } else {
-      this.initDraft();
       this.phase.set('playing');
       this.startTimer();
     }
@@ -401,22 +399,63 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   // ─── Draft local ────────────────────────────────────────────────────────────
 
   /** Initialise l'etat du draft. */
-  private initDraft(): void {
+  private initDraft(teamIds: number[] = []): void {
     const pool = this.getConfiguredPokemonPool();
-    const starter = this.pickOneStarter(pool, new Set());
-    const legendary = this.pickOneLegendary(pool, new Set(starter ? [starter.id] : []));
-    const excludeForNormal = new Set([
-      ...(starter ? [starter.id] : []),
-      ...(legendary ? [legendary.id] : []),
-    ]);
-    const normal = this.pickNUnique(pool, excludeForNormal, 4);
-    const initial: (Pokemon | null)[] = [starter, ...normal, legendary];
+    if (this.restoreDraftState(teamIds, pool)) return;
+    const byId = new Map(pool.map(p => [p.id, p]));
+    const locked = Array<Pokemon | null>(6).fill(null);
+    for (const id of teamIds) {
+      const pokemon = byId.get(id);
+      if (!pokemon) throw new Error('Équipe sauvegardée incompatible avec le catalogue');
+      const preferred = pokemon.category === 'starter' ? 0
+        : ['légendaire', 'fabuleux'].includes(pokemon.category) ? 5 : -1;
+      const index = preferred >= 0 && !locked[preferred] ? preferred
+        : [1, 2, 3, 4, 0, 5].find(i => !locked[i])!;
+      locked[index] = pokemon;
+    }
+    const initial = buildDraftSlots(pool, locked);
     this.usedIds.set(new Set(initial.filter((p): p is Pokemon => p !== null).map(p => p.id)));
     this.slots.set(initial);
-    this.lockedIndices.set(new Set());
-    this.lockedPokemon.set([null, null, null, null, null, null]);
+    this.lockedIndices.set(new Set(locked.flatMap((p, i) => p ? [i] : [])));
+    this.lockedPokemon.set(locked);
     this.slotStates.set(['idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
     this.isLockingPick = false;
+    this.saveDraftState();
+  }
+
+  private get draftStorageKey(): string {
+    return `draft-duo-state-${this.roomId()}-${this.isPlayer1() ? 'p1' : 'p2'}`;
+  }
+
+  private saveDraftState(): void {
+    if (this.destroyed) return;
+    try {
+      sessionStorage.setItem(this.draftStorageKey, JSON.stringify({
+        slots: this.slots().map(p => p?.id ?? null),
+        locked: this.lockedPokemon().map(p => p?.id ?? null),
+        usedIds: [...this.usedIds()],
+      }));
+    } catch { /* La base reste la source de vérité si le stockage est indisponible. */ }
+  }
+
+  private restoreDraftState(teamIds: number[], pool: Pokemon[]): boolean {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(this.draftStorageKey) ?? 'null');
+      if (!saved || !Array.isArray(saved.slots) || saved.slots.length !== 6
+        || !Array.isArray(saved.locked) || saved.locked.length !== 6 || !Array.isArray(saved.usedIds)) return false;
+      const lockedIds: number[] = saved.locked.filter((id: number | null) => id !== null);
+      if (lockedIds.length !== teamIds.length || !teamIds.every(id => lockedIds.includes(id))) return false;
+      const byId = new Map(pool.map(p => [p.id, p]));
+      if (new Set(saved.slots).size !== 6 || !saved.slots.every((id: number) => byId.has(id))) return false;
+      if (!saved.locked.every((id: number | null, i: number) => id === null || id === saved.slots[i])) return false;
+      this.slots.set(saved.slots.map((id: number) => byId.get(id)!));
+      this.lockedPokemon.set(saved.locked.map((id: number | null) => id === null ? null : byId.get(id)!));
+      this.lockedIndices.set(new Set(saved.locked.flatMap((id: number | null, i: number) => id === null ? [] : [i])));
+      this.usedIds.set(new Set(saved.usedIds));
+      this.slotStates.set(['idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
+      this.isLockingPick = false;
+      return true;
+    } catch { return false; }
   }
 
   /** Gere le clic sur un slot de draft. */
@@ -442,38 +481,41 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     if (this.isLockingPick) return;
     this.isLockingPick = true;
     this.stopTimer();
-
-    this.lockedIndices.update(s => new Set([...s, index]));
-    this.lockedPokemon.update(arr => {
-      const next = [...arr];
-      next[index] = picked;
-      return next;
-    });
-    this.usedIds.update(s => new Set([...s, picked.id]));
-
-    // Sauvegarder en DB
-    const newTeam = this.lockedPokemon()
+    this.saveError.set('');
+    const nextLocked = [...this.lockedPokemon()];
+    nextLocked[index] = picked;
+    const newTeam = nextLocked
       .filter((p): p is Pokemon => p !== null)
       .map(p => p.id);
     try {
       const patch = this.isPlayer1() ? { p1_team: newTeam } : { p2_team: newTeam };
       await this.supabaseService.updateDraftDuoRoom(this.roomId(), patch);
-    } catch { /* on continue même si l'écriture échoue */ }
+      if (this.destroyed) return;
+      this.room.update(room => room ? { ...room, ...patch } : room);
+    } catch {
+      if (this.destroyed) return;
+      this.saveError.set('Impossible d’enregistrer ce choix. Réessaie en sélectionnant un Pokémon.');
+      this.isLockingPick = false;
+      if (this.phase() === 'playing') this.startTimer();
+      return;
+    }
+    this.lockedIndices.update(s => new Set([...s, index]));
+    this.lockedPokemon.set(nextLocked);
+    this.usedIds.update(s => new Set([...s, picked.id]));
+    this.saveDraftState();
 
     const unlocked = [0, 1, 2, 3, 4, 5].filter(i => !this.lockedIndices().has(i));
 
     if (unlocked.length === 0) {
-      // Tous les 6 sélectionnés → vérifier si l'adversaire a terminé
+      this.phase.set('waiting-opponent');
+      this.isLockingPick = false;
+      // Le polling pourra également terminer la partie si l'adversaire arrive ensuite.
       const currentRoom = this.room();
       const opponentTeam = this.isPlayer1() ? currentRoom?.p2_team : currentRoom?.p1_team;
       if (opponentTeam && opponentTeam.length === 6) {
         // Les deux ont terminé
-        const updatedRoom = await this.supabaseService.getDraftDuoRoom(this.roomId());
-        await this.enterCompletePhase(updatedRoom);
-      } else {
-        this.phase.set('waiting-opponent');
+        if (currentRoom && canUseRoomForDuoComplete(currentRoom)) await this.enterCompletePhase(currentRoom);
       }
-      this.isLockingPick = false;
       return;
     }
 
@@ -484,35 +526,19 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
       return next;
     });
 
-    const slot0Unlocked = unlocked.includes(0);
-    const slot5Unlocked = unlocked.includes(5);
-    const unlockedNormal = unlocked.filter(i => i !== 0 && i !== 5);
-
-    const pool = this.getConfiguredPokemonPool();
-    const newStarter = slot0Unlocked ? this.pickOneStarter(pool, this.usedIds()) : null;
-    const excludeForNormal = new Set([...this.usedIds(), ...(newStarter ? [newStarter.id] : [])]);
-    const newNormal = this.pickNUnique(pool, excludeForNormal, unlockedNormal.length);
-    const excludeForLegend = new Set([...excludeForNormal, ...newNormal.map(p => p.id)]);
-    const newLegendary = slot5Unlocked ? this.pickOneLegendary(pool, excludeForLegend) : null;
-
-    const allNew = [
-      ...(newStarter ? [newStarter] : []),
-      ...newNormal,
-      ...(newLegendary ? [newLegendary] : []),
-    ];
-    this.usedIds.update(s => new Set([...s, ...allNew.map(p => p.id)]));
-
-    const newBySlot = new Map<number, Pokemon>();
-    if (slot0Unlocked && newStarter) newBySlot.set(0, newStarter);
-    unlockedNormal.forEach((slotIdx, i) => newBySlot.set(slotIdx, newNormal[i]));
-    if (slot5Unlocked && newLegendary) newBySlot.set(5, newLegendary);
+    const nextSlots = buildDraftSlots(this.getConfiguredPokemonPool(), this.lockedPokemon(), this.usedIds());
+    const allNew = unlocked.map(index => nextSlots[index]);
+    this.usedIds.update(ids => new Set([...ids, ...allNew.map(p => p.id)]));
+    const newBySlot = new Map(unlocked.map(index => [index, nextSlots[index]]));
 
     const leavingDone = new Promise<void>(resolve => setTimeout(resolve, 300));
     const spritesDone = this.preloadImages(allNew.map(p => p.sprite));
 
     void Promise.all([leavingDone, spritesDone]).then(() => {
+      if (this.destroyed) return;
       unlocked.forEach((slotIdx, i) => {
         setTimeout(() => {
+          if (this.destroyed) return;
           const newPokemon = newBySlot.get(slotIdx);
           if (newPokemon) {
             this.slots.update(arr => {
@@ -530,6 +556,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
       });
 
       setTimeout(() => {
+        if (this.destroyed) return;
         this.slotStates.update(states => {
           const next = [...states] as SlotState[];
           unlocked.forEach(i => (next[i] = 'idle'));
@@ -537,6 +564,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
         });
         // Relancer le timer pour le prochain pick
         this.isLockingPick = false;
+        this.saveDraftState();
         if (this.phase() === 'playing') this.startTimer();
       }, unlocked.length * 60 + 400);
     });
@@ -719,6 +747,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
   /** Reinitialise l'etat local pour une revanche. */
   private resetForReplay(): void {
+    try { sessionStorage.removeItem(this.draftStorageKey); } catch { /* ignore */ }
+    this.saveError.set('');
     this.isLockingPick = false;
     this.enteringComplete = false;
     this.confettiFired = false;
@@ -805,21 +835,6 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   }
 
   // ─── Sélection aléatoire ────────────────────────────────────────────────────
-
-  /** Selectionne un starter disponible dans le pool. */
-  private pickOneStarter(pool: Pokemon[], exclude: Set<number>): Pokemon {
-    return pickOneStarterPokemon(pool, exclude, this.slots());
-  }
-
-  /** Selectionne un Pokemon legendaire ou fabuleux disponible dans le pool. */
-  private pickOneLegendary(pool: Pokemon[], exclude: Set<number>): Pokemon {
-    return pickOneLegendaryPokemon(pool, exclude, this.slots());
-  }
-
-  /** Selectionne plusieurs Pokemon uniques dans le pool. */
-  private pickNUnique(pool: Pokemon[], exclude: Set<number>, n: number): Pokemon[] {
-    return pickNUniquePokemon(pool, exclude, n);
-  }
 
   private getConfiguredPokemonPool(): Pokemon[] {
     const settings = normalizeModeSettings('draft_duo', this.room()?.settings);

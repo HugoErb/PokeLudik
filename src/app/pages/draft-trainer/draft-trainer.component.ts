@@ -29,6 +29,7 @@ import { EndGameActionsComponent } from '../../components/end-game-actions/end-g
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import {
   computeDuoCoverageScore as computePokemonDuoCoverageScore,
+  computeFinalScore,
   computeRating as computePokemonRating,
   computeStatsScore as computePokemonStatsScore,
   computeTotal as computePokemonTotal,
@@ -184,13 +185,13 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     const s = this.myStatsScore();
     const c = this.myCoverageScore();
     if (s === 0 && c === 0) return 0;
-    return Math.round(((s + c) / 2) * 10) / 10;
+    return computeFinalScore(s, c);
   });
   readonly opponentFinalScore = computed(() => {
     const s = this.opponentStatsScore();
     const c = this.opponentCoverageScore();
     if (s === 0 && c === 0) return 0;
-    return Math.round(((s + c) / 2) * 10) / 10;
+    return computeFinalScore(s, c);
   });
 
   readonly winner = computed((): 'me' | 'opponent' | 'draw' => {
@@ -269,11 +270,12 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     this.isLockingPick = false;
     
     this.phase.set('playing');
+    this.startTimerAfterIntro = true;
     const introShown = await this.triggerDuelIntro();
     if (introShown) {
-      this.startTimerAfterIntro = true;
       return;
     }
+    this.startTimerAfterIntro = false;
     this.startTimer();
   }
 

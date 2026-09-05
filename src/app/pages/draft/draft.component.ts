@@ -114,6 +114,7 @@ export class DraftComponent implements OnInit {
       usedIds: [...this.usedIds()],
       phase: this.phase(),
       showScore: this.showScore(),
+      settings: this.settings(),
     };
     sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(state));
   }
@@ -135,6 +136,10 @@ export class DraftComponent implements OnInit {
 
   /** Restaure l'etat du draft depuis une sauvegarde. */
   private restoreState(saved: Record<string, unknown>): void {
+    // Conserver la progression des anciennes sauvegardes, même sans paramètres.
+    if (saved['settings']) {
+      this.settings.set(normalizeModeSettings('draft_duo', saved['settings'] as Partial<ModeSettings>));
+    }
     const all = this.allPokemon();
     const byId = new Map(all.map(p => [p.id, p]));
 
@@ -143,9 +148,9 @@ export class DraftComponent implements OnInit {
     const slots = slotIds.map(id => (id !== null ? (byId.get(id) ?? null) : null));
     const lockedPokemon = lockedIds.map(id => (id !== null ? (byId.get(id) ?? null) : null));
 
-    const allFound = [...slots, ...lockedPokemon]
+    const allFound = [...slotIds, ...lockedIds]
       .filter(id => id !== null)
-      .every(p => p !== undefined);
+      .every(id => byId.has(id));
     if (!allFound) {
       this.initDraft();
       return;
