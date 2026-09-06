@@ -11,15 +11,16 @@ import { AppHeaderComponent } from '../../components/app-header/app-header.compo
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { PokemonStatsGridComponent } from '../../components/pokemon-stats-grid/pokemon-stats-grid.component';
+import { PokemonTypeIconComponent } from '../../components/pokemon-type-icon/pokemon-type-icon.component';
 import { ICONS } from '../../constants/icons';
-import { TYPE_COLORS, TYPE_ICONS } from '../../constants/type-chart';
+import { TYPE_COLORS } from '../../constants/type-chart';
 import { computeDuoCoverageScore, computeFinalScore, computeStatsScore } from '../../utils/draft-utils';
 import { auctionFormatLabel, getMaximumAuctionBid } from '../../utils/auction-utils';
 
 @Component({
   selector: 'app-pokemon-auction',
   standalone: true,
-  imports: [FormsModule, NgClass, AppHeaderComponent, CancelModalComponent, EndGameActionsComponent, PokemonStatsGridComponent],
+  imports: [FormsModule, NgClass, AppHeaderComponent, CancelModalComponent, EndGameActionsComponent, PokemonStatsGridComponent, PokemonTypeIconComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './pokemon-auction.component.html',
 })
@@ -27,7 +28,6 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   readonly roomId = input.required<string>();
   protected readonly ICONS = ICONS;
   protected readonly TYPE_COLORS = TYPE_COLORS;
-  protected readonly TYPE_ICONS = TYPE_ICONS;
 
   private readonly supabase = inject(SupabaseService);
   private readonly pokemonService = inject(PokemonService);
@@ -181,7 +181,6 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   }
 
   protected typeColor(type: string): string { return TYPE_COLORS[type] ?? 'bg-gray-500'; }
-  protected typeIcon(type: string): string { return TYPE_ICONS[type] ?? 'mdi:circle-outline'; }
 
   protected async requestReplay(): Promise<void> {
     if (this.iWantReplay()) return;

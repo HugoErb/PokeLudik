@@ -375,7 +375,7 @@
 									<p class="text-[9px] font-bold capitalize text-center w-full truncate" [ngClass]="winner() === 'opponent' ? 'text-slate-400' : 'text-white'">{{ p.name }}</p>
 									<div class="flex gap-0.5">
 										@for (type of p.types; track type) {
-											<span class="text-[7px] font-bold px-1 py-0.5 rounded text-white" [ngClass]="[getTypeColor(type), winner() === 'opponent' ? 'opacity-70' : '']">{{ type }}</span>
+											<span class="inline-flex items-center gap-0.5 text-[7px] font-bold px-1 py-0.5 rounded text-white" [ngClass]="[getTypeColor(type), winner() === 'opponent' ? 'opacity-70' : '']"><app-pokemon-type-icon [type]="type" size="compact" />{{ type }}</span>
 										}
 									</div>
 								</div>
@@ -416,7 +416,7 @@
 									<p class="text-[9px] font-bold capitalize text-center w-full truncate" [ngClass]="winner() === 'me' ? 'text-slate-400' : 'text-white'">{{ p.name }}</p>
 									<div class="flex gap-0.5">
 										@for (type of p.types; track type) {
-											<span class="text-[7px] font-bold px-1 py-0.5 rounded text-white" [ngClass]="[getTypeColor(type), winner() === 'me' ? 'opacity-70' : '']">{{ type }}</span>
+											<span class="inline-flex items-center gap-0.5 text-[7px] font-bold px-1 py-0.5 rounded text-white" [ngClass]="[getTypeColor(type), winner() === 'me' ? 'opacity-70' : '']"><app-pokemon-type-icon [type]="type" size="compact" />{{ type }}</span>
 										}
 									</div>
 								</div>

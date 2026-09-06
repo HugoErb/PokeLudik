@@ -5,7 +5,9 @@ import { FormsModule } from '@angular/forms';
 import { PokemonService } from '../../services/pokemon.service';
 import { Pokemon } from '../../models/pokemon.model';
 import { PokemonCardComponent } from '../pokemon-card/pokemon-card.component';
+import { PokemonTypeIconComponent } from '../pokemon-type-icon/pokemon-type-icon.component';
 import { ICONS } from '../../constants/icons';
+import { TYPE_COLORS } from '../../constants/type-chart';
 import { modalAnimation } from '../../constants/animations';
 
 const ALL_TYPES = [
@@ -14,53 +16,11 @@ const ALL_TYPES = [
     'Roche', 'Spectre', 'Dragon', 'Ténèbres', 'Acier', 'Fée',
 ];
 
-const TYPE_ICONS: Record<string, string> = {
-    'Normal': 'mdi:circle-outline',
-    'Feu': 'mdi:fire',
-    'Eau': 'mdi:water',
-    'Électrik': 'mdi:lightning-bolt',
-    'Plante': 'mdi:leaf',
-    'Glace': 'mdi:snowflake',
-    'Combat': 'fa6-solid:hand-fist',
-    'Poison': 'mdi:skull-crossbones',
-    'Sol': 'mdi:terrain',
-    'Vol': 'game-icons:liberty-wing',
-    'Psy': 'mdi:eye',
-    'Insecte': 'mdi:bug',
-    'Roche': 'mdi:hexagon',
-    'Spectre': 'mdi:ghost',
-    'Dragon': 'game-icons:sea-dragon',
-    'Ténèbres': 'ic:round-dark-mode',
-    'Acier': 'mdi:shield',
-    'Fée': 'mdi:star-four-points',
-};
-
-const TYPE_COLORS: Record<string, string> = {
-    'Normal': 'bg-gray-400',
-    'Feu': 'bg-orange-500',
-    'Eau': 'bg-blue-500',
-    'Électrik': 'bg-yellow-400',
-    'Plante': 'bg-green-500',
-    'Glace': 'bg-cyan-300',
-    'Combat': 'bg-red-700',
-    'Poison': 'bg-purple-500',
-    'Sol': 'bg-yellow-600',
-    'Vol': 'bg-indigo-400',
-    'Psy': 'bg-pink-500',
-    'Insecte': 'bg-lime-500',
-    'Roche': 'bg-yellow-700',
-    'Spectre': 'bg-purple-700',
-    'Dragon': 'bg-indigo-600',
-    'Ténèbres': 'bg-gray-700',
-    'Acier': 'bg-gray-400',
-    'Fée': 'bg-pink-300',
-};
-
 const GENERATIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 @Component({
     selector: 'app-pokedex',
-    imports: [FormsModule, PokemonCardComponent],
+    imports: [FormsModule, PokemonCardComponent, PokemonTypeIconComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     animations: [modalAnimation],
     templateUrl: './pokedex.component.html',
@@ -506,11 +466,6 @@ export class PokedexComponent implements OnInit {
     /** Retourne la classe CSS Tailwind de couleur de fond pour un type Pokémon donné. */
     getTypeColor(type: string): string {
         return TYPE_COLORS[type] ?? 'bg-gray-500';
-    }
-
-    /** Retourne l'icône Iconify correspondant à un type Pokémon donné. */
-    getTypeIcon(type: string): string {
-        return TYPE_ICONS[type] ?? 'mdi:circle-outline';
     }
 
     /** Ouvre la modal de détails d'un Pokémon. */

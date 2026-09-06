@@ -23,6 +23,7 @@ import {
 } from '../../constants/animations';
 import confetti from 'canvas-confetti';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
+import { PokemonTypeIconComponent } from '../../components/pokemon-type-icon/pokemon-type-icon.component';
 import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft-help-modal.component';
 import { DuelIntroComponent } from '../../components/duel-intro/duel-intro.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
@@ -57,7 +58,7 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 
 @Component({
   selector: 'app-draft-trainer',
-  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent],
+  imports: [NgClass, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft-trainer.component.html',

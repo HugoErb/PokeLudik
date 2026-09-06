@@ -226,11 +226,6 @@ input[type=number] {
      1px  1px 0 #000;
 }
 
-/* Contour noir sur icône SVG des badges de type */
-.type-icon-outline {
-  filter: drop-shadow(0 0 0.5px #000) drop-shadow(0 0 0.5px #000);
-}
-
 @keyframes settings-panel-reveal {
   from {
     opacity: 0;

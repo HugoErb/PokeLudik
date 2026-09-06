@@ -17,7 +17,7 @@
               class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-white type-text-outline"
               [ngClass]="getTypeColor(type)"
             >
-              <iconify-icon [icon]="getTypeIcon(type)" class="text-sm type-icon-outline"></iconify-icon>
+              <app-pokemon-type-icon [type]="type" />
               {{ type }}
             </span>
           }
