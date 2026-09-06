@@ -12,8 +12,6 @@ const normalize = sql => sql.replaceAll('\r\n', '\n');
 const schema = normalize(read('sql-schema/ddb-schema.sql'))
   .replace(/^\\.*$/gm, '')
   .replace('CREATE SCHEMA public;', 'CREATE SCHEMA IF NOT EXISTS public;');
-const migration = normalize(read('sql-schema/functional-fixes.sql'));
-const auction = normalize(read('sql-schema/pokemon-auction.sql'));
 const pokemon = JSON.parse(read('src/assets/pokemon.json'));
 
 // Exécuter les vraies fonctions TypeScript, sans recopier leur calcul dans le test.
@@ -62,24 +60,32 @@ try {
   await db.exec(schema);
   await db.exec('SET check_function_bodies = true; SET search_path = public; SET row_security = on;');
 
-  const functions = ['replay_guess_pokemon_room(uuid)', 'update_draft_duo_room(uuid,jsonb)',
-    'auction_type_multiplier(text,text)', 'auction_effective_multiplier(text[],text)',
-    'auction_coverage_score(integer[],integer[])', 'draft_final_score(integer[],integer[])'];
-  const definitions = async () => Promise.all(functions.map(async signature =>
-    (await db.query('SELECT pg_get_functiondef($1::regprocedure) AS definition', [`public.${signature}`])).rows[0].definition));
-  const freshDefinitions = await definitions();
-  await db.exec(migration);
-  check(await definitions(), freshDefinitions, 'Installation neuve et migration doivent définir les mêmes fonctions');
-  await db.exec(migration);
-  check(await definitions(), freshDefinitions, 'La migration doit être réexécutable');
-  // Vérifier aussi une mise à niveau où les nouvelles fonctions n’existent pas encore.
-  await db.exec('DROP FUNCTION public.replay_guess_pokemon_room(uuid); DROP FUNCTION public.draft_final_score(integer[],integer[]);');
-  await db.exec(migration);
-  check(await definitions(), freshDefinitions, 'La migration doit recréer les nouvelles fonctions');
-  const auctionHelpers = auction.slice(auction.indexOf('CREATE OR REPLACE FUNCTION public.auction_type_multiplier('),
-    auction.indexOf('DROP FUNCTION IF EXISTS public.save_pokemon_auction_result'));
-  await db.exec(auctionHelpers);
-  check(await definitions(), freshDefinitions, 'Réappliquer les enchères ne doit pas rétablir l’ancien calcul');
+  const exposedRpcs = [
+    'public.append_stat_pick(uuid,text,jsonb)',
+    'public.join_guess_pokemon_room(uuid)',
+    'public.update_guess_pokemon_room(uuid,jsonb)',
+    'public.submit_guess_pokemon_guess(uuid,integer)',
+    'public.join_stat_duel_room(uuid)',
+    'public.update_stat_duel_room(uuid,jsonb)',
+    'public.join_draft_duo_room(uuid)',
+    'public.update_draft_duo_room(uuid,jsonb)',
+    'public.join_who_that_pokemon_room(uuid)',
+    'public.update_who_that_pokemon_room(uuid,jsonb)',
+    'public.submit_who_that_pokemon_guess(uuid,integer,integer)',
+    'public.skip_who_that_pokemon_round(uuid,integer)',
+  ];
+  for (const signature of exposedRpcs) {
+    const privileges = await db.query(`SELECT
+      has_function_privilege('anon',$1,'EXECUTE') AS anon,
+      has_function_privilege('authenticated',$1,'EXECUTE') AS authenticated`, [signature]);
+    check(privileges.rows[0], { anon: false, authenticated: true }, `Permissions de ${signature}`);
+  }
+  for (const signature of ['public.handle_new_user()', 'public.rls_auto_enable()', 'public.set_defeated_trainer_username()']) {
+    const privileges = await db.query(`SELECT
+      has_function_privilege('anon',$1,'EXECUTE') AS anon,
+      has_function_privilege('authenticated',$1,'EXECUTE') AS authenticated`, [signature]);
+    check(privileges.rows[0], { anon: false, authenticated: false }, `Fonction interne ${signature}`);
+  }
 
   for (const attack of Object.keys(TYPE_CHART)) {
     for (const defense of Object.keys(TYPE_CHART)) {

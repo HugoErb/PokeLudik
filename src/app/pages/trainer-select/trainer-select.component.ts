@@ -90,11 +90,6 @@ export class TrainerSelectComponent implements OnInit {
     void this.router.navigate(['/draft']);
   }
 
-  /** Navigue vers la page d'accueil. */
-  goHome() {
-    void this.router.navigate(['/home']);
-  }
-
   /** Ouvre la modal de reinitialisation. */
   openResetModal() {
     if (this.isResettingProgress()) return;

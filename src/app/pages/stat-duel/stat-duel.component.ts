@@ -113,7 +113,6 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     opponentTotal = computed(() => this.opponentPicks().reduce((s, p) => s + p.value, 0));
     myRevealedPicks = computed(() => this.myPicks().slice(0, this.revealedRound() + 1));
     opponentRevealedPicks = computed(() => this.opponentPicks().slice(0, this.revealedRound() + 1));
-    isCurrentRoundRevealed = computed(() => this.revealedRound() >= this.currentRound());
     myRevealedTotal = computed(() => this.myRevealedPicks().reduce((s, p) => s + p.value, 0));
     opponentRevealedTotal = computed(() => this.opponentRevealedPicks().reduce((s, p) => s + p.value, 0));
     opponentLeft = signal(false);
@@ -165,7 +164,6 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     // --- Partage lien ------------------------------------------------------------
     inviteLink = '';
     linkCopied = signal(false);
-    private preloadedImages: HTMLImageElement[] = [];
 
     // --- Type colors map ---------------------------------------------------------
     protected readonly TYPE_COLORS: Record<string, string> = {
@@ -1064,10 +1062,9 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Precharge les images donnees. */
     private preloadImages(pokemons: Pokemon[]): void {
-        this.preloadedImages = pokemons.map(p => {
+        pokemons.forEach(p => {
             const img = new Image();
             img.src = p.sprite;
-            return img;
         });
     }
 
@@ -1126,15 +1123,6 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         return this.pokemonVisible() && this.isCurrentPokemonRevealed();
     }
 
-    /** Retourne true si la statistique donnee est la plus haute du Pokemon courant. */
-    isCurrentPokemonHighestStat(statKey: keyof Pokemon['stats']): boolean {
-        const pokemon = this.currentPokemon();
-        if (!pokemon) return false;
-        const values = Object.values(pokemon.stats) as number[];
-        const max = Math.max(...values);
-        return pokemon.stats[statKey] === max;
-    }
-
     /** Retourne la classe CSS de couleur du timer. */
     getTimerColor(): string {
         const t = this.timerValue();
@@ -1151,18 +1139,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         return 'bg-green-500';
     }
 
-    /** Retourne les classes CSS du bouton de statistique. */
-    getStatButtonClass(statKey: keyof Pokemon['stats'], alreadyPicked: boolean): string {
-        const base = 'flex flex-col items-center gap-1 px-4 py-3 rounded-xl border transition-all font-bold relative';
-        if (!this.isSolo() && this.pendingMyPickStat() === statKey) return `${base} bg-blue-500/15 border-blue-500/50 cursor-not-allowed`;
-        if (this.justPickedStat()?.stat === statKey) return `${base} bg-yellow-500/15 border-yellow-500 cursor-not-allowed`;
-        if (alreadyPicked) return `${base} bg-slate-700/30 border-slate-700/30 opacity-50 cursor-not-allowed`;
-        if (this.hasPickedThisRound() || this.pokemonAnimating() || this.nextRoundCountdown() !== null) return `${base} bg-slate-700/50 border-slate-700/50 opacity-50 cursor-not-allowed`;
-        return `${base} bg-slate-700 border-slate-600 hover:border-yellow-500/60 hover:bg-slate-600 cursor-pointer active:scale-95`;
-    }
-
     /** Retourne les classes CSS de la ligne de statistique. */
-    getStatRowClass(alreadyPicked: boolean, justPicked: boolean, canPick: boolean): string {
+    getStatRowClass(justPicked: boolean, canPick: boolean): string {
         const base = 'flex items-center gap-2 rounded-xl px-2 py-2 transition-all border';
         if (justPicked) return `${base} border-yellow-500/30 bg-yellow-500/5`;
         if (canPick) return `${base} border-transparent hover:border-white/20 hover:bg-slate-700/40 cursor-pointer active:scale-[0.99]`;

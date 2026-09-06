@@ -169,21 +169,6 @@ export function toAuctionSettings(settings: ModeSettings): AuctionGameSettings {
   };
 }
 
-export function getActiveSettingsCount(mode: SettingsMode, settings: ModeSettings): number {
-  const controls = new Set(getSettingsDefinition(mode).controls);
-  let count = 0;
-  if (controls.has('generations') && settings.generations.length > 0) count++;
-  if (controls.has('categories') && settings.categories.length > 0) count++;
-  if (controls.has('noPokedex') && settings.noPokedex) count++;
-  if (controls.has('noSearch') && settings.noSearch) count++;
-  if (controls.has('randomPokemon') && settings.randomPokemon) count++;
-  if (controls.has('firstPlayer') && settings.firstPlayer !== 'random') count++;
-  if (controls.has('initialHint') && settings.initialHint !== DEFAULT_MODE_SETTINGS.who_that_pokemon.initialHint) count++;
-  if (controls.has('auctionFormat') && settings.auctionFormat !== DEFAULT_MODE_SETTINGS.pokemon_auction.auctionFormat) count++;
-  if (controls.has('startingBudget') && settings.startingBudget !== DEFAULT_MODE_SETTINGS.pokemon_auction.startingBudget) count++;
-  return count;
-}
-
 export function resolvePendingSettingsAfterSave(
   pendingSettings: ModeSettings | null,
   savedSettings: ModeSettings,

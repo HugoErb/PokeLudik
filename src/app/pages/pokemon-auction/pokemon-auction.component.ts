@@ -182,7 +182,6 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
 
   protected typeColor(type: string): string { return TYPE_COLORS[type] ?? 'bg-gray-500'; }
   protected typeIcon(type: string): string { return TYPE_ICONS[type] ?? 'mdi:circle-outline'; }
-  protected getPokemon(id: number): Pokemon | null { return this.byId(id); }
 
   protected async requestReplay(): Promise<void> {
     if (this.iWantReplay()) return;

@@ -7,7 +7,7 @@ import { SupabaseService } from '../services/supabase.service';
  * Guard de navigation : redirige vers `/login` si l'utilisateur n'est pas connecté,
  * en conservant l'URL de destination dans le paramètre `redirect`.
  */
-export const authGuard: CanActivateFn = (route, state) => {
+export const authGuard: CanActivateFn = (_route, state) => {
   const supabaseService = inject(SupabaseService);
   const router = inject(Router);
 

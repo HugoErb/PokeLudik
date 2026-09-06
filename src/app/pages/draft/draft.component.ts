@@ -15,7 +15,6 @@ import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
 import { ICONS } from '../../constants/icons';
-import { TYPE_COLORS, TYPE_ICONS } from '../../constants/type-chart';
 import {
   lockAnimation,
   scoreRevealAnimation,
@@ -56,8 +55,6 @@ type DraftConfigMode = 'solo';
 })
 export class DraftComponent implements OnInit {
   protected readonly ICONS = ICONS;
-  protected readonly TYPE_COLORS = TYPE_COLORS;
-  protected readonly TYPE_ICONS = TYPE_ICONS;
 
   private readonly router = inject(Router);
   private readonly pokemonService = inject(PokemonService);
@@ -430,16 +427,6 @@ export class DraftComponent implements OnInit {
   /** Retourne la largeur CSS correspondant a une note. */
   getRatingWidth(rating: number): string {
     return getPokemonRatingWidth(rating);
-  }
-
-  /** Retourne la classe CSS de couleur associee a un type Pokemon. */
-  getTypeColor(type: string): string {
-    return TYPE_COLORS[type] ?? 'bg-gray-500';
-  }
-
-  /** Retourne l'icone associee a un type Pokemon. */
-  getTypeIcon(type: string): string {
-    return TYPE_ICONS[type] ?? 'mdi:circle-outline';
   }
 
   // ─── Sélection aléatoire sans doublons ───────────────────────────────────────

@@ -4,12 +4,7 @@ import {
   getWhoHintOrder,
   nextSoloState,
   pickWhoPokemonSequence,
-  resolveWhoInitialHint,
-  resolveDuoGuess,
-  resolveDuoSkip,
-  WHO_MAX_HINTS,
-  WhoDuoRoundState,
-  WhoSoloState,
+  resolveWhoInitialHint,  WHO_MAX_HINTS,  WhoSoloState,
 } from './who-that-pokemon-utils';
 
 const pokemon = (id: number, generation = 1, category: Pokemon['category'] = 'classique'): Pokemon => ({
@@ -88,109 +83,5 @@ describe('who-that-pokemon-utils', () => {
     const result = resolveWhoInitialHint(25, 'random');
 
     expect(['silhouette', 'cry', 'pokedex_number', 'description']).toContain(result);
-  });
-
-  it('bloque un joueur duo a 0 vie apres une mauvaise reponse', () => {
-    const state: WhoDuoRoundState = {
-      round: 1,
-      targetPokemonId: 25,
-      p1Score: 0,
-      p2Score: 0,
-      p1Lives: 2,
-      p2Lives: 0,
-      p1Ready: false,
-      p2Ready: false,
-      status: 'playing',
-    };
-
-    const result = resolveDuoGuess(state, 'player1', 1);
-
-    expect(result.p1Lives).toBe(3);
-    expect(result.status).toBe('playing');
-  });
-
-  it('laisse chercher un joueur apres une mauvaise reponse avec tous les indices', () => {
-    const state: WhoDuoRoundState = {
-      round: 1,
-      targetPokemonId: 25,
-      p1Score: 0,
-      p2Score: 0,
-      p1Lives: 0,
-      p2Lives: 3,
-      p1Ready: false,
-      p2Ready: false,
-      status: 'playing',
-    };
-
-    const result = resolveDuoGuess(state, 'player2', 1);
-
-    expect(result.round).toBe(1);
-    expect(result.p1Score).toBe(0);
-    expect(result.p2Score).toBe(0);
-    expect(result.p1Lives).toBe(0);
-    expect(result.p2Lives).toBe(3);
-  });
-
-  it('attribue ses points au joueur puis attend que son adversaire termine', () => {
-    const state: WhoDuoRoundState = {
-      round: 1,
-      targetPokemonId: 25,
-      p1Score: 0,
-      p2Score: 0,
-      p1Lives: 0,
-      p2Lives: 2,
-      p1Ready: false,
-      p2Ready: false,
-      status: 'playing',
-    };
-
-    const result = resolveDuoGuess(state, 'player2', 25);
-
-    expect(result.round).toBe(1);
-    expect(result.p2Score).toBe(3);
-    expect(result.p1Lives).toBe(0);
-    expect(result.p2Lives).toBe(2);
-    expect(result.p2Ready).toBeTrue();
-  });
-
-  it('passe a la manche suivante lorsque les deux joueurs ont termine', () => {
-    const state: WhoDuoRoundState = {
-      round: 1,
-      targetPokemonId: 25,
-      p1Score: 5,
-      p2Score: 0,
-      p1Lives: 0,
-      p2Lives: 2,
-      p1Ready: true,
-      p2Ready: false,
-      status: 'playing',
-    };
-
-    const result = resolveDuoGuess(state, 'player2', 25);
-
-    expect(result.round).toBe(2);
-    expect(result.p2Score).toBe(3);
-    expect(result.p1Ready).toBeFalse();
-    expect(result.p2Ready).toBeFalse();
-  });
-
-  it('permet de passer sans point et attend toujours le second joueur', () => {
-    const state: WhoDuoRoundState = {
-      round: 1,
-      targetPokemonId: 25,
-      p1Score: 0,
-      p2Score: 0,
-      p1Lives: 1,
-      p2Lives: 0,
-      p1Ready: false,
-      p2Ready: false,
-      status: 'playing',
-    };
-
-    const result = resolveDuoSkip(state, 'player1');
-
-    expect(result.round).toBe(1);
-    expect(result.p1Score).toBe(0);
-    expect(result.p1Ready).toBeTrue();
   });
 });

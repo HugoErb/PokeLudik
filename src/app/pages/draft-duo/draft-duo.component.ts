@@ -18,7 +18,7 @@ import { Pokemon } from '../../models/pokemon.model';
 import { DraftDuoRoom, Profile } from '../../models/room.model';
 import { normalizeModeSettings } from '../../models/game-settings.model';
 import { ICONS } from '../../constants/icons';
-import { TYPE_COLORS, TYPE_ICONS } from '../../constants/type-chart';
+import { TYPE_COLORS } from '../../constants/type-chart';
 import {
   lockAnimation,
   scoreRevealAnimation,
@@ -59,7 +59,6 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 export class DraftDuoComponent implements OnInit, OnDestroy {
   protected readonly ICONS = ICONS;
   protected readonly TYPE_COLORS = TYPE_COLORS;
-  protected readonly TYPE_ICONS = TYPE_ICONS;
 
   readonly roomId = input.required<string>();
 
@@ -809,19 +808,9 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     return getPokemonScoreColor(score);
   }
 
-  /** Retourne la classe CSS de barre associee a un score. */
-  getScoreBarColor(score: number): string {
-    return getPokemonScoreBarColor(score);
-  }
-
   /** Retourne la classe CSS de couleur associee a un type Pokemon. */
   getTypeColor(type: string): string {
     return TYPE_COLORS[type] ?? 'bg-gray-500';
-  }
-
-  /** Retourne l'icone associee a un type Pokemon. */
-  getTypeIcon(type: string): string {
-    return TYPE_ICONS[type] ?? 'mdi:circle-outline';
   }
 
   /** Ouvre la modal de details d'un Pokemon. */

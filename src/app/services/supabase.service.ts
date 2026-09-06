@@ -3,7 +3,7 @@ import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, GameSettings, PokemonAuctionRoom, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
+import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService implements OnDestroy {
@@ -248,13 +248,6 @@ export class SupabaseService implements OnDestroy {
         if (error) throw error;
     }
 
-    /** Lance la partie en passant la room au statut 'selecting'. */
-    async launchGame(roomId: string, settings: GameSettings): Promise<void> {
-        const { error } = await this.supabase.rpc('update_guess_pokemon_room', { p_room_id: roomId, p_patch: { status: 'selecting', settings } });
-
-        if (error) throw error;
-    }
-
     /**
      * S'abonne aux mises à jour Realtime d'une room (Guess my Pokémon) via PostgreSQL Changes et Broadcast.
      * Émet les nouvelles valeurs de la room à chaque modification.
@@ -320,13 +313,6 @@ export class SupabaseService implements OnDestroy {
     /** Réinitialise atomiquement une revanche acceptée par les deux joueurs. */
     async replayGuessPokemonRoom(roomId: string): Promise<void> {
         const { error } = await this.supabase.rpc('replay_guess_pokemon_room', { p_room_id: roomId });
-        if (error) throw error;
-    }
-
-    /** Supprime une room (Guess my Pokémon) de la base de données. */
-    async deleteRoom(roomId: string): Promise<void> {
-        const { error } = await this.supabase.from('guess_pokemon_rooms').delete().eq('id', roomId);
-
         if (error) throw error;
     }
 
@@ -682,20 +668,6 @@ export class SupabaseService implements OnDestroy {
                 this.activeRoomChannel = null;
             };
         });
-    }
-
-    async sendDirectGameInvite(recipientId: string, roomId: string, gameMode: GameMode): Promise<string> {
-        const me = this.getCurrentUser();
-        if (!me) throw new Error('Non connecté');
-
-        const { data, error } = await this.supabase
-            .from('game_invites')
-            .insert({ sender_id: me.id, recipient_id: recipientId, room_id: roomId, game_mode: gameMode })
-            .select('id')
-            .single();
-
-        if (error) throw error;
-        return (data as { id: string }).id;
     }
 
     // ─── Utilitaire interne ──────────────────────────────────────────────────────

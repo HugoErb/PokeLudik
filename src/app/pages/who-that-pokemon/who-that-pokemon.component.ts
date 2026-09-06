@@ -127,14 +127,6 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   private currentSilhouetteTargetId = 0;
   private confettiFired = false;
 
-  private readonly resetSilhouetteAnimation = effect(() => {
-    const targetId = this.targetPokemon()?.id ?? 0;
-    if (targetId !== this.currentSilhouetteTargetId) {
-      this.currentSilhouetteTargetId = targetId;
-      this.silhouetteLoaded.set(false);
-    }
-  });
-
   readonly targetPokemon = computed(() => {
     const all = this.allPokemons();
     if (this.phase() === 'solo') return this.soloSequence()[this.soloState().roundIndex] ?? null;
@@ -158,14 +150,6 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     if (!r) return this.soloState().status === 'won';
     if (!r.winner || r.winner === 'draw') return false;
     return (r.winner === 'player1' && this.isPlayer1()) || (r.winner === 'player2' && !this.isPlayer1());
-  });
-
-  private readonly victoryConfetti = effect(() => {
-    if (this.phase() !== 'complete') {
-      this.confettiFired = false;
-      return;
-    }
-    if (this.isVictory()) setTimeout(() => this.launchConfetti(), 300);
   });
 
   readonly myHintsRevealed = computed(() => {
@@ -222,8 +206,6 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   readonly canSubmitGuess = computed(() =>
     this.canGuess() && !this.isRevealingHint() && !this.isSkippingPokemon() && !this.isSubmittingGuess(),
   );
-
-  readonly hasGuessQuery = computed(() => this.guessInput().trim().length > 0);
   readonly guessSuggestions = computed(() => {
     const query = this.guessInput().trim();
     if (!query) return [];
@@ -337,6 +319,24 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     } finally {
       this.isBusy.set(false);
     }
+  }
+
+  constructor() {
+    effect(() => {
+      const targetId = this.targetPokemon()?.id ?? 0;
+      if (targetId !== this.currentSilhouetteTargetId) {
+        this.currentSilhouetteTargetId = targetId;
+        this.silhouetteLoaded.set(false);
+      }
+    });
+
+    effect(() => {
+      if (this.phase() !== 'complete') {
+        this.confettiFired = false;
+        return;
+      }
+      if (this.isVictory()) setTimeout(() => this.launchConfetti(), 300);
+    });
   }
 
   /** Révèle volontairement l'indice suivant contre un point potentiel. */

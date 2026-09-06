@@ -19,18 +19,6 @@ export interface WhoSoloState {
   status: 'playing' | 'won' | 'lost';
 }
 
-export interface WhoDuoRoundState {
-  round: number;
-  targetPokemonId: number;
-  p1Score: number;
-  p2Score: number;
-  p1Lives: number;
-  p2Lives: number;
-  p1Ready: boolean;
-  p2Ready: boolean;
-  status: 'playing' | 'finished';
-}
-
 export const WHO_TOTAL_ROUNDS = 10;
 export const WHO_MAX_HINTS = 3;
 export const WHO_BASE_SCORE = 5;
@@ -82,62 +70,6 @@ export function nextSoloState(state: WhoSoloState, isCorrect: boolean): WhoSoloS
     roundIndex: Math.min(nextRoundIndex, WHO_TOTAL_ROUNDS - 1),
     hintsRevealed: 0,
     status: nextRoundIndex >= WHO_TOTAL_ROUNDS ? 'lost' : 'playing',
-  };
-}
-
-export function resolveDuoGuess(
-  state: WhoDuoRoundState,
-  player: 'player1' | 'player2',
-  pokemonId: number,
-): WhoDuoRoundState {
-  if (state.status !== 'playing') return state;
-  const playerReady = player === 'player1' ? state.p1Ready : state.p2Ready;
-  if (playerReady) return state;
-  const playerLives = player === 'player1' ? state.p1Lives : state.p2Lives;
-  if (pokemonId === state.targetPokemonId) {
-    const score = Math.max(0, WHO_BASE_SCORE - playerLives);
-    const next = {
-      ...state,
-      p1Score: state.p1Score + (player === 'player1' ? score : 0),
-      p2Score: state.p2Score + (player === 'player2' ? score : 0),
-      p1Ready: player === 'player1' ? true : state.p1Ready,
-      p2Ready: player === 'player2' ? true : state.p2Ready,
-    };
-    return next.p1Ready && next.p2Ready ? advanceDuoRound(next) : next;
-  }
-
-  if (playerLives >= WHO_MAX_HINTS) return state;
-
-  const next = {
-    ...state,
-    p1Lives: player === 'player1' ? state.p1Lives + 1 : state.p1Lives,
-    p2Lives: player === 'player2' ? state.p2Lives + 1 : state.p2Lives,
-  };
-
-  return next;
-}
-
-export function resolveDuoSkip(state: WhoDuoRoundState, player: 'player1' | 'player2'): WhoDuoRoundState {
-  if (state.status !== 'playing') return state;
-  if (player === 'player1' ? state.p1Ready : state.p2Ready) return state;
-  const next = {
-    ...state,
-    p1Ready: player === 'player1' ? true : state.p1Ready,
-    p2Ready: player === 'player2' ? true : state.p2Ready,
-  };
-  return next.p1Ready && next.p2Ready ? advanceDuoRound(next) : next;
-}
-
-function advanceDuoRound(state: WhoDuoRoundState): WhoDuoRoundState {
-  const round = state.round + 1;
-  return {
-    ...state,
-    round,
-    p1Lives: 0,
-    p2Lives: 0,
-    p1Ready: false,
-    p2Ready: false,
-    status: round > WHO_TOTAL_ROUNDS ? 'finished' : 'playing',
   };
 }
 

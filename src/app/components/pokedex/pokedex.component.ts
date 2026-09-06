@@ -124,14 +124,10 @@ export class PokedexComponent implements OnInit {
     displayedCount = signal(100);
     private readonly PAGE_SIZE = 100;
     private isLoadingMore = false;
-
-    // Sélections
-    selectedPokemon: Pokemon | null = null;
     selectedPokemonDetails: Pokemon | null = null;
 
     // Données constantes
     readonly generations = GENERATIONS;
-    readonly allTypes = ALL_TYPES;
     readonly desktopTypeFirstRow = ALL_TYPES.slice(0, 9);
     readonly desktopTypeSecondRow = ALL_TYPES.slice(9);
     readonly mobileAllTypes = [
@@ -515,18 +511,6 @@ export class PokedexComponent implements OnInit {
     /** Retourne l'icône Iconify correspondant à un type Pokémon donné. */
     getTypeIcon(type: string): string {
         return TYPE_ICONS[type] ?? 'mdi:circle-outline';
-    }
-
-    /** Sélectionne ou désélectionne un Pokémon dans la grille. */
-    selectPokemon(pokemon: Pokemon): void {
-        this.selectedPokemon = pokemon.id === this.selectedPokemon?.id ? null : pokemon;
-    }
-
-    /** Émet le guess du Pokémon actuellement sélectionné. */
-    onGuess(): void {
-        if (this.selectedPokemon) {
-            this.guess.emit(this.selectedPokemon.id);
-        }
     }
 
     /** Ouvre la modal de détails d'un Pokémon. */

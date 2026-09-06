@@ -1,9 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
-const [typeChartSource, auctionSql, auctionCatalog, pokemonSource, serviceSource] = await Promise.all([
+const [typeChartSource, auctionSql, pokemonSource, serviceSource] = await Promise.all([
   readFile(new URL('../src/app/constants/type-chart.ts', import.meta.url), 'utf8'),
-  readFile(new URL('../sql-schema/pokemon-auction.sql', import.meta.url), 'utf8'),
-  readFile(new URL('../sql-schema/pokemon-auction-catalog.sql', import.meta.url), 'utf8'),
+  readFile(new URL('../sql-schema/ddb-schema.sql', import.meta.url), 'utf8'),
   readFile(new URL('../src/assets/pokemon.json', import.meta.url), 'utf8'),
   readFile(new URL('../src/app/services/supabase.service.ts', import.meta.url), 'utf8'),
 ]);
@@ -30,7 +29,7 @@ const serverChart = JSON.parse(auctionSql.slice(sqlChartStart, sqlChartEnd));
 if (JSON.stringify(clientChart) !== JSON.stringify(serverChart)) throw new Error('La table des types client et serveur diffère');
 
 const pokemon = JSON.parse(pokemonSource);
-const catalogRows = auctionCatalog.match(/^\(\d+,\d+,'/gm)?.length ?? 0;
+const catalogRows = auctionSql.match(/^\(\d+,\d+,'/gm)?.length ?? 0;
 if (catalogRows !== pokemon.length) throw new Error(`Catalogue incomplet : ${catalogRows}/${pokemon.length}`);
 
 if (auctionSql.includes('save_pokemon_auction_result(p_room_id uuid,p_p1_stats')) {

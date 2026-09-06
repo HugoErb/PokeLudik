@@ -234,7 +234,7 @@
 										@let canPick = !alreadyPicked && !hasPickedThisRound() && !catchingUp() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
 
 										<div
-											[class]="getStatRowClass(alreadyPicked, justPicked, canPick)"
+											[class]="getStatRowClass(justPicked, canPick)"
 											(click)="canPick ? pickStat(stat.key) : null"
 										>
 											<span
@@ -345,7 +345,7 @@
 										@let canPick = !alreadyPicked && !hasPickedThisRound() && !catchingUp() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
 
 										<div
-											[class]="getStatRowClass(alreadyPicked, justPicked, canPick)"
+											[class]="getStatRowClass(justPicked, canPick)"
 											(click)="canPick ? pickStat(stat.key) : null"
 										>
 											<span
