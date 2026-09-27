@@ -17,6 +17,7 @@ function passwordMatchValidator(group: AbstractControl): ValidationErrors | null
   imports: [NgClass, ReactiveFormsModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './login.component.html',
+  styles: [':host .auth-label { font-size: 0.875rem; }'],
 })
 export class LoginComponent {
   protected readonly ICONS = ICONS;
