@@ -791,6 +791,18 @@ export class SupabaseService implements OnDestroy {
         );
     }
 
+    /** Rejoint de nouveau le canal pour obtenir un état de présence à jour. */
+    async refreshFriendsPresence(): Promise<void> {
+        const channel = this.presenceChannel;
+        const status = this.currentPresenceStatus;
+        if (!channel || !status) return;
+        await this.supabase.removeChannel(channel);
+        if (this.presenceChannel !== channel || this.currentPresenceStatus !== status) return;
+        this.presenceChannel = null;
+        this.presenceUpdateState = null;
+        this.trackPresence(status);
+    }
+
     // ─── Amis ────────────────────────────────────────────────────────────────────
 
     /** Envoie une demande d'ami à l'utilisateur portant le pseudo donné. */

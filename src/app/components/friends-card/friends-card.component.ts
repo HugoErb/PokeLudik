@@ -27,6 +27,8 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 	friends = signal<FriendWithStatus[]>([]);
 	pendingRequests = signal<FriendRequest[]>([]);
 	isLoadingFriends = signal(true);
+	isRefreshingFriends = signal(false);
+	refreshError = signal('');
 	confirmDeleteFriend = signal<FriendWithStatus | null>(null);
 	openMenuFriend = signal<FriendWithStatus | null>(null);
 	menuPosition = signal<{ top: number; right: number } | null>(null);
@@ -98,6 +100,25 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 						}),
 				);
 			});
+		}
+	}
+
+	/** Recharge les amis, les demandes et la présence sans masquer la liste. */
+	async refreshFriends(): Promise<void> {
+		if (this.isRefreshingFriends()) return;
+		this.isRefreshingFriends.set(true);
+		this.refreshError.set('');
+		this.closeMenu();
+		try {
+			const results = await Promise.allSettled([
+				this.reload(false, true),
+				this.supabaseService.refreshFriendsPresence(),
+			]);
+			if (results.some((result) => result.status === 'rejected')) {
+				this.refreshError.set('Impossible de rafraîchir complètement la liste d’amis.');
+			}
+		} finally {
+			this.isRefreshingFriends.set(false);
 		}
 	}
 
