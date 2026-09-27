@@ -1019,6 +1019,11 @@ BEGIN
     ORDER BY random() LIMIT 1;
   END IF;
   IF v_next IS NULL AND coalesce(cardinality(v_queue),0)>0 THEN v_next:=v_queue[1]; v_queue:=v_queue[2:cardinality(v_queue)]; END IF;
+  IF v_next IS NULL THEN
+    SELECT u INTO v_next FROM unnest(v_room.used_pokemon_ids) u
+    WHERE NOT (u=ANY(v_room.p1_team)) AND NOT (u=ANY(v_room.p2_team))
+    ORDER BY random() LIMIT 1;
+  END IF;
   IF v_next IS NULL THEN RAISE EXCEPTION 'pokemon_pool_exhausted'; END IF;
   DELETE FROM public.pokemon_auction_bids WHERE room_id=p_room_id;
   UPDATE public.pokemon_auction_rooms SET current_pokemon_id=v_next,
@@ -1575,7 +1580,6 @@ BEGIN
       v_outcome:='free';v_price:=0;
     ELSE
       v_outcome:='unsold';
-      UPDATE public.pokemon_auction_rooms SET requeue_pokemon_ids=array_append(requeue_pokemon_ids,current_pokemon_id) WHERE id=p_room_id;
     END IF;
   END IF;
   IF v_outcome IS NULL THEN

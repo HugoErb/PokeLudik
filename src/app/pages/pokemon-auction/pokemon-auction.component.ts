@@ -187,7 +187,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     const toast = (message: string, winnerAvatar: string | null = null, winnerName: string | null = null): ResultToast =>
       ({ message, revealedBids, pokemon, winnerAvatar, winnerName });
     if (result.outcome === 'tied') return toast(`Égalité pour ${pokemonName} : il reviendra plus tard.`);
-    if (result.outcome === 'unsold') return toast(`Aucune offre pour ${pokemonName} : il reviendra plus tard.`);
+    if (result.outcome === 'unsold') return toast(`Aucune offre pour ${pokemonName}.`);
     const mine = result.winner === this.myRole();
     const subject = mine ? 'Tu' : this.opponentName();
     const verb = mine ? 'remportes' : 'remporte';
