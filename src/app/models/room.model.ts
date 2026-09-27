@@ -85,6 +85,7 @@ export interface AuctionResult {
   p1Bid?: number;
   p2Bid?: number;
   round: number;
+  forced?: boolean;
 }
 
 export interface PokemonAuctionRoom {
@@ -100,6 +101,8 @@ export interface PokemonAuctionRoom {
   current_pokemon_id: number | null;
   used_pokemon_ids: number[];
   requeue_pokemon_ids: number[];
+  p1_passes_left: number;
+  p2_passes_left: number;
   round: number;
   auction_start_at: string | null;
   auction_end_at: string | null;

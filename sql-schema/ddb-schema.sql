@@ -965,6 +965,8 @@ CREATE TABLE public.pokemon_auction_rooms (
     p1_ready boolean DEFAULT false NOT NULL,
     p2_ready boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    p1_passes_left integer DEFAULT 3 NOT NULL,
+    p2_passes_left integer DEFAULT 3 NOT NULL,
     CONSTRAINT pokemon_auction_rooms_current_bidder_check CHECK ((current_bidder = ANY (ARRAY['player1'::text, 'player2'::text]))),
     CONSTRAINT pokemon_auction_rooms_current_turn_check CHECK ((current_turn = ANY (ARRAY['player1'::text, 'player2'::text]))),
     CONSTRAINT pokemon_auction_rooms_status_check CHECK ((status = ANY (ARRAY['waiting'::text, 'playing'::text, 'finished'::text]))),
@@ -1430,7 +1432,7 @@ BEGIN
     AND (p.rating<=0 OR cardinality(p.types)=0)) THEN RAISE EXCEPTION 'pokemon_catalog_incomplete'; END IF;
   DELETE FROM public.pokemon_auction_bids WHERE room_id=p_room_id;
   UPDATE public.pokemon_auction_rooms SET status='playing',settings=p_settings,p1_team='{}',p2_team='{}',p1_balance=v_budget,p2_balance=v_budget,
-    current_pokemon_id=NULL,used_pokemon_ids='{}',requeue_pokemon_ids='{}',round=0,current_bid=0,current_bidder=NULL,current_turn=NULL,last_result=NULL,
+    current_pokemon_id=NULL,used_pokemon_ids='{}',requeue_pokemon_ids='{}',p1_passes_left=3,p2_passes_left=3,round=0,current_bid=0,current_bidder=NULL,current_turn=NULL,last_result=NULL,
     winner=NULL,p1_stats_score=NULL,p2_stats_score=NULL,p1_coverage_score=NULL,p2_coverage_score=NULL,p1_final_score=NULL,p2_final_score=NULL,p1_ready=false,p2_ready=false WHERE id=p_room_id;
   PERFORM public.auction_begin_next(p_room_id);
 END; $$;
@@ -1547,7 +1549,7 @@ BEGIN
     v_budget:=(v_room.settings->>'startingBudget')::integer;
     DELETE FROM public.pokemon_auction_bids WHERE room_id=p_room_id;
     UPDATE public.pokemon_auction_rooms SET status='playing',p1_team='{}',p2_team='{}',p1_balance=v_budget,p2_balance=v_budget,
-      current_pokemon_id=NULL,used_pokemon_ids='{}',requeue_pokemon_ids='{}',round=0,current_bid=0,current_bidder=NULL,current_turn=NULL,last_result=NULL,
+      current_pokemon_id=NULL,used_pokemon_ids='{}',requeue_pokemon_ids='{}',p1_passes_left=3,p2_passes_left=3,round=0,current_bid=0,current_bidder=NULL,current_turn=NULL,last_result=NULL,
       winner=NULL,p1_stats_score=NULL,p2_stats_score=NULL,p1_coverage_score=NULL,p2_coverage_score=NULL,p1_final_score=NULL,p2_final_score=NULL,p1_ready=false,p2_ready=false WHERE id=p_room_id;
     PERFORM public.auction_begin_next(p_room_id);
   END IF;
@@ -1563,6 +1565,7 @@ CREATE FUNCTION public.resolve_pokemon_auction(p_room_id uuid, p_force boolean D
     SET search_path TO 'pg_catalog', 'public'
     AS $$
 DECLARE v_room public.pokemon_auction_rooms; v_format text; v_p1 integer:=0; v_p2 integer:=0; v_winner text; v_price integer:=0; v_outcome text; v_team integer[]; v_balance integer;
+  v_p1_out boolean; v_p2_out boolean; v_forced boolean:=false;
 BEGIN
   SELECT * INTO v_room FROM public.pokemon_auction_rooms WHERE id=p_room_id FOR UPDATE;
   IF auth.uid() IS DISTINCT FROM v_room.player1_id AND auth.uid() IS DISTINCT FROM v_room.player2_id THEN RAISE EXCEPTION 'not_room_player'; END IF;
@@ -1579,7 +1582,19 @@ BEGIN
       IF cardinality(v_room.p1_team)>=6 THEN v_winner:='player2'; ELSIF cardinality(v_room.p2_team)>=6 THEN v_winner:='player1'; ELSE v_winner:=CASE WHEN random()<.5 THEN 'player1' ELSE 'player2' END; END IF;
       v_outcome:='free';v_price:=0;
     ELSE
-      v_outcome:='unsold';
+      -- Jetons de passe : un joueur incomplet sans jeton récupère le Pokémon gratuitement.
+      v_p1_out:=cardinality(v_room.p1_team)<6 AND v_room.p1_passes_left<=0;
+      v_p2_out:=cardinality(v_room.p2_team)<6 AND v_room.p2_passes_left<=0;
+      IF v_p1_out OR v_p2_out THEN
+        v_winner:=CASE WHEN v_p1_out AND v_p2_out THEN CASE WHEN random()<.5 THEN 'player1' ELSE 'player2' END WHEN v_p1_out THEN 'player1' ELSE 'player2' END;
+        v_outcome:='free';v_price:=0;v_forced:=true;
+      ELSE
+        v_outcome:='unsold';
+        UPDATE public.pokemon_auction_rooms SET
+          p1_passes_left=CASE WHEN cardinality(p1_team)<6 THEN greatest(0,p1_passes_left-1) ELSE p1_passes_left END,
+          p2_passes_left=CASE WHEN cardinality(p2_team)<6 THEN greatest(0,p2_passes_left-1) ELSE p2_passes_left END
+        WHERE id=p_room_id;
+      END IF;
     END IF;
   END IF;
   IF v_outcome IS NULL THEN
@@ -1590,7 +1605,7 @@ BEGIN
   ELSIF v_outcome='free' THEN
     IF v_winner='player1' THEN UPDATE public.pokemon_auction_rooms SET p1_team=array_append(p1_team,current_pokemon_id) WHERE id=p_room_id; ELSE UPDATE public.pokemon_auction_rooms SET p2_team=array_append(p2_team,current_pokemon_id) WHERE id=p_room_id; END IF;
   END IF;
-  UPDATE public.pokemon_auction_rooms SET last_result=jsonb_build_object('pokemonId',v_room.current_pokemon_id,'outcome',v_outcome,'winner',v_winner,'price',v_price,'p1Bid',v_p1,'p2Bid',v_p2,'round',v_room.round),current_pokemon_id=NULL WHERE id=p_room_id;
+  UPDATE public.pokemon_auction_rooms SET last_result=jsonb_build_object('pokemonId',v_room.current_pokemon_id,'outcome',v_outcome,'winner',v_winner,'price',v_price,'p1Bid',v_p1,'p2Bid',v_p2,'round',v_room.round,'forced',v_forced),current_pokemon_id=NULL WHERE id=p_room_id;
   SELECT * INTO v_room FROM public.pokemon_auction_rooms WHERE id=p_room_id;
   IF cardinality(v_room.p1_team)=6 AND cardinality(v_room.p2_team)=6 THEN UPDATE public.pokemon_auction_rooms SET status='finished' WHERE id=p_room_id; ELSE PERFORM public.auction_begin_next(p_room_id); END IF;
 END; $$;

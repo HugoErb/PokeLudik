@@ -70,6 +70,9 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   readonly opponentTeam = computed(() => this.teamFor(this.opponentRole()));
   readonly myBalance = computed(() => this.isPlayer1() ? this.room()?.p1_balance ?? 0 : this.room()?.p2_balance ?? 0);
   readonly opponentBalance = computed(() => this.isPlayer1() ? this.room()?.p2_balance ?? 0 : this.room()?.p1_balance ?? 0);
+  readonly passTokensEnabled = computed(() => this.room()?.settings?.randomAwardOnNoBid === false);
+  readonly myPassesLeft = computed(() => this.isPlayer1() ? this.room()?.p1_passes_left ?? 0 : this.room()?.p2_passes_left ?? 0);
+  readonly opponentPassesLeft = computed(() => this.isPlayer1() ? this.room()?.p2_passes_left ?? 0 : this.room()?.p1_passes_left ?? 0);
   readonly maxBid = computed(() => getMaximumAuctionBid(this.myBalance(), this.myTeam().length));
   readonly minimumBid = computed(() => Math.max(10, (this.room()?.current_bid ?? 0) + 10));
   readonly formatLabel = computed(() => auctionFormatLabel(this.room()?.settings?.auctionFormat ?? 'live'));
@@ -193,6 +196,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     const verb = mine ? 'remportes' : 'remporte';
     const avatar = mine ? this.myAvatar() : this.opponentAvatar();
     const name = mine ? 'Toi' : this.opponentName();
+    if (result.outcome === 'free' && result.forced) return toast(`Plus de passe : ${mine ? 'tu récupères' : `${this.opponentName()} récupère`} ${pokemonName} gratuitement.`, avatar, name);
     if (result.outcome === 'free') return toast(`${subject} ${verb} ${pokemonName} gratuitement.`, avatar, name);
     if (result.outcome === 'blocked') return toast(`${subject} ${mine ? 'bloques' : 'bloque'} ${pokemonName} pour ${result.price} ₽.`, avatar, name);
     return toast(`${subject} ${verb} ${pokemonName} pour ${result.price} ₽.`, avatar, name);
