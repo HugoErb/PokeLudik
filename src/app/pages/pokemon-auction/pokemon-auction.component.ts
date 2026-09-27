@@ -17,6 +17,14 @@ import { TYPE_COLORS } from '../../constants/type-chart';
 import { computeDuoCoverageScore, computeFinalScore, computeStatsScore } from '../../utils/draft-utils';
 import { auctionFormatLabel, getMaximumAuctionBid } from '../../utils/auction-utils';
 
+interface ResultToast {
+  message: string;
+  revealedBids: string;
+  pokemon: Pokemon | null;
+  winnerAvatar: string | null;
+  winnerName: string | null;
+}
+
 @Component({
   selector: 'app-pokemon-auction',
   standalone: true,
@@ -45,11 +53,13 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly actionPending = signal(false);
   readonly error = signal('');
-  readonly resultToast = signal('');
+  readonly resultToast = signal<ResultToast | null>(null);
   readonly showCancel = signal(false);
   readonly isCancelling = signal(false);
   readonly iWantReplay = signal(false);
   readonly opponentName = signal('Adversaire');
+  readonly opponentAvatar = signal<string | null>(null);
+  readonly myAvatar = signal<string | null>(null);
   bidAmount = 10;
 
   readonly isPlayer1 = computed(() => this.room()?.player1_id === this.supabase.currentUserSignal()?.id);
@@ -72,7 +82,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     const start = new Date(this.room()?.auction_start_at ?? 0).getTime();
     const end = new Date(this.room()?.auction_end_at ?? 0).getTime();
     const remaining = Math.max(0, end - Math.max(this.now(), start));
-    return Math.min(100, (remaining / 30_000) * 100);
+    return Math.min(100, (remaining / 15_000) * 100);
   });
   readonly timerColor = computed(() => this.timeLeft() <= 5 ? 'text-red-400' : this.timeLeft() <= 10 ? 'text-yellow-400' : 'text-green-400');
   readonly timerBarColor = computed(() => this.timeLeft() <= 5 ? 'bg-red-500' : this.timeLeft() <= 10 ? 'bg-yellow-500' : 'bg-green-500');
@@ -165,23 +175,27 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     finally { this.actionPending.set(false); }
   }
 
-  protected lastResultText(): string {
-    const result = this.room()?.last_result; if (!result) return '';
+  protected lastResultToast(): ResultToast | null {
+    const result = this.room()?.last_result; if (!result) return null;
     const pokemon = this.byId(result.pokemonId);
     const pokemonName = pokemon
       ? `${pokemon.name.charAt(0).toUpperCase()}${pokemon.name.slice(1)}`
       : `Pokémon #${result.pokemonId}`;
     const revealedBids = this.room()?.settings?.auctionFormat === 'sealed'
-      ? ` Offres révélées : ${result.p1Bid ?? 0} ₽ / ${result.p2Bid ?? 0} ₽.`
+      ? `Offres révélées : ${result.p1Bid ?? 0} ₽ / ${result.p2Bid ?? 0} ₽.`
       : '';
-    if (result.outcome === 'tied') return `Égalité pour ${pokemonName} : il reviendra plus tard.${revealedBids}`;
-    if (result.outcome === 'unsold') return `Aucune offre pour ${pokemonName} : il reviendra plus tard.${revealedBids}`;
+    const toast = (message: string, winnerAvatar: string | null = null, winnerName: string | null = null): ResultToast =>
+      ({ message, revealedBids, pokemon, winnerAvatar, winnerName });
+    if (result.outcome === 'tied') return toast(`Égalité pour ${pokemonName} : il reviendra plus tard.`);
+    if (result.outcome === 'unsold') return toast(`Aucune offre pour ${pokemonName} : il reviendra plus tard.`);
     const mine = result.winner === this.myRole();
     const subject = mine ? 'Tu' : this.opponentName();
     const verb = mine ? 'remportes' : 'remporte';
-    if (result.outcome === 'free') return `${subject} ${verb} ${pokemonName} gratuitement.${revealedBids}`;
-    if (result.outcome === 'blocked') return `${subject} ${mine ? 'bloques' : 'bloque'} ${pokemonName} pour ${result.price} ₽.${revealedBids}`;
-    return `${subject} ${verb} ${pokemonName} pour ${result.price} ₽.${revealedBids}`;
+    const avatar = mine ? this.myAvatar() : this.opponentAvatar();
+    const name = mine ? 'Toi' : this.opponentName();
+    if (result.outcome === 'free') return toast(`${subject} ${verb} ${pokemonName} gratuitement.`, avatar, name);
+    if (result.outcome === 'blocked') return toast(`${subject} ${mine ? 'bloques' : 'bloque'} ${pokemonName} pour ${result.price} ₽.`, avatar, name);
+    return toast(`${subject} ${verb} ${pokemonName} pour ${result.price} ₽.`, avatar, name);
   }
 
   protected typeColor(type: string): string { return TYPE_COLORS[type] ?? 'bg-gray-500'; }
@@ -234,9 +248,9 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
 
   private showResultToast(): void {
     if (this.resultToastTimeout) clearTimeout(this.resultToastTimeout);
-    this.resultToast.set(this.lastResultText());
+    this.resultToast.set(this.lastResultToast());
     this.resultToastTimeout = setTimeout(() => {
-      this.resultToast.set('');
+      this.resultToast.set(null);
       this.resultToastTimeout = undefined;
     }, 4500);
   }
@@ -264,8 +278,15 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   private byId(id: number | null | undefined): Pokemon | null { return this.allPokemon().find(p => p.id === id) ?? null; }
 
   private async loadOpponent(room: PokemonAuctionRoom): Promise<void> {
-    const id = room.player1_id === this.supabase.getCurrentUser()?.id ? room.player2_id : room.player1_id;
-    if (id) this.opponentName.set((await this.supabase.getProfile(id).catch(() => ({ username: 'Adversaire' }))).username);
+    const myId = this.supabase.getCurrentUser()?.id;
+    const id = room.player1_id === myId ? room.player2_id : room.player1_id;
+    const fallback = { username: 'Adversaire', avatar_url: undefined };
+    const [opponent, me] = await Promise.all([
+      id ? this.supabase.getProfile(id).catch(() => fallback) : Promise.resolve(null),
+      myId ? this.supabase.getProfile(myId).catch(() => null) : Promise.resolve(null),
+    ]);
+    if (opponent) { this.opponentName.set(opponent.username); this.opponentAvatar.set(opponent.avatar_url ?? null); }
+    this.myAvatar.set(me?.avatar_url ?? null);
   }
 
   private actionError(error: unknown): string {
