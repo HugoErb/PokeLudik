@@ -84,13 +84,7 @@ export class GameService implements OnDestroy {
     /** Annule la room, arrête le watch et réinitialise l'état local. */
     async cancelRoom(roomId: string): Promise<void> {
         await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
-        await this.supabaseService.updateRoom(roomId, {
-            status: 'finished',
-            winner_id: null,
-            p1_ready: false,
-            p2_ready: false,
-            last_guess: null,
-        });
+        await this.supabaseService.cancelGuessPokemonRoom(roomId);
         this.stopWatching();
         this.currentRoom.set(null);
     }
@@ -275,13 +269,8 @@ export class GameService implements OnDestroy {
         const targetPokemonId = isPlayer1 ? room.pokemon_p1 : room.pokemon_p2;
 
         if (pokemonId === targetPokemonId) {
-            await this.updateAndRefresh(roomId, {
-                winner_id: isPlayer1 ? room.player2_id : room.player1_id,
-                status: 'finished',
-                p1_ready: false,
-                p2_ready: false,
-                last_guess: null,
-            });
+            await this.supabaseService.cancelGuessPokemonRoom(roomId);
+            await this.refreshRoom(roomId);
             return 'correct';
         } else {
             void this.supabaseService.broadcastGuess(pokemonId, null);
@@ -301,8 +290,9 @@ export class GameService implements OnDestroy {
         const user = this.supabaseService.getCurrentUser();
         if (!user) throw new Error('Utilisateur non connecté');
 
-        const room = this.currentRoom();
-        if (!room) throw new Error('Aucune room active');
+        const room = await this.supabaseService.getRoomById(roomId);
+        if (room.status !== 'finished') return;
+        this.currentRoom.set(room);
 
         const isPlayer1 = this.isPlayer1();
         const patch: RoomPatch = isPlayer1 ? { p1_ready: true } : { p2_ready: true };
@@ -326,21 +316,9 @@ export class GameService implements OnDestroy {
         // On veut simuler l'action de l'AUTRE joueur
         const patch: RoomPatch = isPlayer1 ? { p2_ready: true } : { p1_ready: true };
 
-        const opponentAlreadyRequested = isPlayer1 ? room.p1_ready : room.p2_ready;
-
-        if (opponentAlreadyRequested) {
-            Object.assign(patch, {
-                status: 'selecting',
-                pokemon_p1: null,
-                pokemon_p2: null,
-                p1_ready: false,
-                p2_ready: false,
-                winner_id: null,
-                current_turn: null,
-            } satisfies RoomPatch);
-        }
-
         await this.updateAndRefresh(roomId, patch);
+        const refreshed = this.currentRoom();
+        if (refreshed) await this.launchReplayIfReady(roomId, refreshed);
     }
 
     /** Rafraîchit manuellement l'état de la room. */

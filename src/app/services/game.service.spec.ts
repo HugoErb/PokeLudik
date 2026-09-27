@@ -34,6 +34,7 @@ describe('GameService', () => {
       'getCurrentUser',
       'getRoomById',
       'updateRoom',
+      'cancelGuessPokemonRoom',
       'replayGuessPokemonRoom',
       'submitGuessPokemonGuess',
       'broadcastGuess',
@@ -41,6 +42,7 @@ describe('GameService', () => {
     ]);
     supabaseService.getCurrentUser.and.returnValue(user as any);
     supabaseService.updateRoom.and.resolveTo();
+    supabaseService.cancelGuessPokemonRoom.and.resolveTo();
     supabaseService.replayGuessPokemonRoom.and.resolveTo();
     supabaseService.submitGuessPokemonGuess.and.resolveTo(true);
     supabaseService.broadcastGuess.and.resolveTo();
@@ -102,13 +104,22 @@ describe('GameService', () => {
     await service.cancelRoom('room-1');
 
     expect(supabaseService.broadcastPlayerLeft).toHaveBeenCalled();
-    expect(supabaseService.updateRoom).toHaveBeenCalledWith('room-1', jasmine.objectContaining({
-      status: 'finished',
-      winner_id: null,
-      p1_ready: false,
-      p2_ready: false,
-    }));
+    expect(supabaseService.cancelGuessPokemonRoom).toHaveBeenCalledOnceWith('room-1');
     expect(service.currentRoom()).toBeNull();
+  });
+
+  it('termine une victoire du bot sans attribuer la victoire au joueur', async () => {
+    const player1 = { id: 'player-1' };
+    supabaseService.getCurrentUser.and.returnValue(player1 as any);
+    (supabaseService.currentUserSignal as jasmine.Spy).and.returnValue(player1);
+    service.currentRoom.set(room({ player2_id: null, current_turn: null }));
+    supabaseService.getRoomById.and.resolveTo(room({ player2_id: null, status: 'finished', winner_id: null }));
+
+    const result = await service.simulateOpponentGuess('room-1', 25);
+
+    expect(result).toBe('correct');
+    expect(supabaseService.cancelGuessPokemonRoom).toHaveBeenCalledOnceWith('room-1');
+    expect(service.currentRoom()?.winner_id).toBeNull();
   });
 
   it('relance une revanche acceptée via la RPC dédiée puis rafraîchit la room', async () => {
@@ -118,7 +129,7 @@ describe('GameService', () => {
     const finished = room({ status: 'finished', p1_ready: true, p2_ready: true, winner_id: 'player-2' });
     const replay = room({ status: 'selecting', pokemon_p1: null, pokemon_p2: null });
     service.currentRoom.set(finished);
-    supabaseService.getRoomById.and.returnValues(Promise.resolve(finished), Promise.resolve(replay));
+    supabaseService.getRoomById.and.returnValues(Promise.resolve(finished), Promise.resolve(finished), Promise.resolve(replay));
 
     await service.requestReplay('room-1');
 

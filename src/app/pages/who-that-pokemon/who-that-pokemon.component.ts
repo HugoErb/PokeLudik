@@ -126,6 +126,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   private toastTimeout?: ReturnType<typeof setTimeout>;
   private currentSilhouetteTargetId = 0;
   private confettiFired = false;
+  private replayLaunchInProgress = false;
 
   readonly targetPokemon = computed(() => {
     const all = this.allPokemons();
@@ -316,6 +317,9 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         p2_ready: false,
       });
       this.phase.set('duo');
+      this.feedback.set('');
+    } catch {
+      this.feedback.set('Impossible de lancer la partie pour le moment.');
     } finally {
       this.isBusy.set(false);
     }
@@ -493,7 +497,8 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     this.isSubmittingGuess.set(true);
     try {
       await this.supabaseService.submitWhoPokemonGuess(this.roomId()!, this.room()!.round, guessed.id);
-      this.room.set(await this.supabaseService.getWhoPokemonRoom(this.roomId()!));
+      const refreshed = await this.supabaseService.getWhoPokemonRoom(this.roomId()!).catch(() => null);
+      if (refreshed) this.room.set(refreshed);
       if (isCorrect) {
         this.feedback.set('');
         this.showToast(target?.name ?? guessed.name, 'success', target);
@@ -502,6 +507,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         this.showToast(hadAllHints ? 'Mauvaise réponse. Tu peux continuer ou passer.' : 'Mauvaise réponse, indice débloqué.', 'error');
       }
     } catch {
+      this.guessInput.set(guessed.name);
       this.feedback.set('Réponse impossible pour le moment.');
     } finally {
       this.isSubmittingGuess.set(false);
@@ -510,11 +516,18 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
 
   async replay(): Promise<void> {
     if (this.room()) {
-      const patch = this.isPlayer1() ? { p1_ready: true } : { p2_ready: true };
-      await this.supabaseService.updateWhoPokemonRoom(this.roomId()!, patch);
-      const refreshed = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
-      this.room.set(refreshed);
-      await this.launchReplayIfReady(refreshed);
+      this.feedback.set('');
+      try {
+        const current = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
+        if (current.status !== 'finished') return;
+        const patch = this.isPlayer1() ? { p1_ready: true } : { p2_ready: true };
+        await this.supabaseService.updateWhoPokemonRoom(this.roomId()!, patch);
+        const refreshed = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
+        this.room.set(refreshed);
+        await this.launchReplayIfReady(refreshed);
+      } catch {
+        this.feedback.set('Impossible de demander une revanche pour le moment.');
+      }
       return;
     }
     this.phase.set('setup');
@@ -682,23 +695,33 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   }
 
   private async launchReplayIfReady(room: WhoPokemonRoom): Promise<void> {
-    if (!this.isPlayer1() || room.status !== 'finished' || !room.p1_ready || !room.p2_ready) return;
-    const pool = buildWhoPokemonPool(this.allPokemons(), room.settings ?? DEFAULT_WHO_SETTINGS);
-    const target = pickWhoPokemonSequence(pool, 1)[0];
-    if (!target) return;
-    await this.supabaseService.updateWhoPokemonRoom(room.id, {
-      status: 'playing',
-      round: 1,
-      target_pokemon_id: target.id,
-      used_pokemon_ids: [target.id],
-      p1_score: 0,
-      p2_score: 0,
-      p1_lives: 0,
-      p2_lives: 0,
-      winner: null,
-      p1_ready: false,
-      p2_ready: false,
-    });
+    if (!this.isPlayer1() || this.replayLaunchInProgress || room.status !== 'finished' || !room.p1_ready || !room.p2_ready) return;
+    this.replayLaunchInProgress = true;
+    try {
+      const current = await this.supabaseService.getWhoPokemonRoom(room.id);
+      if (current.status !== 'finished' || !current.p1_ready || !current.p2_ready) return;
+      const pool = buildWhoPokemonPool(this.allPokemons(), current.settings ?? DEFAULT_WHO_SETTINGS);
+      const target = pickWhoPokemonSequence(pool, 1)[0];
+      if (!target) return;
+      await this.supabaseService.updateWhoPokemonRoom(room.id, {
+        status: 'playing',
+        round: 1,
+        target_pokemon_id: target.id,
+        used_pokemon_ids: [target.id],
+        p1_score: 0,
+        p2_score: 0,
+        p1_lives: 0,
+        p2_lives: 0,
+        winner: null,
+        p1_ready: false,
+        p2_ready: false,
+      });
+      this.room.set(await this.supabaseService.getWhoPokemonRoom(room.id));
+    } catch {
+      this.feedback.set('Impossible de relancer la partie pour le moment.');
+    } finally {
+      this.replayLaunchInProgress = false;
+    }
   }
 
   /** Charge l'identité de l'autre joueur pour l'écran de préparation. */

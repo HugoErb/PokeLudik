@@ -62,6 +62,10 @@ créer une nouvelle base. Les anciennes migrations ponctuelles ont été retiré
 leur application ; une base existante ne doit pas réexécuter le schéma complet.
 Pour appliquer les corrections du mode enchères à une base existante, exécuter
 `sql-schema/migrations/2026-09-27-pokemon-auction.sql` dans l’éditeur SQL Supabase.
+Pour corriger Guess my Pokémon et Who's That Pokémon sur une base existante, exécuter
+`sql-schema/migrations/2026-09-27-fix-multiplayer-games.sql` dans le même éditeur.
+Appliquer ensuite `sql-schema/migrations/2026-09-27-fix-guess-cancel.sql` pour
+autoriser l'abandon de Guess my Pokémon par les deux joueurs.
 
 ## Scripts
 

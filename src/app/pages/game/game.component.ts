@@ -79,6 +79,8 @@ export class GameComponent implements OnInit, OnDestroy {
 	readonly isDev = environment.devMode && isDevMode();
 
 	guessedPokemonIds = signal<number[]>([]);
+	guessError = signal('');
+	private guessInProgress = false;
 
 	showCancelModal = signal(false);
 	showGameSettingsModal = signal(false);
@@ -133,7 +135,7 @@ export class GameComponent implements OnInit, OnDestroy {
 					this.syncDisplayedPokemon(r);
 				});
 			}
-			if (r?.status === 'finished' && r.winner_id === null) {
+			if (r?.status === 'finished' && r.winner_id === null && !(this.isDev && r.player2_id === null && r.pokemon_p2 !== null)) {
 				untracked(() => {
 					if (this.showEndModal) {
 						this.opponentLeft.set(true);
@@ -359,6 +361,9 @@ export class GameComponent implements OnInit, OnDestroy {
 	 * Si incorrect, ajoute le Pokémon à la liste des tentatives et affiche la modal "Raté".
 	 */
 	async onGuess(pokemonId: number): Promise<void> {
+		if (this.guessInProgress) return;
+		this.guessInProgress = true;
+		this.guessError.set('');
 		try {
 			const result = await this.gameService.guess(this.roomId(), pokemonId);
 			if (result === 'incorrect') {
@@ -369,7 +374,9 @@ export class GameComponent implements OnInit, OnDestroy {
 			}
 			// 'correct' → room signal switches to 'finished' → effect handles modal
 		} catch {
-			// ignore les erreurs de guess
+			this.guessError.set('Impossible de valider cette réponse. Réessaie.');
+		} finally {
+			this.guessInProgress = false;
 		}
 	}
 
@@ -463,6 +470,7 @@ export class GameComponent implements OnInit, OnDestroy {
 		this.opponentPokemon = null;
 		this.lastGuessedPokemon = null;
 		this.guessedPokemonIds.set([]);
+		this.guessError.set('');
 		this.showIncorrectModal.set(false);
 		this.showMyTurnModal.set(false);
 		this.pendingMyTurnModal.set(false);

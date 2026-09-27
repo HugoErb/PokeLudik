@@ -310,6 +310,11 @@ export class SupabaseService implements OnDestroy {
         return data === true;
     }
 
+    async cancelGuessPokemonRoom(roomId: string): Promise<void> {
+        const { error } = await this.supabase.rpc('cancel_guess_pokemon_room', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
     /** Réinitialise atomiquement une revanche acceptée par les deux joueurs. */
     async replayGuessPokemonRoom(roomId: string): Promise<void> {
         const { error } = await this.supabase.rpc('replay_guess_pokemon_room', { p_room_id: roomId });

@@ -342,7 +342,7 @@
 										@let justPicked = justPickedStat()?.stat === stat.key;
 										@let isPending = pendingMyPickStat() === stat.key;
 										@let revealedPick = getMyRevealedPickForStat(stat.key);
-										@let canPick = !alreadyPicked && !hasPickedThisRound() && !catchingUp() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
+										@let canPick = !alreadyPicked && myPicks().length === currentRound() && !catchingUp() && !pokemonAnimating() && pokemonVisible() && nextRoundCountdown() === null;
 
 										<div
 											[class]="getStatRowClass(justPicked, canPick)"
@@ -479,6 +479,9 @@
 							<h2 class="text-3xl font-black uppercase tracking-tight" [ngClass]="getResultColor()">{{ getResultLabel() }}</h2>
 						}
 					</div>
+					@if (configurationError()) {
+						<p role="alert" class="text-center text-sm text-red-300">{{ configurationError() }}</p>
+					}
 
 					<!-- Cards : empilées sur mobile, côte à côte sur bureau -->
 					<div class="flex flex-col md:flex-row md:items-stretch gap-6 w-full" [class.max-w-md]="isSolo()" [class.mx-auto]="isSolo()">

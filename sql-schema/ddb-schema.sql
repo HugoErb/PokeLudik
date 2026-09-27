@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ucbMrcVDrU10JUdFCr1xH6p4xZoFIfHZwOaoPWxC3Du0eFZyUfNTTCIsX4Zc72i
+\restrict OiBZRnCuWNe1Vkyyx5UHcxMoCvGqlKLTBpq6L4NeIOfxGSUKoGt5ZOJGju7snrX
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 18.3
@@ -81,6 +81,121 @@ BEGIN
     IF jsonb_array_length(v_room.p2_picks) >= 6 THEN RAISE EXCEPTION 'too_many_picks'; END IF;
     UPDATE public.stat_duel_rooms SET p2_picks = v_room.p2_picks || jsonb_build_array(p_pick) WHERE id = p_room_id;
   END IF;
+END;
+$$;
+
+
+--
+-- Name: apply_who_that_pokemon_action(uuid, integer, integer, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.apply_who_that_pokemon_action(p_room_id uuid, p_round integer, p_pokemon_id integer, p_skip boolean) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_user uuid := auth.uid();
+  v_room public.who_that_pokemon_rooms;
+  v_is_p1 boolean;
+  v_p1_ready boolean;
+  v_p2_ready boolean;
+  v_p1_lives integer;
+  v_p2_lives integer;
+  v_p1_score integer;
+  v_p2_score integer;
+  v_next integer;
+BEGIN
+  IF v_user IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+  SELECT * INTO v_room FROM public.who_that_pokemon_rooms WHERE id = p_room_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'room_not_found'; END IF;
+  IF v_room.status <> 'playing' THEN RAISE EXCEPTION 'room_not_playing'; END IF;
+  IF v_room.round <> p_round THEN RAISE EXCEPTION 'stale_round'; END IF;
+  IF v_user = v_room.player1_id THEN
+    v_is_p1 := true;
+    IF v_room.p1_ready THEN RAISE EXCEPTION 'round_already_completed'; END IF;
+  ELSIF v_user = v_room.player2_id THEN
+    v_is_p1 := false;
+    IF v_room.p2_ready THEN RAISE EXCEPTION 'round_already_completed'; END IF;
+  ELSE
+    RAISE EXCEPTION 'not_room_player';
+  END IF;
+
+  v_p1_ready := v_room.p1_ready;
+  v_p2_ready := v_room.p2_ready;
+  v_p1_lives := v_room.p1_lives;
+  v_p2_lives := v_room.p2_lives;
+  v_p1_score := v_room.p1_score;
+  v_p2_score := v_room.p2_score;
+
+  IF p_skip THEN
+    IF v_is_p1 THEN v_p1_ready := true; ELSE v_p2_ready := true; END IF;
+  ELSIF p_pokemon_id IS NULL THEN
+    IF v_is_p1 THEN
+      v_p1_lives := least(3, v_p1_lives + 1);
+    ELSE
+      v_p2_lives := least(3, v_p2_lives + 1);
+    END IF;
+  ELSE
+    IF NOT EXISTS (SELECT 1 FROM public.pokemon_catalog WHERE id = p_pokemon_id) THEN
+      RAISE EXCEPTION 'invalid_pokemon';
+    END IF;
+    IF p_pokemon_id = v_room.target_pokemon_id THEN
+      IF v_is_p1 THEN
+        v_p1_score := v_p1_score + greatest(0, 5 - v_p1_lives);
+        v_p1_ready := true;
+      ELSE
+        v_p2_score := v_p2_score + greatest(0, 5 - v_p2_lives);
+        v_p2_ready := true;
+      END IF;
+    ELSE
+      IF v_is_p1 THEN
+        v_p1_lives := least(3, v_p1_lives + 1);
+      ELSE
+        v_p2_lives := least(3, v_p2_lives + 1);
+      END IF;
+    END IF;
+  END IF;
+
+  IF v_p1_ready AND v_p2_ready THEN
+    IF v_room.round >= 10 THEN
+      UPDATE public.who_that_pokemon_rooms SET status = 'finished', target_pokemon_id = NULL,
+        p1_score = v_p1_score, p2_score = v_p2_score,
+        p1_lives = v_p1_lives, p2_lives = v_p2_lives,
+        winner = CASE WHEN v_p1_score > v_p2_score THEN 'player1'
+          WHEN v_p2_score > v_p1_score THEN 'player2' ELSE 'draw' END,
+        p1_ready = false, p2_ready = false
+      WHERE id = p_room_id;
+      RETURN;
+    END IF;
+
+    SELECT p.id INTO v_next FROM public.pokemon_catalog p
+    WHERE (coalesce(jsonb_array_length(v_room.settings->'generations'), 0) = 0
+      OR p.generation IN (SELECT value::integer FROM jsonb_array_elements_text(v_room.settings->'generations')))
+      AND (coalesce(jsonb_array_length(v_room.settings->'categories'), 0) = 0
+      OR p.category IN (SELECT value FROM jsonb_array_elements_text(v_room.settings->'categories')))
+      AND NOT (p.id = ANY(v_room.used_pokemon_ids))
+    ORDER BY random() LIMIT 1;
+    IF v_next IS NULL THEN
+      SELECT p.id INTO v_next FROM public.pokemon_catalog p
+      WHERE (coalesce(jsonb_array_length(v_room.settings->'generations'), 0) = 0
+        OR p.generation IN (SELECT value::integer FROM jsonb_array_elements_text(v_room.settings->'generations')))
+        AND (coalesce(jsonb_array_length(v_room.settings->'categories'), 0) = 0
+        OR p.category IN (SELECT value FROM jsonb_array_elements_text(v_room.settings->'categories')))
+      ORDER BY random() LIMIT 1;
+    END IF;
+    IF v_next IS NULL THEN RAISE EXCEPTION 'empty_pokemon_pool'; END IF;
+    UPDATE public.who_that_pokemon_rooms SET round = v_room.round + 1,
+      target_pokemon_id = v_next, used_pokemon_ids = array_append(v_room.used_pokemon_ids, v_next),
+      p1_score = v_p1_score, p2_score = v_p2_score,
+      p1_lives = 0, p2_lives = 0, p1_ready = false, p2_ready = false
+    WHERE id = p_room_id;
+    RETURN;
+  END IF;
+
+  UPDATE public.who_that_pokemon_rooms SET p1_score = v_p1_score, p2_score = v_p2_score,
+    p1_lives = v_p1_lives, p2_lives = v_p2_lives,
+    p1_ready = v_p1_ready, p2_ready = v_p2_ready
+  WHERE id = p_room_id;
 END;
 $$;
 
@@ -295,6 +410,34 @@ CREATE FUNCTION public.auction_type_multiplier(p_attacker text, p_defender text)
     "Acier":{"Feu":0.5,"Eau":0.5,"Électrik":0.5,"Glace":2,"Roche":2,"Acier":0.5,"Fée":2},
     "Fée":{"Feu":0.5,"Combat":2,"Poison":0.5,"Dragon":2,"Ténèbres":2,"Acier":0.5}
   }'::jsonb -> p_attacker ->> p_defender)::numeric),1);
+$$;
+
+
+--
+-- Name: cancel_guess_pokemon_room(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.cancel_guess_pokemon_room(p_room_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_user uuid := auth.uid();
+  v_room public.guess_pokemon_rooms;
+BEGIN
+  IF v_user IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+  SELECT * INTO v_room FROM public.guess_pokemon_rooms WHERE id = p_room_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'room_not_found'; END IF;
+  IF v_user IS DISTINCT FROM v_room.player1_id AND v_user IS DISTINCT FROM v_room.player2_id THEN
+    RAISE EXCEPTION 'not_room_player';
+  END IF;
+  IF v_room.status = 'finished' THEN RETURN; END IF;
+
+  UPDATE public.guess_pokemon_rooms
+  SET status = 'finished', winner_id = NULL, current_turn = NULL,
+      p1_ready = false, p2_ready = false, last_guess = NULL
+  WHERE id = p_room_id;
+END;
 $$;
 
 
@@ -820,6 +963,66 @@ END; $$;
 
 
 --
+-- Name: skip_who_that_pokemon_round(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.skip_who_that_pokemon_round(p_room_id uuid, p_round integer) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+BEGIN
+  PERFORM public.apply_who_that_pokemon_action(p_room_id, p_round, NULL, true);
+END;
+$$;
+
+
+--
+-- Name: submit_guess_pokemon_guess(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.submit_guess_pokemon_guess(p_room_id uuid, p_pokemon_id integer) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_user uuid := auth.uid();
+  v_room public.guess_pokemon_rooms;
+  v_target integer;
+BEGIN
+  IF v_user IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
+  SELECT * INTO v_room FROM public.guess_pokemon_rooms WHERE id = p_room_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'room_not_found'; END IF;
+  IF v_room.status <> 'playing' THEN RAISE EXCEPTION 'room_not_playing'; END IF;
+  IF v_room.current_turn IS DISTINCT FROM v_user THEN RAISE EXCEPTION 'not_your_turn'; END IF;
+  IF v_user = v_room.player1_id THEN
+    v_target := v_room.pokemon_p2;
+  ELSIF v_user = v_room.player2_id THEN
+    v_target := v_room.pokemon_p1;
+  ELSE
+    RAISE EXCEPTION 'not_room_player';
+  END IF;
+  IF v_target IS NULL THEN RAISE EXCEPTION 'missing_target'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.pokemon_catalog WHERE id = p_pokemon_id) THEN
+    RAISE EXCEPTION 'invalid_pokemon';
+  END IF;
+
+  IF p_pokemon_id = v_target THEN
+    UPDATE public.guess_pokemon_rooms SET status = 'finished', winner_id = v_user,
+      p1_ready = false, p2_ready = false, last_guess = NULL
+    WHERE id = p_room_id;
+    RETURN true;
+  END IF;
+
+  UPDATE public.guess_pokemon_rooms SET
+    current_turn = CASE WHEN v_user = player1_id THEN player2_id ELSE player1_id END,
+    last_guess = p_pokemon_id
+  WHERE id = p_room_id;
+  RETURN false;
+END;
+$$;
+
+
+--
 -- Name: submit_pokemon_auction_sealed_bid(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -844,92 +1047,13 @@ END; $$;
 -- Name: submit_who_that_pokemon_guess(uuid, integer, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.submit_who_that_pokemon_guess(p_room_id uuid, p_pokemon_id integer, p_next_target_pokemon_id integer) RETURNS void
+CREATE FUNCTION public.submit_who_that_pokemon_guess(p_room_id uuid, p_round integer, p_pokemon_id integer) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-declare
-  v_user uuid := auth.uid();
-  v_room public.who_that_pokemon_rooms;
-  v_is_p1 boolean;
-  v_p1_lives integer;
-  v_p2_lives integer;
-  v_p1_score integer;
-  v_p2_score integer;
-  v_round integer;
-  v_status text := 'playing';
-  v_winner text := null;
-  v_target integer;
-  v_used integer[];
-begin
-  if v_user is null then raise exception 'not_authenticated'; end if;
-
-  select * into v_room from public.who_that_pokemon_rooms where id = p_room_id for update;
-  if not found then raise exception 'room_not_found'; end if;
-  if v_room.status <> 'playing' then raise exception 'room_not_playing'; end if;
-
-  if v_user = v_room.player1_id then
-    v_is_p1 := true;
-  elsif v_user = v_room.player2_id then
-    v_is_p1 := false;
-  else
-    raise exception 'not_room_player';
-  end if;
-
-  v_p1_lives := v_room.p1_lives;
-  v_p2_lives := v_room.p2_lives;
-  v_p1_score := v_room.p1_score;
-  v_p2_score := v_room.p2_score;
-  v_round := v_room.round;
-  v_target := v_room.target_pokemon_id;
-  v_used := v_room.used_pokemon_ids;
-
-  if p_pokemon_id = v_room.target_pokemon_id then
-    if v_is_p1 then
-      v_p1_score := v_p1_score + greatest(0, 5 - v_p1_lives);
-    else
-      v_p2_score := v_p2_score + greatest(0, 5 - v_p2_lives);
-    end if;
-    v_round := v_round + 1;
-  else
-    if (v_is_p1 and v_p1_lives >= 3) or (not v_is_p1 and v_p2_lives >= 3) then
-      v_round := v_round + 1;
-    else
-      if v_is_p1 then
-        v_p1_lives := least(3, v_p1_lives + 1);
-      else
-        v_p2_lives := least(3, v_p2_lives + 1);
-      end if;
-    end if;
-  end if;
-
-  if v_round > 10 then
-    v_status := 'finished';
-    v_target := null;
-    if v_p1_score > v_p2_score then v_winner := 'player1';
-    elsif v_p2_score > v_p1_score then v_winner := 'player2';
-    else v_winner := 'draw';
-    end if;
-  elsif v_round <> v_room.round then
-    if p_next_target_pokemon_id is null then raise exception 'missing_next_target'; end if;
-    v_target := p_next_target_pokemon_id;
-    v_used := array_append(v_used, p_next_target_pokemon_id);
-    v_p1_lives := 0;
-    v_p2_lives := 0;
-  end if;
-
-  update public.who_that_pokemon_rooms
-  set round = v_round,
-      target_pokemon_id = v_target,
-      used_pokemon_ids = v_used,
-      p1_score = v_p1_score,
-      p2_score = v_p2_score,
-      p1_lives = v_p1_lives,
-      p2_lives = v_p2_lives,
-      status = v_status,
-      winner = v_winner
-  where id = p_room_id;
-end;
+BEGIN
+  PERFORM public.apply_who_that_pokemon_action(p_room_id, p_round, p_pokemon_id, false);
+END;
 $$;
 
 
@@ -2070,5 +2194,5 @@ CREATE POLICY who_that_pokemon_rooms_select ON public.who_that_pokemon_rooms FOR
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ucbMrcVDrU10JUdFCr1xH6p4xZoFIfHZwOaoPWxC3Du0eFZyUfNTTCIsX4Zc72i
+\unrestrict OiBZRnCuWNe1Vkyyx5UHcxMoCvGqlKLTBpq6L4NeIOfxGSUKoGt5ZOJGju7snrX
 

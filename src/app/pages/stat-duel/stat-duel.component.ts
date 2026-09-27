@@ -121,6 +121,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     private clockInterval: ReturnType<typeof setInterval> | null = null;
     private roundStartTime = 0;
     private catchUpPromise: Promise<void> | null = null;
+    private finalSyncInProgress = false;
+    private lastFinalSyncAt = 0;
 
     // --- Abonnements -------------------------------------------------------------
     private roomSub?: Subscription;
@@ -178,6 +180,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     // --- Animation & Effects --------------------------------------------------
     private confettiFired = false;
     private replayLaunchInProgress = false;
+    private finishingInProgress = false;
 
 
     /** Lifecycle Angular : initialise le composant. */
@@ -290,7 +293,6 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             return;
         }
         this.isPlayer1.set(room.player1_id === me.id);
-        void this.launchReplayIfReady(room);
 
         // Rejoindre en tant que P2 si la place est libre et qu'on n'est pas P1
         if (!room.player2_id && room.player1_id !== me.id) {
@@ -300,9 +302,13 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         }
         await this.loadWaitingOpponentProfile(this.room() ?? room);
 
-        if (room.status === 'playing' || room.status === 'finished') {
+        if (room.status === 'playing') {
             await this.loadPokemonAndStartMulti(room);
-            if (room.status === 'finished') this.phase.set('result');
+        } else if (room.status === 'finished') {
+            this.myPicks.set(this.isPlayer1() ? room.p1_picks : room.p2_picks);
+            this.opponentPicks.set(this.isPlayer1() ? room.p2_picks : room.p1_picks);
+            this.phase.set('result');
+            void this.launchReplayIfReady(room);
         }
 
         this.roomSub = this.supabaseService.subscribeToStatDuelRoom(roomId).subscribe(async (updated) => {
@@ -320,8 +326,6 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                 return;
             }
             if (await this.launchReplayIfReady(updated)) return;
-            if (updated.player2_id) this.stopWaitingPoll();
-
             if (updated.status === 'finished') {
                 if (this.phase() !== 'result') {
                     this.endMultiGame(updated);
@@ -344,7 +348,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                 if (dbMyPicks.length >= this.myPicks().length) {
                     this.myPicks.set(dbMyPicks);
                 }
-                this.opponentPicks.set(isP1 ? updated.p2_picks : updated.p1_picks);
+                const dbOpponentPicks = isP1 ? updated.p2_picks : updated.p1_picks;
+                if (dbOpponentPicks.length >= this.opponentPicks().length) {
+                    this.opponentPicks.set(dbOpponentPicks);
+                }
 
                 // Simultaneous reveal: as soon as both players picked, reveal
                 if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, this.currentRound(), this.revealedRound())) {
@@ -363,26 +370,28 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     /** Demarre le polling d'attente. */
     private startWaitingPoll(roomId: string): void {
         this.waitingPollInterval = setInterval(async () => {
-            if (this.phase() !== 'waiting') {
-                this.stopWaitingPoll();
-                return;
-            }
-            const refreshed = await this.supabaseService.getStatDuelRoom(roomId);
-
-            if (refreshed.status === 'finished' && refreshed.winner === null) {
+            const phase = this.phase();
+            if (phase !== 'waiting' && phase !== 'result') return;
+            try {
+                const refreshed = await this.supabaseService.getStatDuelRoom(roomId);
+                if (refreshed.status === 'finished' && refreshed.winner === null) {
+                    this.room.set(refreshed);
+                    if (phase === 'result') this.opponentLeft.set(true);
+                    else void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+                    return;
+                }
                 this.room.set(refreshed);
-                void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
-                return;
-            }
-
-            if (!this.room()?.player2_id && refreshed.player2_id) {
-                this.room.set(refreshed);
-                await this.loadWaitingOpponentProfile(refreshed);
-            }
-
-            if (refreshed.status === 'playing' && this.phase() === 'waiting') {
-                this.room.set(refreshed);
-                await this.loadPokemonAndStartMulti(refreshed);
+                if (phase === 'waiting' && refreshed.player2_id) {
+                    await this.loadWaitingOpponentProfile(refreshed);
+                }
+                if (refreshed.status === 'playing' && this.phase() !== 'playing') {
+                    if (phase === 'result') this.resetGameState();
+                    await this.loadPokemonAndStartMulti(refreshed);
+                } else if (phase === 'result' && refreshed.status === 'finished') {
+                    await this.launchReplayIfReady(refreshed);
+                }
+            } catch {
+                // Le prochain rafraîchissement reprendra la synchronisation.
             }
         }, 3000);
     }
@@ -417,7 +426,12 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.phase.set('playing');
         void this.triggerDuelIntro(room);
         if (this.isDevMode()) {
-            this.botPickedRounds.clear();
+            if (room.p1_picks.length === ROUND_COUNT && room.p2_picks.length === ROUND_COUNT) {
+                this.endMultiGame(room);
+                return;
+            }
+            this.botPickedRounds = new Set(room.p2_picks.map((_, index) => index));
+            this.currentRound.set(Math.min(room.p1_picks.length, room.p2_picks.length, ROUND_COUNT - 1));
             const delayFromNow = Math.max(0, new Date(room.round_start_at!).getTime() - Date.now());
             setTimeout(() => {
                 if (this.phase() !== 'playing') return;
@@ -440,6 +454,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         if (!currentRoom) return;
 
         this.isLaunching.set(true);
+        this.configurationError.set('');
         try {
             const allPokemon = this.getConfiguredPokemonPool(await this.loadAll(), currentRoom.settings);
             if (allPokemon.length < ROUND_COUNT) {
@@ -467,6 +482,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                 p1_picks: [],
                 p2_picks: [],
             });
+        } catch {
+            this.configurationError.set('Impossible de lancer la partie pour le moment.');
         } finally {
             this.isLaunching.set(false);
         }
@@ -568,10 +585,16 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         // S'assurer que currentRound est correct avant de commencer l'intervalle
         if (initialElapsed >= 0) {
             this.currentRound.set(Math.min(Math.max(0, prevRound), ROUND_COUNT - 1));
+            this.pokemonVisible.set(true);
+            this.pokemonAnimating.set(false);
             if (prevRound > 0) void this.ensureAutoPicksThrough(Math.min(prevRound - 1, ROUND_COUNT - 1));
         }
 
         this.clockInterval = setInterval(() => {
+            if (this.phase() !== 'playing') {
+                this.stopClock();
+                return;
+            }
             const now = Date.now();
             const elapsed = now - startMs;
 
@@ -583,7 +606,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             }
 
             const round = Math.min(Math.floor(elapsed / ROUND_DURATION_MS), ROUND_COUNT - 1);
-            const elapsedInRound = elapsed % ROUND_DURATION_MS;
+            const elapsedInRound = Math.min(elapsed - round * ROUND_DURATION_MS, ROUND_DURATION_MS);
 
             const remainingPick = Math.max(0, (ROUND_PICK_TIME_MS - elapsedInRound) / 1000);
             const remainingTransition = Math.max(0, (ROUND_DURATION_MS - elapsedInRound) / 1000);
@@ -631,7 +654,9 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
             // Fin du jeu
             if (elapsed >= ROUND_COUNT * ROUND_DURATION_MS) {
-                this.stopClock();
+                if (this.finalSyncInProgress || now - this.lastFinalSyncAt < 2000) return;
+                this.finalSyncInProgress = true;
+                this.lastFinalSyncAt = now;
                 void this.ensureAutoPicksThrough(ROUND_COUNT - 1).then(async () => {
                     if (!this.roomId || this.phase() !== 'playing') return;
                     const refreshed = await this.supabaseService.getStatDuelRoom(this.roomId);
@@ -639,6 +664,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                     if (refreshed.p1_picks.length === ROUND_COUNT && refreshed.p2_picks.length === ROUND_COUNT) {
                         this.endMultiGame(refreshed);
                     }
+                }).catch(() => undefined).finally(() => {
+                    this.finalSyncInProgress = false;
                 });
             }
         }, 200);
@@ -687,7 +714,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                 return;
             }
 
-            this.startMultiTransition();
+            if (this.isDevMode()) this.startMultiTransition();
         }
     }
 
@@ -696,6 +723,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     /** Selectionne une statistique pour la manche courante. */
     pickStat(statKey: keyof Pokemon['stats']): void {
         if (this.hasPickedThisRound() || this.catchingUp()) return;
+        if (!this.isSolo() && this.myPicks().length !== this.currentRound()) return;
         const pokemon = this.currentPokemon();
         if (!pokemon) return;
 
@@ -715,15 +743,15 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             const isP1 = this.room()?.player1_id === me.id;
             this.pendingMyPickStat.set(statKey);
             this.waitingForReveal.set(true);
-            void this.supabaseService.appendStatPick(this.roomId, isP1 ? 'p1_picks' : 'p2_picks', pick).catch(() => {
+            void this.supabaseService.appendStatPick(this.roomId, isP1 ? 'p1_picks' : 'p2_picks', pick).then(() => {
+                if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, this.currentRound(), this.revealedRound())) {
+                    this.triggerReveal();
+                }
+            }).catch(() => {
                 this.myPicks.update(picks => picks.at(-1)?.stat === statKey ? picks.slice(0, -1) : picks);
                 this.pendingMyPickStat.set(null);
                 this.waitingForReveal.set(false);
             });
-            // If the opponent already picked, reveal immediately
-            if (shouldRevealStatDuelRound(this.myPicks().length, this.opponentPicks().length, this.currentRound(), this.revealedRound())) {
-                this.triggerReveal();
-            }
         }
     }
 
@@ -802,21 +830,26 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Termine la partie multijoueur. */
     private endMultiGame(room: StatDuelRoom): void {
-        this.stopClock();
-        if (!this.isPlayer1() || !this.roomId || room.status === 'finished') {
+        if (room.status === 'finished') {
+            this.stopClock();
             this.phase.set('result');
             this.maybeFireMultiConfetti(room);
             return;
         }
+        if (!this.roomId || this.finishingInProgress || room.p1_picks.length !== ROUND_COUNT || room.p2_picks.length !== ROUND_COUNT) return;
+        this.finishingInProgress = true;
         const p1Total = room.p1_picks.reduce((s, p) => s + p.value, 0);
         const p2Total = room.p2_picks.reduce((s, p) => s + p.value, 0);
         const winner = p1Total > p2Total ? 'player1' : p2Total > p1Total ? 'player2' : 'draw';
-        void this.supabaseService.updateStatDuelRoom(this.roomId, { status: 'finished', winner });
-        this.phase.set('result');
-        const me = this.supabaseService.getCurrentUser();
-        const isMeP1 = me && room.player1_id === me.id;
-        const iWon = (winner === 'player1' && isMeP1) || (winner === 'player2' && !isMeP1);
-        if (iWon) setTimeout(() => this.launchConfetti(), 300);
+        void this.supabaseService.updateStatDuelRoom(this.roomId, { status: 'finished', winner })
+            .then(async () => {
+                if (!this.roomId) return;
+                const refreshed = await this.supabaseService.getStatDuelRoom(this.roomId);
+                this.room.set(refreshed);
+                if (refreshed.status === 'finished') this.endMultiGame(refreshed);
+            })
+            .catch(() => undefined)
+            .finally(() => { this.finishingInProgress = false; });
     }
 
     /** Lance les confettis si le resultat multijoueur le justifie. */
@@ -904,7 +937,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             void this.startSolo();
             return;
         }
-        void this.requestStatDuelReplay();
+        this.configurationError.set('');
+        void this.requestStatDuelReplay().catch(() => {
+            this.configurationError.set('Impossible de relancer la partie pour le moment.');
+        });
     }
 
     /** Reinitialise l'etat local de la partie. */
@@ -925,6 +961,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.pokemonVisible.set(false);
         this.pokemonAnimating.set(false);
         this.botPickedRounds.clear();
+        this.finalSyncInProgress = false;
+        this.lastFinalSyncAt = 0;
         this.stopClock();
 
         this.duelShown = false;
@@ -938,13 +976,13 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     private async requestStatDuelReplay(): Promise<void> {
         if (!this.roomId) return;
         const isP1 = this.isPlayer1();
+        const current = await this.supabaseService.getStatDuelRoom(this.roomId);
+        if (current.status !== 'finished') return;
         if (this.isDevMode()) {
             await this.supabaseService.updateStatDuelRoom(this.roomId, { p1_ready: true, p2_ready: true });
             const refreshed = await this.supabaseService.getStatDuelRoom(this.roomId);
             this.room.set(refreshed);
-            if (refreshed.status === 'finished') {
-                await this.launchReplayGame();
-            }
+            await this.launchReplayIfReady(refreshed);
             return;
         }
 
@@ -961,7 +999,11 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.replayLaunchInProgress = true;
         try {
             await this.launchReplayGame();
+            this.configurationError.set('');
             return true;
+        } catch {
+            this.configurationError.set('Impossible de relancer la partie pour le moment.');
+            return false;
         } finally {
             this.replayLaunchInProgress = false;
         }
@@ -970,8 +1012,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     /** Lance la partie de revanche. */
     private async launchReplayGame(): Promise<void> {
         if (!this.roomId) return;
-        const currentRoom = this.room();
-        if (!currentRoom) return;
+        const currentRoom = await this.supabaseService.getStatDuelRoom(this.roomId);
+        if (currentRoom.status !== 'finished' || !currentRoom.p1_ready || !currentRoom.p2_ready) return;
         const allPokemon = this.getConfiguredPokemonPool(await this.loadAll(), currentRoom.settings);
         if (allPokemon.length < ROUND_COUNT) {
             this.configurationError.set('Ces filtres doivent laisser au moins 6 Pokemon distincts.');
@@ -989,18 +1031,14 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             p1_ready: false,
             p2_ready: false,
         });
-        this.resetGameState();
-        await this.loadPokemonAndStartMulti({
-            ...currentRoom,
-            status: 'playing',
-            pokemon_ids: pokemonIds,
-            p1_picks: [],
-            p2_picks: [],
-            winner: null,
-            round_start_at: roundStartAt,
-            p1_ready: false,
-            p2_ready: false,
-        });
+        // Realtime peut déjà avoir démarré la revanche pendant l'appel SQL.
+        // Une seconde remise à zéro effacerait alors les choix et arrêterait l'horloge.
+        if (this.phase() === 'result') {
+            this.resetGameState();
+            const refreshed = await this.supabaseService.getStatDuelRoom(this.roomId);
+            this.room.set(refreshed);
+            await this.loadPokemonAndStartMulti(refreshed);
+        }
     }
 
     /** Navigue vers la page d'accueil. */
