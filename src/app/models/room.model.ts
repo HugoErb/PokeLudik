@@ -74,11 +74,12 @@ export interface AuctionGameSettings {
   categories: string[];
   auctionFormat: AuctionFormat;
   startingBudget: number;
+  randomAwardOnNoBid: boolean;
 }
 
 export interface AuctionResult {
   pokemonId: number;
-  outcome: 'purchased' | 'free' | 'blocked' | 'tied';
+  outcome: 'purchased' | 'free' | 'blocked' | 'tied' | 'unsold';
   winner: 'player1' | 'player2' | null;
   price: number;
   p1Bid?: number;

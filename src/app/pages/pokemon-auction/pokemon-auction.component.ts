@@ -111,9 +111,12 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     await firstValueFrom(this.supabase.authReady$);
-    this.allPokemon.set(await firstValueFrom(this.pokemonService.loadAll()));
     try {
-      const initial = await this.supabase.getPokemonAuctionRoom(this.roomId());
+      const [pokemon, initial] = await Promise.all([
+        firstValueFrom(this.pokemonService.loadAll()),
+        this.supabase.getPokemonAuctionRoom(this.roomId()),
+      ]);
+      this.allPokemon.set(pokemon);
       await this.loadOpponent(initial);
       this.onRoom(initial);
       this.roomSub = this.supabase.subscribeToPokemonAuctionRoom(this.roomId()).subscribe(room => this.onRoom(room));
@@ -172,6 +175,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
       ? ` Offres révélées : ${result.p1Bid ?? 0} ₽ / ${result.p2Bid ?? 0} ₽.`
       : '';
     if (result.outcome === 'tied') return `Égalité pour ${pokemonName} : il reviendra plus tard.${revealedBids}`;
+    if (result.outcome === 'unsold') return `Aucune offre pour ${pokemonName} : il reviendra plus tard.${revealedBids}`;
     const mine = result.winner === this.myRole();
     const subject = mine ? 'Tu' : this.opponentName();
     const verb = mine ? 'remportes' : 'remporte';

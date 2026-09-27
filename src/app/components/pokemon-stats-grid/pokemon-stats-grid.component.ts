@@ -13,6 +13,7 @@ type StatKey = keyof Pokemon['stats'];
 export class PokemonStatsGridComponent {
   pokemon = input.required<Pokemon>();
   highlightHighest = input(true);
+  showValues = input(false);
   variant = input<'tiles' | 'bars'>('tiles');
 
   protected readonly stats: { key: StatKey; label: string; color: string; barColor: string }[] = [

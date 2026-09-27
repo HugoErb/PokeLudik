@@ -20,6 +20,9 @@
             [style.width]="getStatBarWidth(pokemon().stats[stat.key])"
           ></div>
         </div>
+        @if (showValues()) {
+          <span class="w-8 shrink-0 text-right text-xs font-black tabular-nums text-white">{{ pokemon().stats[stat.key] }}</span>
+        }
       </div>
     }
   </div>

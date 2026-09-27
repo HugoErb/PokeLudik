@@ -60,6 +60,8 @@ Le schéma de référence complet est dans `sql-schema/ddb-schema.sql`. Il conti
 tables, permissions, règles multijoueur, enchères et le catalogue Pokémon. Il sert à
 créer une nouvelle base. Les anciennes migrations ponctuelles ont été retirées après
 leur application ; une base existante ne doit pas réexécuter le schéma complet.
+Pour appliquer les corrections du mode enchères à une base existante, exécuter
+`sql-schema/migrations/2026-09-27-pokemon-auction.sql` dans l’éditeur SQL Supabase.
 
 ## Scripts
 

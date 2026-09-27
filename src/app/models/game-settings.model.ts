@@ -14,7 +14,8 @@ export type SettingsControl =
   | 'firstPlayer'
   | 'initialHint'
   | 'auctionFormat'
-  | 'startingBudget';
+  | 'startingBudget'
+  | 'randomAwardOnNoBid';
 
 export interface ModeSettings {
   generations: number[];
@@ -26,11 +27,12 @@ export interface ModeSettings {
   initialHint: WhoInitialHint;
   auctionFormat: AuctionFormat;
   startingBudget: number;
+  randomAwardOnNoBid: boolean;
 }
 
 export type GuessGameSettings = Pick<ModeSettings, 'generations' | 'categories' | 'noPokedex' | 'noSearch' | 'firstPlayer' | 'randomPokemon'>;
 export type WhoModeSettings = Pick<ModeSettings, 'generations' | 'categories' | 'initialHint'>;
-export type AuctionModeSettings = Pick<ModeSettings, 'generations' | 'categories' | 'auctionFormat' | 'startingBudget'>;
+export type AuctionModeSettings = Pick<ModeSettings, 'generations' | 'categories' | 'auctionFormat' | 'startingBudget' | 'randomAwardOnNoBid'>;
 
 export interface SettingsDefinition {
   configurable: boolean;
@@ -48,6 +50,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     initialHint: 'silhouette',
     auctionFormat: 'live',
     startingBudget: 1000,
+    randomAwardOnNoBid: true,
   },
   stat_duel: {
     generations: [],
@@ -59,6 +62,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     initialHint: 'silhouette',
     auctionFormat: 'live',
     startingBudget: 1000,
+    randomAwardOnNoBid: true,
   },
   draft_duo: {
     generations: [],
@@ -70,6 +74,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     initialHint: 'silhouette',
     auctionFormat: 'live',
     startingBudget: 1000,
+    randomAwardOnNoBid: true,
   },
   who_that_pokemon: {
     generations: [],
@@ -81,6 +86,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     initialHint: 'silhouette',
     auctionFormat: 'live',
     startingBudget: 1000,
+    randomAwardOnNoBid: true,
   },
   pokemon_auction: {
     generations: [],
@@ -92,6 +98,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     initialHint: 'silhouette',
     auctionFormat: 'live',
     startingBudget: 1000,
+    randomAwardOnNoBid: true,
   },
   draft_trainer: {
     generations: [],
@@ -103,6 +110,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     initialHint: 'silhouette',
     auctionFormat: 'live',
     startingBudget: 1000,
+    randomAwardOnNoBid: true,
   },
 };
 
@@ -129,7 +137,7 @@ const SETTINGS_DEFINITIONS: Record<SettingsMode, SettingsDefinition> = {
   },
   pokemon_auction: {
     configurable: true,
-    controls: ['generations', 'categories', 'auctionFormat', 'startingBudget'],
+    controls: ['generations', 'categories', 'auctionFormat', 'startingBudget', 'randomAwardOnNoBid'],
   },
 };
 
@@ -166,6 +174,7 @@ export function toAuctionSettings(settings: ModeSettings): AuctionGameSettings {
     categories: settings.categories,
     auctionFormat: settings.auctionFormat,
     startingBudget: settings.startingBudget,
+    randomAwardOnNoBid: settings.randomAwardOnNoBid,
   };
 }
 

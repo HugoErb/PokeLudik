@@ -734,6 +734,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	/** Initialise le lobby Enchères Pokémon. */
 	private async initPokemonAuctionLobby(): Promise<void> {
 		try {
+		this.pokemonService.loadAll().subscribe();
 			let room = await this.supabaseService.getPokemonAuctionRoom(this.roomId());
 			this.syncRemoteSettings('pokemon_auction', room.settings);
 			const user = this.supabaseService.getCurrentUser();
