@@ -21,8 +21,7 @@
 					<div>
 						<label class="auth-label">Mot de passe actuel</label>
 						<div class="relative flex items-center">
-							<iconify-icon [icon]="ICONS.password" class="absolute left-3 text-slate-400"></iconify-icon>
-							<input [type]="showCurrentPassword() ? 'text' : 'password'" [(ngModel)]="currentPassword" placeholder="••••••••" autocomplete="current-password" class="auth-field pl-10 pr-12" />
+							<input [type]="showCurrentPassword() ? 'text' : 'password'" [(ngModel)]="currentPassword" placeholder="••••••••" autocomplete="current-password" class="auth-field pr-12" />
 							<button (click)="toggleCurrentPassword()" type="button" class="absolute right-0 w-12 h-full flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
 								<iconify-icon [icon]="showCurrentPassword() ? ICONS.eyeOff : ICONS.eye" class="text-xl"></iconify-icon>
 							</button>
@@ -32,8 +31,7 @@
 					<div>
 						<label class="auth-label">Nouveau mot de passe</label>
 						<div class="relative flex items-center">
-							<iconify-icon [icon]="ICONS.password" class="absolute left-3 text-slate-400"></iconify-icon>
-							<input [type]="showNewPassword() ? 'text' : 'password'" [(ngModel)]="newPassword" placeholder="6 caractères minimum" autocomplete="new-password" class="auth-field pl-10 pr-12" />
+							<input [type]="showNewPassword() ? 'text' : 'password'" [(ngModel)]="newPassword" placeholder="6 caractères minimum" autocomplete="new-password" class="auth-field pr-12" />
 							<button (click)="toggleNewPassword()" type="button" class="absolute right-0 w-12 h-full flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
 								<iconify-icon [icon]="showNewPassword() ? ICONS.eyeOff : ICONS.eye" class="text-xl"></iconify-icon>
 							</button>
@@ -43,8 +41,7 @@
 					<div>
 						<label class="auth-label">Confirmation</label>
 						<div class="relative flex items-center">
-							<iconify-icon [icon]="ICONS.password" class="absolute left-3 text-slate-400"></iconify-icon>
-							<input [type]="showConfirmPassword() ? 'text' : 'password'" [(ngModel)]="confirmPassword" placeholder="Répète le mot de passe" autocomplete="new-password" class="auth-field pl-10 pr-12" />
+							<input [type]="showConfirmPassword() ? 'text' : 'password'" [(ngModel)]="confirmPassword" placeholder="Répète le mot de passe" autocomplete="new-password" class="auth-field pr-12" />
 							<button (click)="toggleConfirmPassword()" type="button" class="absolute right-0 w-12 h-full flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors">
 								<iconify-icon [icon]="showConfirmPassword() ? ICONS.eyeOff : ICONS.eye" class="text-xl"></iconify-icon>
 							</button>
@@ -75,10 +72,7 @@
 				<div class="space-y-4 my-2">
 					<div>
 						<label class="auth-label">Nouveau pseudo</label>
-						<div class="relative">
-							<iconify-icon [icon]="ICONS.user" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
-							<input type="text" [(ngModel)]="newUsernameInput" placeholder="Ton pseudo" autocomplete="username" (keyup.enter)="changeUsername()" class="auth-field pl-10" />
-						</div>
+						<input type="text" [(ngModel)]="newUsernameInput" placeholder="Ton pseudo" autocomplete="username" (keyup.enter)="changeUsername()" class="auth-field" />
 					</div>
 				</div>
 

@@ -136,14 +136,13 @@
 			<div class="tab-content flex flex-col gap-4">
 				<p class="text-sm text-slate-400">Saisis le pseudo exact de la personne à ajouter.</p>
 				<div class="flex gap-2">
-					<div class="relative flex-1">
-						<iconify-icon [icon]="ICONS.user" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></iconify-icon>
+					<div class="flex-1">
 						<input
 							type="text"
 							[(ngModel)]="addFriendInput"
 							(keyup.enter)="sendFriendRequest()"
 							placeholder="Pseudo..."
-							class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+							class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
 						/>
 					</div>
 					<button
