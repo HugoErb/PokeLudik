@@ -138,6 +138,17 @@ describe('GameService', () => {
     expect(service.currentRoom()).toEqual(replay);
   });
 
+  it('ignore une réponse de polling périmée arrivée après la revanche', async () => {
+    const replay = room({ status: 'selecting', pokemon_p1: null, pokemon_p2: null, version: 8 });
+    service.currentRoom.set(replay);
+    supabaseService.getRoomById.and.resolveTo(room({ status: 'finished', p1_ready: true, p2_ready: true, winner_id: 'player-2', version: 7 }));
+
+    await service.refreshRoom('room-1');
+
+    expect(service.currentRoom()).toEqual(replay);
+    expect(supabaseService.replayGuessPokemonRoom).not.toHaveBeenCalled();
+  });
+
   it('attend les deux accords avant de relancer', async () => {
     const finished = room({ status: 'finished', p1_ready: false, p2_ready: true });
     service.currentRoom.set(finished);

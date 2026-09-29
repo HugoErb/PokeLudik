@@ -563,6 +563,16 @@ export class SupabaseService implements OnDestroy {
         if (error) throw error;
     }
 
+    /** Estime l'écart (ms) entre l'horloge serveur et l'horloge locale ; 0 si indisponible. */
+    async getServerClockOffset(): Promise<number> {
+        const start = Date.now();
+        const { data, error } = await this.supabase.rpc('get_server_time');
+        const end = Date.now();
+        if (error || typeof data !== 'string') return 0;
+        const serverTime = new Date(data).getTime();
+        return Number.isFinite(serverTime) ? serverTime - (start + end) / 2 : 0;
+    }
+
     async cancelPokemonAuctionRoom(roomId: string): Promise<void> {
         const { error } = await this.supabase.rpc('cancel_pokemon_auction_room', { p_room_id: roomId });
         if (error) throw error;

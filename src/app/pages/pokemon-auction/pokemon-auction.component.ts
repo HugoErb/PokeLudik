@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription, firstValueFrom } from 'rxjs';
+import confetti from 'canvas-confetti';
 import { Pokemon } from '../../models/pokemon.model';
 import { PokemonAuctionRoom } from '../../models/room.model';
 import { SupabaseService } from '../../services/supabase.service';
@@ -16,6 +17,7 @@ import { ICONS } from '../../constants/icons';
 import { TYPE_COLORS } from '../../constants/type-chart';
 import { computeDuoCoverageScore, computeFinalScore, computeStatsScore } from '../../utils/draft-utils';
 import { auctionFormatLabel, getMaximumAuctionBid } from '../../utils/auction-utils';
+import { isStaleRoomState } from '../../utils/multiplayer-room-state';
 
 interface ResultToast {
   message: string;
@@ -24,6 +26,15 @@ interface ResultToast {
   winnerAvatar: string | null;
   winnerName: string | null;
 }
+
+interface PaymentFx {
+  id: number;
+  role: 'player1' | 'player2';
+  amount: number;
+}
+
+/** Délai entre deux tentatives de clôture d'une enchère dont le timer est à zéro. */
+const FINALIZE_RETRY_MS = 1500;
 
 @Component({
   selector: 'app-pokemon-auction',
@@ -45,7 +56,11 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   private poll?: ReturnType<typeof setInterval>;
   private resultToastTimeout?: ReturnType<typeof setTimeout>;
   private resultSaving = false;
-  private finalizedRound = 0;
+  private finalizeInFlight = false;
+  private lastFinalizeAttempt = 0;
+  private serverClockOffset = 0;
+  private paymentFxId = 0;
+  private confettiFired = false;
 
   readonly room = signal<PokemonAuctionRoom | null>(null);
   readonly allPokemon = signal<Pokemon[]>([]);
@@ -60,6 +75,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   readonly opponentName = signal('Adversaire');
   readonly opponentAvatar = signal<string | null>(null);
   readonly myAvatar = signal<string | null>(null);
+  readonly paymentFx = signal<PaymentFx[]>([]);
   bidAmount = 10;
 
   readonly isPlayer1 = computed(() => this.room()?.player1_id === this.supabase.currentUserSignal()?.id);
@@ -73,6 +89,8 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   readonly passTokensEnabled = computed(() => this.room()?.settings?.randomAwardOnNoBid === false);
   readonly myPassesLeft = computed(() => this.isPlayer1() ? this.room()?.p1_passes_left ?? 0 : this.room()?.p2_passes_left ?? 0);
   readonly opponentPassesLeft = computed(() => this.isPlayer1() ? this.room()?.p2_passes_left ?? 0 : this.room()?.p1_passes_left ?? 0);
+  /** Sans passe restant, un joueur incomplet doit enchérir : le bouton « Passer » est grisé. */
+  readonly passLocked = computed(() => this.passTokensEnabled() && this.myTeam().length < 6 && this.myPassesLeft() <= 0);
   readonly maxBid = computed(() => getMaximumAuctionBid(this.myBalance(), this.myTeam().length));
   readonly minimumBid = computed(() => Math.max(10, (this.room()?.current_bid ?? 0) + 10));
   readonly formatLabel = computed(() => auctionFormatLabel(this.room()?.settings?.auctionFormat ?? 'live'));
@@ -130,6 +148,8 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
         this.supabase.getPokemonAuctionRoom(this.roomId()),
       ]);
       this.allPokemon.set(pokemon);
+      this.serverClockOffset = await this.supabase.getServerClockOffset().catch(() => 0);
+      this.now.set(this.serverNow());
       await this.loadOpponent(initial);
       this.onRoom(initial);
       this.roomSub = this.supabase.subscribeToPokemonAuctionRoom(this.roomId()).subscribe(room => this.onRoom(room));
@@ -168,13 +188,16 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   }
 
   protected async pass(): Promise<void> {
-    const room = this.room(); if (!room || !this.canAct()) return;
+    const room = this.room(); if (!room || !this.canAct() || this.passLocked()) return;
     this.actionPending.set(true); this.error.set('');
     try {
       if (room.settings?.auctionFormat === 'sealed') await this.supabase.submitPokemonAuctionSealedBid(this.roomId(), 0);
       else await this.supabase.passPokemonAuctionTurn(this.roomId());
       await this.refresh();
-    } catch { this.error.set('Action refusée. La manche a peut-être déjà changé.'); }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      this.error.set(message.includes('no_pass_left') ? 'Tu n’as plus de passe : tu dois enchérir.' : 'Action refusée. La manche a peut-être déjà changé.');
+    }
     finally { this.actionPending.set(false); }
   }
 
@@ -185,11 +208,11 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
       ? `${pokemon.name.charAt(0).toUpperCase()}${pokemon.name.slice(1)}`
       : `Pokémon #${result.pokemonId}`;
     const revealedBids = this.room()?.settings?.auctionFormat === 'sealed'
-      ? `Offres révélées : ${result.p1Bid ?? 0} ₽ / ${result.p2Bid ?? 0} ₽.`
+      ? `Offres révélées : ${result.p1Bid ?? 0} ₽ / ${result.p2Bid ?? 0} ₽.${result.p1Bid && result.p1Bid === result.p2Bid ? ' Égalité : tirage au sort.' : ''}`
       : '';
     const toast = (message: string, winnerAvatar: string | null = null, winnerName: string | null = null): ResultToast =>
       ({ message, revealedBids, pokemon, winnerAvatar, winnerName });
-    if (result.outcome === 'tied') return toast(`Égalité pour ${pokemonName} : il reviendra plus tard.`);
+    if (result.outcome === 'tied') return toast(`Égalité pour ${pokemonName}.`);
     if (result.outcome === 'unsold') return toast(`Aucune offre pour ${pokemonName}.`);
     const mine = result.winner === this.myRole();
     const subject = mine ? 'Tu' : this.opponentName();
@@ -223,31 +246,78 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     try { this.onRoom(await this.supabase.getPokemonAuctionRoom(this.roomId())); } catch { /* polling de secours */ }
   }
 
+  /** Heure serveur estimée : les timers ne dépendent pas de l'horloge de l'appareil. */
+  private serverNow(): number { return Date.now() + this.serverClockOffset; }
+
   private tick(): void {
-    this.now.set(Date.now());
+    const now = this.serverNow();
+    this.now.set(now);
     const room = this.room();
-    if (room?.status === 'playing' && room.current_pokemon_id && this.timeLeft() === 0 && this.finalizedRound !== room.round) {
-      this.finalizedRound = room.round;
-      void this.supabase.finalizePokemonAuction(this.roomId()).then(() => this.refresh()).catch(() => { this.finalizedRound = 0; });
+    // Réessaie tant que la manche reste ouverte : une offre de dernière seconde prolonge le timer côté serveur.
+    if (room?.status === 'playing' && room.current_pokemon_id && this.timeLeft() === 0 && !this.finalizeInFlight && now - this.lastFinalizeAttempt >= FINALIZE_RETRY_MS) {
+      this.finalizeInFlight = true;
+      this.lastFinalizeAttempt = now;
+      void this.supabase.finalizePokemonAuction(this.roomId())
+        .then(() => this.refresh())
+        .catch(() => undefined)
+        .finally(() => { this.finalizeInFlight = false; });
     }
   }
 
   private onRoom(room: PokemonAuctionRoom): void {
-    const previousRound = this.room()?.round;
-    const previousStatus = this.room()?.status;
-    const previousResultRound = this.room()?.last_result?.round;
+    const previous = this.room();
+    if (isStaleRoomState(previous, room)) return;
+    const newGame = !!previous && (room.round < previous.round || (previous.status === 'finished' && room.status === 'playing'));
     this.room.set(room);
-    if (room.last_result && room.last_result.round !== previousResultRound) this.showResultToast();
+    if (newGame) this.resetGameUi();
+    else if (previous && room.status === 'playing') this.showPayments(previous, room);
+    if (room.status === 'finished') this.clearResultToast();
+    else if (previous && room.last_result && room.last_result.round !== previous.last_result?.round) this.showResultToast();
     if (room.status === 'finished' && (room.p1_team.length < 6 || room.p2_team.length < 6)) {
       void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
       return;
     }
-    if (room.round !== previousRound) {
-      this.finalizedRound = 0;
+    if (room.round !== previous?.round) {
+      this.lastFinalizeAttempt = 0;
       this.bidAmount = Math.min(this.maxBid(), this.minimumBid());
     }
-    if (previousStatus === 'finished' && room.status === 'playing') this.iWantReplay.set(false);
     if (room.status === 'finished') void this.saveResultIfNeeded(room);
+    if (room.status === 'finished' && room.winner === this.myRole()) this.launchConfetti();
+  }
+
+  /** Efface les pop-ups et animations héritées de la partie précédente. */
+  private resetGameUi(): void {
+    this.clearResultToast();
+    this.paymentFx.set([]);
+    this.iWantReplay.set(false);
+    this.confettiFired = false;
+    this.error.set('');
+  }
+
+  /** Fait s'envoler le montant payé depuis le solde du joueur qui vient de payer. */
+  private showPayments(previous: PokemonAuctionRoom, room: PokemonAuctionRoom): void {
+    const payments: PaymentFx[] = [];
+    if (room.p1_balance < previous.p1_balance) payments.push({ id: ++this.paymentFxId, role: 'player1', amount: previous.p1_balance - room.p1_balance });
+    if (room.p2_balance < previous.p2_balance) payments.push({ id: ++this.paymentFxId, role: 'player2', amount: previous.p2_balance - room.p2_balance });
+    if (!payments.length) return;
+    this.paymentFx.update(list => [...list, ...payments]);
+    const ids = new Set(payments.map(fx => fx.id));
+    setTimeout(() => this.paymentFx.update(list => list.filter(fx => !ids.has(fx.id))), 1400);
+  }
+
+  protected paymentsFor(role: 'player1' | 'player2'): PaymentFx[] { return this.paymentFx().filter(fx => fx.role === role); }
+
+  private launchConfetti(): void {
+    if (this.confettiFired) return;
+    this.confettiFired = true;
+    const colors = ['#fb923c', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
+    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+  }
+
+  private clearResultToast(): void {
+    if (this.resultToastTimeout) clearTimeout(this.resultToastTimeout);
+    this.resultToastTimeout = undefined;
+    this.resultToast.set(null);
   }
 
   private showResultToast(): void {
@@ -297,6 +367,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     const message = error instanceof Error ? error.message : '';
     if (message.includes('invalid_bid')) return 'Cette offre dépasse ton budget disponible ou ta réserve obligatoire.';
     if (message.includes('blocking_would_exhaust_pool')) return 'Ce Pokémon ne peut plus être bloqué : il faut garantir la fin de la partie.';
+    if (message.includes('bid_not_allowed') || message.includes('sealed_bid_not_allowed')) return 'Offre refusée : le temps de cette enchère est écoulé.';
     return 'Offre refusée. Le prix ou la manche a peut-être déjà changé.';
   }
 }

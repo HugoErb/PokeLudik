@@ -46,6 +46,8 @@ export interface Room {
   created_at: string;
   settings: GameSettings | null;
   last_guess: number | null;
+  /** Incrémentée à chaque mise à jour : permet d'ignorer un état périmé. */
+  version?: number;
 }
 
 export type RoomPatch = Partial<Omit<Room, 'id' | 'created_at' | 'player1_id'>>;
@@ -124,6 +126,10 @@ export interface PokemonAuctionRoom {
   p1_ready: boolean;
   p2_ready: boolean;
   created_at: string;
+  p1_pass_used?: boolean;
+  p2_pass_used?: boolean;
+  /** Incrémentée à chaque mise à jour : permet d'ignorer un état périmé. */
+  version?: number;
 }
 
 export interface GameInvite {

@@ -5,6 +5,7 @@ import { SupabaseService } from './supabase.service';
 import { PokemonService } from './pokemon.service';
 import { Pokemon } from '../models/pokemon.model';
 import { environment } from '../../environments/environment';
+import { isStaleRoomState } from '../utils/multiplayer-room-state';
 
 @Injectable({ providedIn: 'root' })
 export class GameService implements OnDestroy {
@@ -52,8 +53,7 @@ export class GameService implements OnDestroy {
         this.stopWatching();
         this.roomSubscription = this.supabaseService.subscribeToRoom(roomId).subscribe({
             next: (updatedRoom) => {
-                this.currentRoom.set(updatedRoom);
-                void this.launchReplayIfReady(roomId, updatedRoom);
+                if (this.applyRoom(updatedRoom)) void this.launchReplayIfReady(roomId, updatedRoom);
             },
             error: () => {
                 // Si on perd la connexion, on tente quand même de rafraîchir une fois manuellement
@@ -62,7 +62,7 @@ export class GameService implements OnDestroy {
         });
         // 2. Charger l'état initial ensuite
         const room = await this.supabaseService.getRoomById(roomId);
-        this.currentRoom.set(room);
+        this.applyRoom(room);
         void this.launchReplayIfReady(roomId, room);
 
         this.pollInterval && clearInterval(this.pollInterval);
@@ -160,7 +160,7 @@ export class GameService implements OnDestroy {
     async updateSettings(roomId: string, settings: GameSettings): Promise<void> {
         await this.supabaseService.updateRoom(roomId, { settings });
         const refreshed = await this.supabaseService.getRoomById(roomId);
-        this.currentRoom.set(refreshed);
+        this.applyRoom(refreshed);
     }
 
     /** Enregistre le Pokémon choisi par le joueur courant (p1 ou p2 selon son rôle). */
@@ -209,11 +209,11 @@ export class GameService implements OnDestroy {
                 current_turn: this.resolveFirstTurn(refreshed),
             });
             const finalRoom = await this.supabaseService.getRoomById(roomId);
-            this.currentRoom.set(finalRoom);
+            this.applyRoom(finalRoom);
             return;
         }
 
-        this.currentRoom.set(refreshed);
+        this.applyRoom(refreshed);
     }
 
     /**
@@ -229,7 +229,7 @@ export class GameService implements OnDestroy {
         if (!localRoom) throw new Error('Aucune room active');
 
         const room = await this.supabaseService.getRoomById(roomId);
-        this.currentRoom.set(room);
+        this.applyRoom(room);
         if (room.status !== 'playing') throw new Error('La partie n’est pas en cours');
         if (room.current_turn !== user.id) throw new Error('Ce n’est pas ton tour');
 
@@ -292,7 +292,7 @@ export class GameService implements OnDestroy {
 
         const room = await this.supabaseService.getRoomById(roomId);
         if (room.status !== 'finished') return;
-        this.currentRoom.set(room);
+        this.applyRoom(room);
 
         const isPlayer1 = this.isPlayer1();
         const patch: RoomPatch = isPlayer1 ? { p1_ready: true } : { p2_ready: true };
@@ -301,7 +301,7 @@ export class GameService implements OnDestroy {
 
         const refreshed = await this.supabaseService.getRoomById(roomId);
 
-        this.currentRoom.set(refreshed);
+        this.applyRoom(refreshed);
         await this.launchReplayIfReady(roomId, refreshed);
     }
 
@@ -325,7 +325,7 @@ export class GameService implements OnDestroy {
     async refreshRoom(roomId: string): Promise<void> {
         try {
             const room = await this.supabaseService.getRoomById(roomId);
-            this.currentRoom.set(room);
+            if (!this.applyRoom(room)) return;
             void this.launchReplayIfReady(roomId, room);
             void this.launchSelectingIfBothReady(roomId, room);
         } catch {
@@ -351,7 +351,7 @@ export class GameService implements OnDestroy {
                 current_turn: this.resolveFirstTurn(room),
             });
             const finalRoom = await this.supabaseService.getRoomById(roomId);
-            this.currentRoom.set(finalRoom);
+            this.applyRoom(finalRoom);
         } catch {
             // ignore — l'autre joueur a peut-être déjà lancé entre temps
         } finally {
@@ -388,7 +388,18 @@ export class GameService implements OnDestroy {
     private async updateAndRefresh(roomId: string, patch: RoomPatch): Promise<void> {
         await this.supabaseService.updateRoom(roomId, patch);
         const refreshed = await this.supabaseService.getRoomById(roomId);
-        this.currentRoom.set(refreshed);
+        this.applyRoom(refreshed);
+    }
+
+    /**
+     * Applique un état de room reçu (Realtime, polling ou réponse d'action).
+     * Un état plus ancien que celui affiché est ignoré : sinon une réponse de polling en retard
+     * peut ramener une partie terminée après la revanche et renvoyer le joueur à l'accueil.
+     */
+    private applyRoom(room: Room): boolean {
+        if (isStaleRoomState(this.currentRoom(), room)) return false;
+        this.currentRoom.set(room);
+        return true;
     }
 
     private async launchReplayIfReady(roomId: string, room: Room): Promise<void> {
@@ -401,7 +412,7 @@ export class GameService implements OnDestroy {
             await this.supabaseService.replayGuessPokemonRoom(roomId);
 
             const finalRoom = await this.supabaseService.getRoomById(roomId);
-            this.currentRoom.set(finalRoom);
+            this.applyRoom(finalRoom);
         } finally {
             this.replayLaunchInProgress = false;
         }

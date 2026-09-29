@@ -1,5 +1,6 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, OnDestroy, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import confetti from 'canvas-confetti';
 import { firstValueFrom, Subscription } from 'rxjs';
@@ -37,7 +38,7 @@ type WhoConfigMode = 'solo';
 
 @Component({
   selector: 'app-who-that-pokemon',
-  imports: [FormsModule, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent, GameSettingsPanelComponent],
+  imports: [FormsModule, NgClass, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent, GameSettingsPanelComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './who-that-pokemon.component.html',
   styles: [`
@@ -236,6 +237,11 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     return resolveWhoInitialHint(target.id + roundSeed, this.settings().initialHint ?? 'silhouette');
   });
   readonly visibleHints = computed<WhoRevealedHint[]>(() => [this.initialHint(), ...this.revealedHints()]);
+  /** Sur grand écran, la silhouette occupe la colonne de gauche et les indices textuels celle de droite. */
+  readonly hasSilhouetteHint = computed(() => this.visibleHints().includes('silhouette'));
+  readonly textHints = computed(() => this.visibleHints().filter(hint => hint !== 'silhouette'));
+  readonly hintsLayoutClass = computed(() => this.hasSilhouetteHint() && this.textHints().length > 0 ? 'md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]' : '');
+  readonly textHintsLayoutClass = computed(() => !this.hasSilhouetteHint() && this.textHints().length > 1 ? 'md:grid-cols-2' : '');
   readonly targetAnimationKey = computed(() => this.targetPokemon()?.id ?? 0);
 
   get inviteLink(): string {

@@ -1,5 +1,5 @@
 import { DraftDuoRoom } from '../models/room.model';
-import { resolveLobbyGameMode, shouldEnterMultiplayerGame } from './multiplayer-room-state';
+import { isStaleRoomState, resolveLobbyGameMode, shouldEnterMultiplayerGame } from './multiplayer-room-state';
 
 function room(status: DraftDuoRoom['status']): DraftDuoRoom {
   return {
@@ -31,5 +31,14 @@ describe('multiplayer room state', () => {
     expect(resolveLobbyGameMode('who_that_pokemon')).toBe('who_that_pokemon');
     expect(resolveLobbyGameMode(null)).toBe('guess_my_pokemon');
     expect(resolveLobbyGameMode('inconnu')).toBe('guess_my_pokemon');
+  });
+
+  it('détecte un état de room plus ancien que celui affiché', () => {
+    expect(isStaleRoomState({ id: 'room-1', version: 5 }, { id: 'room-1', version: 4 })).toBeTrue();
+    expect(isStaleRoomState({ id: 'room-1', version: 5 }, { id: 'room-1', version: 5 })).toBeFalse();
+    expect(isStaleRoomState({ id: 'room-1', version: 5 }, { id: 'room-1', version: 6 })).toBeFalse();
+    expect(isStaleRoomState({ id: 'room-1', version: 5 }, { id: 'room-2', version: 1 })).toBeFalse();
+    expect(isStaleRoomState({ id: 'room-1' }, { id: 'room-1', version: 1 })).toBeFalse();
+    expect(isStaleRoomState(null, { id: 'room-1', version: 1 })).toBeFalse();
   });
 });
