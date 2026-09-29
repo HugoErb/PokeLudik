@@ -122,7 +122,9 @@
 	<!-- ═══ PHASE PLAYING ══════════════════════════════════════════════════════ -->
 	@if (phase() === 'playing') {
 		<!-- Grille de draft -->
-		<main class="flex-1 flex flex-col items-center justify-center px-3 py-2 md:py-6 gap-2 md:gap-5 min-h-0">
+		<main class="flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
+			<!-- min-h-full + justify-center : centré quand ça tient, défilable depuis le haut sinon. -->
+			<div class="flex min-h-full flex-col items-center justify-center px-3 py-2 md:py-6 gap-2 md:gap-5">
 			<p class="text-slate-400 text-xs md:text-sm text-center max-w-md mb-1">
 				Clique sur un Pokémon pour le garder. Tu as <strong class="text-white">10 secondes</strong> par pick.
 			</p>
@@ -158,7 +160,7 @@
 									<button
 										[@lockEffect]
 										(click)="$event.stopPropagation(); openPokemonDetails(slot)"
-										class="absolute top-1 right-1 md:top-2 md:right-2 z-10 w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 flex items-center justify-center shadow-lg transition-all hover:scale-110"
+										class="absolute top-1 right-1 md:top-2 md:right-2 z-10 w-8 h-8 md:w-7 md:h-7 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 flex items-center justify-center shadow-lg transition-all hover:scale-110"
 									>
 										<iconify-icon [icon]="ICONS.search" class="text-white text-[10px] md:text-sm"></iconify-icon>
 									</button>
@@ -217,12 +219,13 @@
 					}
 				</div>
 			</div>
+			</div>
 		</main>
 	}
 
 	<!-- ═══ PHASE WAITING-OPPONENT ════════════════════════════════════════════ -->
 	@if (phase() === 'waiting-opponent') {
-		<main class="flex-1 flex flex-col items-center justify-center gap-6 md:gap-10 px-4 text-center">
+		<main class="flex-1 min-h-0 overflow-y-auto flex flex-col items-center gap-6 md:gap-10 px-4 py-6 text-center [&>:first-child]:mt-auto [&>:last-child]:mb-auto">
 			<div class="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-700 flex items-center justify-center">
 				<iconify-icon [icon]="ICONS.loading" class="text-3xl md:text-5xl text-yellow-400 animate-spin"></iconify-icon>
 			</div>
@@ -358,9 +361,9 @@
 									(click)="openPokemonDetails(p)"
 								>
 									@if (p.id === 493) {
-										<span tabindex="0" aria-label="Arceus, divinité originelle, change de type à volonté : aucune attaque ne le touche en super efficace, tandis qu'il frappe chaque type dans sa faiblesse." class="group/arceus absolute right-1 top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-slate-950 shadow ring-1 ring-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-200">
+										<span tabindex="0" aria-label="Arceus, divinité originelle, change de type à volonté : aucune attaque ne le touche en super efficace, tandis qu'il frappe chaque type dans sa faiblesse." (click)="$event.stopPropagation()" class="group/arceus absolute right-1 top-1 z-20 flex h-7 w-7 md:h-5 md:w-5 items-center justify-center rounded-full bg-yellow-400 text-slate-950 shadow ring-1 ring-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-200">
 											<iconify-icon [icon]="ICONS.crown" class="text-sm"></iconify-icon>
-											<span class="pointer-events-none absolute bottom-7 right-0 z-20 flex w-64 flex-col gap-1.5 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2.5 text-left text-xs leading-snug text-slate-300 opacity-0 shadow-2xl transition-opacity group-hover/arceus:opacity-100 group-focus/arceus:opacity-100">
+											<span class="pointer-events-none absolute bottom-8 md:bottom-7 right-0 z-20 flex w-56 md:w-64 max-w-[70vw] flex-col gap-1.5 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2.5 text-left text-xs leading-snug text-slate-300 opacity-0 shadow-2xl transition-opacity group-hover/arceus:opacity-100 group-focus/arceus:opacity-100">
 												<span class="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-black uppercase tracking-wider text-yellow-400 leading-none">
 													<iconify-icon [icon]="ICONS.crown" class="text-sm"></iconify-icon>
 													Couverture divine
@@ -399,9 +402,9 @@
 									(click)="openPokemonDetails(p)"
 								>
 									@if (p.id === 493) {
-										<span tabindex="0" aria-label="Arceus, divinité originelle, change de type à volonté : aucune attaque ne le touche en super efficace, tandis qu'il frappe chaque type dans sa faiblesse." class="group/arceus absolute right-1 top-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-400 text-slate-950 shadow ring-1 ring-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-200">
+										<span tabindex="0" aria-label="Arceus, divinité originelle, change de type à volonté : aucune attaque ne le touche en super efficace, tandis qu'il frappe chaque type dans sa faiblesse." (click)="$event.stopPropagation()" class="group/arceus absolute right-1 top-1 z-20 flex h-7 w-7 md:h-5 md:w-5 items-center justify-center rounded-full bg-yellow-400 text-slate-950 shadow ring-1 ring-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-200">
 											<iconify-icon [icon]="ICONS.crown" class="text-sm"></iconify-icon>
-											<span class="pointer-events-none absolute bottom-7 right-0 z-20 flex w-64 flex-col gap-1.5 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2.5 text-left text-xs leading-snug text-slate-300 opacity-0 shadow-2xl transition-opacity group-hover/arceus:opacity-100 group-focus/arceus:opacity-100">
+											<span class="pointer-events-none absolute bottom-8 md:bottom-7 right-0 z-20 flex w-56 md:w-64 max-w-[70vw] flex-col gap-1.5 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2.5 text-left text-xs leading-snug text-slate-300 opacity-0 shadow-2xl transition-opacity group-hover/arceus:opacity-100 group-focus/arceus:opacity-100">
 												<span class="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-black uppercase tracking-wider text-yellow-400 leading-none">
 													<iconify-icon [icon]="ICONS.crown" class="text-sm"></iconify-icon>
 													Couverture divine

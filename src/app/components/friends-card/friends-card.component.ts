@@ -177,7 +177,11 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 
 	/** Ferme le menu contextuel lors d'un clic document. */
 	@HostListener('document:click')
+	// Le menu est en position fixed : au défilement ou au redimensionnement il se détacherait de sa ligne.
+	@HostListener('window:scroll')
+	@HostListener('window:resize')
 	onDocumentClick(): void {
+		if (!this.openMenuFriend()) return;
 		this.openMenuFriend.set(null);
 		this.menuPosition.set(null);
 	}

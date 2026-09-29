@@ -103,7 +103,9 @@
 
 	<!-- Phase draft -->
 	@if (phase() === 'draft') {
-		<main class="flex-1 flex flex-col items-center justify-center px-3 py-2 md:py-8 gap-2 md:gap-6 min-h-0">
+		<main class="flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
+			<!-- min-h-full + justify-center : centré quand ça tient, défilable depuis le haut sinon. -->
+			<div class="flex min-h-full flex-col items-center justify-center px-3 py-2 md:py-8 gap-2 md:gap-6">
 
 			<p class="text-slate-400 text-xs md:text-sm text-center max-w-md mb-2">
 				Clique sur un Pokémon pour le <strong class="text-white">garder</strong> dans ton équipe.
@@ -145,7 +147,7 @@
 									<button
 										[@lockEffect]
 										(click)="$event.stopPropagation(); openPokemonDetails(slot)"
-										class="absolute top-1 right-1 md:top-2 md:right-2 z-10 w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 flex items-center justify-center shadow-lg transition-all hover:scale-110"
+										class="absolute top-1 right-1 md:top-2 md:right-2 z-10 w-8 h-8 md:w-7 md:h-7 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 flex items-center justify-center shadow-lg transition-all hover:scale-110"
 									>
 										<iconify-icon [icon]="ICONS.search" class="text-white text-[10px] md:text-sm"></iconify-icon>
 									</button>
@@ -201,6 +203,7 @@
 				}
 			</div>
 			} <!-- end @if (!isResetting()) -->
+			</div>
 		</main>
 	}
 
@@ -226,7 +229,7 @@
 							<div class="bg-slate-800 border border-slate-700 rounded-xl md:rounded-2xl p-2 md:p-5 flex flex-col items-center gap-1 md:gap-3 select-none h-full">
 								<button
 									(click)="openPokemonDetails(p)"
-									class="absolute top-1 right-1 md:top-2 md:right-2 z-10 w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 flex items-center justify-center shadow-lg transition-all hover:scale-110"
+									class="absolute top-1 right-1 md:top-2 md:right-2 z-10 w-8 h-8 md:w-7 md:h-7 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 flex items-center justify-center shadow-lg transition-all hover:scale-110"
 								>
 									<iconify-icon [icon]="ICONS.search" class="text-white text-[10px] md:text-sm"></iconify-icon>
 								</button>

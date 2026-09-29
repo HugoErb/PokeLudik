@@ -66,7 +66,7 @@
 	<!-- Modale pseudo -->
 	@if (showUsernameModal()) {
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-md sm:p-4" (click)="closeUsernameModal()" [@modalAnimation]>
-			<div class="auth-card modal-content flex w-full max-w-sm flex-col gap-4 rounded-[26px] p-5 sm:p-7" (click)="$event.stopPropagation()">
+			<div class="auth-card modal-content flex w-full max-w-sm flex-col gap-4 rounded-[26px] p-5 sm:p-7 max-h-[calc(100dvh-1.5rem)] overflow-y-auto" (click)="$event.stopPropagation()">
 				<div class="flex items-center gap-3"><div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-500/10"><iconify-icon [icon]="ICONS.user" class="text-xl text-cyan-300"></iconify-icon></div><div><h2 class="text-xl font-black tracking-[-0.03em] text-white">Modifier mon pseudo</h2><p class="mt-0.5 text-xs text-slate-400">Choisis ton identité de dresseur.</p></div></div>
 
 				<div class="space-y-4 my-2">
@@ -229,7 +229,7 @@
 
 	<!-- Toast invitation de jeu entrante -->
 	@if (incomingInvite()) {
-		<div [class]="'fixed top-6 right-6 z-[100] bg-slate-800 border rounded-2xl shadow-2xl p-4 w-80 max-w-[calc(100vw-3rem)] flex flex-col gap-3 ' + inviteToastMode(incomingInvite()!.game_mode).borderClass + ' ' + inviteToastMode(incomingInvite()!.game_mode).glowClass">
+		<div [class]="'fixed top-20 right-3 sm:top-6 sm:right-6 z-[100] bg-slate-800 border rounded-2xl shadow-2xl p-4 w-80 max-w-[calc(100vw-3rem)] flex flex-col gap-3 ' + inviteToastMode(incomingInvite()!.game_mode).borderClass + ' ' + inviteToastMode(incomingInvite()!.game_mode).glowClass">
 			<div class="flex items-center gap-3">
 				<div [class]="'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border ' + inviteToastMode(incomingInvite()!.game_mode).iconBoxClass">
 					<iconify-icon

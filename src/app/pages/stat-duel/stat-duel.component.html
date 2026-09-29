@@ -292,22 +292,25 @@
 								</div>
 							}
 							@if (currentPokemon()) {
-								<div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-3 w-full">
-									<div class="w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 flex items-center justify-center">
+								<div class="bg-slate-800 border border-slate-700 rounded-2xl p-3 sm:p-6 flex flex-col items-center gap-2 sm:gap-3 w-full">
+									<!-- Téléphone : sprite et nom côte à côte pour laisser les stats dans l'écran. -->
+									<div class="flex items-center justify-center gap-3 sm:flex-col">
+									<div class="w-16 h-16 sm:w-28 sm:h-28 lg:w-36 lg:h-36 flex shrink-0 items-center justify-center">
 										@if (pokemonVisible()) {
 											<img
 												[src]="currentPokemon()!.sprite"
 												[alt]="currentPokemon()!.name"
-												class="w-20 h-20 sm:w-28 sm:h-28 lg:w-36 lg:h-36 object-contain drop-shadow-lg pokemon-appear"
+												class="w-16 h-16 sm:w-28 sm:h-28 lg:w-36 lg:h-36 object-contain drop-shadow-lg pokemon-appear"
 												loading="eager"
 											/>
 										}
 									</div>
 									@if (pokemonVisible()) {
-										<h3 class="text-xl font-black text-white capitalize text-center pokemon-appear">{{ currentPokemon()!.name }}</h3>
+										<h3 class="text-lg sm:text-xl font-black text-white capitalize text-center pokemon-appear">{{ currentPokemon()!.name }}</h3>
 									} @else {
-										<h3 class="text-xl font-black capitalize text-center invisible">{{ currentPokemon()!.name }}</h3>
+										<h3 class="text-lg sm:text-xl font-black capitalize text-center invisible">{{ currentPokemon()!.name }}</h3>
 									}
+									</div>
 									<div
 										class="w-full overflow-hidden transition-all duration-500 ease-out"
 										[ngClass]="shouldShowCurrentPokemonStats() ? 'max-h-40 opacity-100 translate-y-0 mt-1 pt-3 border-t border-slate-700/50' : 'max-h-0 opacity-0 -translate-y-3 pt-0 mt-0 border-t border-transparent'"

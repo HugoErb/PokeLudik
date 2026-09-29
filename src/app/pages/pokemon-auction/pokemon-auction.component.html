@@ -9,6 +9,7 @@
           <span class="text-xl font-black tabular-nums" [ngClass]="timerColor()">{{ timeLeft() }}</span>
           <span class="text-xl text-slate-500">s</span>
         </div>
+        <span class="min-w-0 truncate text-[10px] font-black uppercase tracking-wider text-orange-200 sm:hidden">{{ formatLabel() }} · {{ room()?.round }}</span>
         <div class="hidden min-w-0 items-center gap-2 sm:flex">
           <span class="rounded-lg border border-orange-400/20 bg-orange-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-orange-200">{{ formatLabel() }}</span>
           <span class="rounded-lg border border-slate-600/50 bg-slate-700/50 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-300">Enchère {{ room()?.round }}</span>
@@ -65,7 +66,7 @@
           <section class="order-1 flex min-w-0 w-full flex-col gap-3 rounded-3xl border border-orange-400/20 bg-gradient-to-b from-slate-900 to-slate-950 p-4 shadow-2xl shadow-orange-950/20 lg:order-2">
             @if (currentPokemon(); as pokemon) {
               <div class="flex flex-col items-center">
-                <img [src]="pokemon.sprite" [alt]="pokemon.name" class="h-36 w-36 object-contain drop-shadow-2xl sm:h-44 sm:w-44" />
+                <img [src]="pokemon.sprite" [alt]="pokemon.name" class="h-24 w-24 object-contain drop-shadow-2xl sm:h-44 sm:w-44" />
                 <h1 class="text-2xl font-black capitalize tracking-tight">{{ pokemon.name }}</h1>
                 <div class="mt-2 flex gap-1.5">@for (type of pokemon.types; track type) { <span class="type-text-outline inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black" [ngClass]="typeColor(type)"><app-pokemon-type-icon [type]="type" />{{ type }}</span> }</div>
               </div>
@@ -74,7 +75,8 @@
               <div class="flex min-h-72 items-center justify-center"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-4xl text-orange-300"></iconify-icon></div>
             }
 
-            <div class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3">
+            <!-- Téléphone : zone d'enchère collée au bas de l'écran pour rester jouable sans défiler. -->
+            <div class="sticky bottom-0 z-20 rounded-2xl border border-white/[0.08] bg-slate-900 p-3 shadow-[0_-12px_24px_-8px_rgba(2,6,23,0.9)] lg:static lg:bg-white/[0.035] lg:shadow-none">
               @if (!hasStarted()) {
                 <p class="mb-3 text-center text-sm font-bold text-slate-300">Prépare-toi…</p>
               } @else if (game.settings?.auctionFormat === 'sealed') {
@@ -88,7 +90,7 @@
                   <input type="number" min="10" step="10" [(ngModel)]="bidAmount" (change)="normalizeBid()" [disabled]="!canAct()" class="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-right text-base font-black text-white outline-none focus:border-orange-400" />
                   <button type="button" (click)="submitBid()" [disabled]="!canAct() || bidAmount < minimumBid() || bidAmount > maxBid()" class="rounded-xl bg-orange-500 px-4 text-sm font-black text-slate-950 transition hover:bg-orange-400 disabled:opacity-40">{{ game.settings?.auctionFormat === 'sealed' ? 'Valider' : 'Miser' }}</button>
                 </div>
-                <div class="mt-2 grid grid-cols-4 gap-1.5">@for (quick of [10,50,100]; track quick) { <button type="button" (click)="adjustBid(quick)" [disabled]="!canAct()" class="rounded-lg border border-white/10 bg-white/[0.04] py-1.5 text-[10px] font-bold text-slate-300 disabled:opacity-40">+{{ quick }}</button> }<button type="button" (click)="setMaximumBid()" [disabled]="!canAct()" class="rounded-lg border border-white/10 bg-white/[0.04] py-1.5 text-[10px] font-bold text-orange-300 disabled:opacity-40">MAX</button></div>
+                <div class="mt-2 grid grid-cols-4 gap-1.5">@for (quick of [10,50,100]; track quick) { <button type="button" (click)="adjustBid(quick)" [disabled]="!canAct()" class="rounded-lg border border-white/10 bg-white/[0.04] py-2.5 text-xs font-bold text-slate-300 disabled:opacity-40 sm:py-1.5 sm:text-[10px]">+{{ quick }}</button> }<button type="button" (click)="setMaximumBid()" [disabled]="!canAct()" class="rounded-lg border border-white/10 bg-white/[0.04] py-2.5 text-xs font-bold text-orange-300 disabled:opacity-40 sm:py-1.5 sm:text-[10px]">MAX</button></div>
                 @if (game.settings?.auctionFormat !== 'live') { <button type="button" (click)="pass()" [disabled]="!canAct() || passLocked()" [title]="passLocked() ? 'Plus de passe : tu dois enchérir' : ''" class="mt-2 w-full rounded-xl border border-white/10 py-2 text-xs font-bold text-slate-400 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent">@if (passLocked()) { Plus de passe } @else { Passer@if (passTokensEnabled() && myTeam().length < 6) { ({{ myPassesLeft() }}) } }</button> }
               } @else {
                 <p class="py-3 text-center text-sm font-bold text-slate-400">Au tour de {{ opponentName() }}</p>
