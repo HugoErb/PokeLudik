@@ -32,6 +32,7 @@ import { GameSettingsPanelComponent } from '../../components/game-settings-panel
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings } from '../../models/game-settings.model';
 import { SoloScoreResult } from '../../models/leaderboard.model';
 import { buildSettingsKey } from '../../utils/leaderboard-utils';
+import { NewRecordBadgeComponent } from '../../components/new-record-badge/new-record-badge.component';
 import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
 import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 import {
@@ -52,7 +53,7 @@ type DraftConfigMode = 'solo';
 
 @Component({
   selector: 'app-draft',
-  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, ModeSelectCardComponent, ModeSelectComponent, EndGameActionsComponent, AppHeaderComponent, GameSettingsPanelComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
+  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, ModeSelectCardComponent, ModeSelectComponent, EndGameActionsComponent, AppHeaderComponent, GameSettingsPanelComponent, SoloScoreSummaryComponent, LeaderboardModalComponent, NewRecordBadgeComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft.component.html',

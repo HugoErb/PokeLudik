@@ -3,7 +3,7 @@ import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { LeaderboardCategory, LeaderboardEntry, LeaderboardPeriod, LeaderboardSettings, SoloLeaderboardMode, SoloScoreResult, StatDuelScorePick } from '../models/leaderboard.model';
+import { LeaderboardCategory, LeaderboardEntry, LeaderboardPeriod, LeaderboardSettings, PersonalLeaderboard, SoloLeaderboardMode, SoloScoreResult, StatDuelScorePick } from '../models/leaderboard.model';
 import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
 
 @Injectable({ providedIn: 'root' })
@@ -1198,6 +1198,22 @@ export class SupabaseService implements OnDestroy {
         });
         if (error) throw error;
         return ((data ?? []) as LeaderboardEntry[]).map(entry => ({ ...entry, score: Number(entry.score) }));
+    }
+
+    /** Charge le résumé et les meilleures parties du joueur connecté dans une catégorie. */
+    async getMySoloScores(mode: SoloLeaderboardMode, settingsKey: string, period: LeaderboardPeriod): Promise<PersonalLeaderboard> {
+        const { data, error } = await this.supabase.rpc('get_my_solo_scores', {
+            p_mode: mode, p_settings_key: settingsKey, p_period: period, p_limit: 20,
+        });
+        if (error) throw error;
+        const result = data as PersonalLeaderboard;
+        const toNumber = (value: number | null) => value === null ? null : Number(value);
+        return {
+            ...result,
+            best: toNumber(result.best),
+            average: toNumber(result.average),
+            entries: result.entries.map(entry => ({ ...entry, score: Number(entry.score) })),
+        };
     }
 
     /** Liste les catégories (combinaisons de paramètres) déjà jouées pour un mode. */

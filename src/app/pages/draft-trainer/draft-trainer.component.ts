@@ -28,6 +28,7 @@ import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft
 import { DuelIntroComponent } from '../../components/duel-intro/duel-intro.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
+import { NewRecordBadgeComponent } from '../../components/new-record-badge/new-record-badge.component';
 import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
 import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 import { SoloScoreResult } from '../../models/leaderboard.model';
@@ -62,7 +63,7 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 
 @Component({
   selector: 'app-draft-trainer',
-  imports: [NgClass, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
+  imports: [NgClass, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent, SoloScoreSummaryComponent, LeaderboardModalComponent, NewRecordBadgeComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft-trainer.component.html',

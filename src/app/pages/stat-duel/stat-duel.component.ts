@@ -22,6 +22,7 @@ import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toGuessSett
 import { shouldRevealStatDuelRound } from '../../utils/stat-duel-sync';
 import { buildSettingsKey } from '../../utils/leaderboard-utils';
 import { SoloScoreResult } from '../../models/leaderboard.model';
+import { NewRecordBadgeComponent } from '../../components/new-record-badge/new-record-badge.component';
 import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
 import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 
@@ -52,7 +53,7 @@ const ROUND_DURATION_MS = ROUND_PICK_TIME_MS + ROUND_TRANSITION_TIME_MS;
 @Component({
     selector: 'app-stat-duel',
     standalone: true,
-    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent, PokemonStatsGridComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
+    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent, PokemonStatsGridComponent, SoloScoreSummaryComponent, LeaderboardModalComponent, NewRecordBadgeComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     templateUrl: './stat-duel.component.html',
     styles: [`

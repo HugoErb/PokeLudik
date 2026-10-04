@@ -19,6 +19,7 @@ import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toWhoSettin
 import { PokemonService } from '../../services/pokemon.service';
 import { SoloScoreResult } from '../../models/leaderboard.model';
 import { buildSettingsKey } from '../../utils/leaderboard-utils';
+import { NewRecordBadgeComponent } from '../../components/new-record-badge/new-record-badge.component';
 import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
 import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 import { SupabaseService } from '../../services/supabase.service';
@@ -42,7 +43,7 @@ type WhoConfigMode = 'solo';
 
 @Component({
   selector: 'app-who-that-pokemon',
-  imports: [FormsModule, NgClass, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent, GameSettingsPanelComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
+  imports: [FormsModule, NgClass, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent, GameSettingsPanelComponent, SoloScoreSummaryComponent, LeaderboardModalComponent, NewRecordBadgeComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './who-that-pokemon.component.html',
   styles: [`

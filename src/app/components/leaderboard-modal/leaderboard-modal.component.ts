@@ -1,12 +1,18 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs/operators';
 import { ICONS } from '../../constants/icons';
 import { modalAnimation } from '../../constants/animations';
 import { SupabaseService } from '../../services/supabase.service';
+import { PokemonService } from '../../services/pokemon.service';
+import { Pokemon } from '../../models/pokemon.model';
 import {
   LeaderboardCategory,
   LeaderboardEntry,
   LeaderboardPeriod,
+  LeaderboardView,
+  PersonalLeaderboard,
   SoloLeaderboardMode,
   TRAINERS_DEFEATED_KEY,
 } from '../../models/leaderboard.model';
@@ -38,15 +44,21 @@ export class LeaderboardModalComponent implements OnInit {
   close = output<void>();
 
   private readonly supabaseService = inject(SupabaseService);
+  private readonly pokemonById = toSignal(
+    inject(PokemonService).loadAll().pipe(map(all => new Map(all.map(pokemon => [pokemon.id, pokemon])))),
+    { initialValue: new Map<number, Pokemon>() },
+  );
 
   protected readonly ICONS = ICONS;
   protected readonly MODES = SOLO_LEADERBOARD_MODES;
 
+  protected readonly view = signal<LeaderboardView>('global');
   protected readonly mode = signal<SoloLeaderboardMode>('stat_duel');
   protected readonly period = signal<LeaderboardPeriod>('all');
   protected readonly settingsKey = signal('');
   protected readonly categories = signal<LeaderboardCategory[]>([]);
   protected readonly entries = signal<LeaderboardEntry[]>([]);
+  protected readonly personal = signal<PersonalLeaderboard | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal('');
   private readonly trainerNames = signal<string[]>([]);
@@ -54,6 +66,9 @@ export class LeaderboardModalComponent implements OnInit {
 
   protected readonly modeIndex = computed(() => this.MODES.findIndex(m => m.mode === this.mode()));
   protected readonly modeLabel = computed(() => this.MODES[this.modeIndex()]?.label ?? '');
+  /** Les modes draft affichent l'équipe de chaque partie. */
+  protected readonly showsTeams = computed(() => this.mode() === 'draft' || this.mode() === 'draft_trainer');
+  protected readonly isTrainersDefeated = computed(() => this.settingsKey() === TRAINERS_DEFEATED_KEY);
   /** Ligne du joueur affichée à part lorsqu'il est hors du top. */
   protected readonly myDetachedEntry = computed(() => {
     const entries = this.entries();
@@ -89,6 +104,12 @@ export class LeaderboardModalComponent implements OnInit {
     void this.reloadAll();
   }
 
+  protected setView(view: LeaderboardView): void {
+    if (view === this.view()) return;
+    this.view.set(view);
+    void this.loadEntries();
+  }
+
   protected setMode(mode: SoloLeaderboardMode): void {
     if (mode === this.mode()) return;
     this.mode.set(mode);
@@ -110,6 +131,27 @@ export class LeaderboardModalComponent implements OnInit {
 
   protected formatScore(score: number): string {
     return formatLeaderboardScore(this.mode(), this.settingsKey(), score);
+  }
+
+  /** Score d'une partie personnelle : dans « Dresseurs battus », c'est la note du match gagné. */
+  protected formatPersonalScore(score: number): string {
+    return formatLeaderboardScore(this.mode(), this.isTrainersDefeated() ? 'trainer' : this.settingsKey(), score);
+  }
+
+  /** Date courte en français, sans DatePipe pour ne pas alourdir le bundle initial. */
+  protected formatDate(iso: string, withTime: boolean): string {
+    const date = new Date(iso);
+    const day = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return withTime ? `${day} à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : day;
+  }
+
+  protected trainerLabel(settingsKey: string): string {
+    return formatCategoryLabel('draft_trainer', settingsKey, {}, this.trainerNames());
+  }
+
+  protected teamPokemons(team: number[] | null): Pokemon[] {
+    const byId = this.pokemonById();
+    return (team ?? []).map(id => byId.get(id)).filter((pokemon): pokemon is Pokemon => !!pokemon);
   }
 
   protected playersLabel(option: CategoryOption): string {
@@ -142,16 +184,22 @@ export class LeaderboardModalComponent implements OnInit {
 
   private async loadEntries(): Promise<void> {
     const id = ++this.requestId;
+    const view = this.view();
     this.loading.set(true);
     this.error.set('');
     try {
-      const entries = await this.supabaseService.getSoloLeaderboard(this.mode(), this.settingsKey(), this.period());
-      if (id !== this.requestId) return;
-      this.entries.set(entries);
+      if (view === 'global') {
+        const entries = await this.supabaseService.getSoloLeaderboard(this.mode(), this.settingsKey(), this.period());
+        if (id === this.requestId) this.entries.set(entries);
+      } else {
+        const personal = await this.supabaseService.getMySoloScores(this.mode(), this.settingsKey(), this.period());
+        if (id === this.requestId) this.personal.set(personal);
+      }
     } catch (err) {
       if (id !== this.requestId) return;
       console.error('[Leaderboard] Classement indisponible', err);
       this.entries.set([]);
+      this.personal.set(null);
       this.error.set('Impossible de charger le classement pour le moment.');
     } finally {
       if (id === this.requestId) this.loading.set(false);

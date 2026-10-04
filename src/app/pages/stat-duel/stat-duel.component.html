@@ -476,6 +476,7 @@
 						@if (isSolo()) {
 							<iconify-icon [icon]="ICONS.trophy" class="text-6xl text-yellow-400 animate-bounce"></iconify-icon>
 							<h2 class="text-3xl font-black text-yellow-400 uppercase tracking-tight">Victoire !</h2>
+							<app-new-record-badge mode="stat_duel" [result]="scoreResult()" />
 						} @else {
 							@let winner = isMultiWinner();
 							@if (winner === true) {

@@ -1,5 +1,6 @@
 export type SoloLeaderboardMode = 'stat_duel' | 'who_that_pokemon' | 'draft' | 'draft_trainer';
 export type LeaderboardPeriod = 'all' | 'week';
+export type LeaderboardView = 'global' | 'personal';
 
 /** Paramètres normalisés d'une catégorie de classement. */
 export interface LeaderboardSettings {
@@ -17,6 +18,26 @@ export interface LeaderboardEntry {
   score: number;
   achieved_at: string;
   is_me: boolean;
+  /** Équipe de la meilleure partie (Team Builder et dresseurs). */
+  team: number[] | null;
+}
+
+/** Partie du joueur connecté dans l'onglet « Classement personnel ». */
+export interface PersonalScoreEntry {
+  score: number;
+  achieved_at: string;
+  won: boolean;
+  team: number[] | null;
+  settings_key: string;
+}
+
+export interface PersonalLeaderboard {
+  games: number;
+  best: number | null;
+  average: number | null;
+  /** Rang dans le classement global de la catégorie, null sans partie. */
+  rank: number | null;
+  entries: PersonalScoreEntry[];
 }
 
 export interface LeaderboardCategory {

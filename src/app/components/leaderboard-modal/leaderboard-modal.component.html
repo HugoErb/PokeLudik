@@ -4,7 +4,7 @@
 	[@modalAnimation]
 >
 	<div
-		class="bg-slate-800 border border-slate-600 rounded-2xl p-4 md:p-6 max-w-lg w-full shadow-2xl flex flex-col gap-4 modal-content max-h-[calc(100dvh-1.5rem)] md:max-h-[90vh] overflow-hidden relative my-auto"
+		class="bg-slate-800 border border-slate-600 rounded-2xl p-4 md:p-6 max-w-3xl w-full shadow-2xl flex flex-col gap-4 modal-content h-[calc(100dvh-1.5rem)] md:h-[min(88vh,56rem)] overflow-hidden relative my-auto"
 		(click)="$event.stopPropagation()"
 	>
 		<button
@@ -17,13 +17,39 @@
 		</button>
 
 		<div class="flex items-center gap-3 pr-10">
-			<div class="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-yellow-500/15 border-yellow-400/30">
+			<div class="w-11 h-11 rounded-xl flex items-center justify-center border shrink-0 bg-yellow-500/15 border-yellow-400/30">
 				<iconify-icon [icon]="ICONS.trophy" class="text-2xl text-yellow-300"></iconify-icon>
 			</div>
 			<div class="min-w-0">
-				<h2 class="text-lg font-bold text-white uppercase tracking-wider">Classement</h2>
+				<h2 class="text-xl font-bold text-white uppercase tracking-wider">Classement</h2>
 				<p class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em] truncate">Modes solo · {{ modeLabel() }}</p>
 			</div>
+		</div>
+
+		<!-- Global / Personnel -->
+		<div class="grid grid-cols-2 gap-1 rounded-xl border border-white/[0.06] bg-slate-950/70 p-1" role="tablist">
+			<button
+				type="button"
+				role="tab"
+				[attr.aria-selected]="view() === 'global'"
+				(click)="setView('global')"
+				class="flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-black transition-colors"
+				[class]="view() === 'global' ? 'bg-yellow-500/15 text-yellow-200' : 'text-slate-500 hover:text-slate-300'"
+			>
+				<iconify-icon [icon]="ICONS.friends" class="text-base"></iconify-icon>
+				Classement global
+			</button>
+			<button
+				type="button"
+				role="tab"
+				[attr.aria-selected]="view() === 'personal'"
+				(click)="setView('personal')"
+				class="flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-black transition-colors"
+				[class]="view() === 'personal' ? 'bg-yellow-500/15 text-yellow-200' : 'text-slate-500 hover:text-slate-300'"
+			>
+				<iconify-icon [icon]="ICONS.user" class="text-base"></iconify-icon>
+				Classement personnel
+			</button>
 		</div>
 
 		<!-- Onglets de mode -->
@@ -39,11 +65,12 @@
 					role="tab"
 					[attr.aria-selected]="mode() === item.mode"
 					(click)="setMode(item.mode)"
-					class="relative min-w-0 px-1 py-1.5 text-[11px] sm:text-xs font-bold rounded-lg leading-tight transition-colors duration-200"
+					class="relative min-w-0 px-1 py-1.5 text-[11px] sm:text-sm font-bold rounded-lg leading-tight transition-colors duration-200"
 					[class.text-white]="mode() === item.mode"
 					[class.text-slate-500]="mode() !== item.mode"
 				>
-					{{ item.shortLabel }}
+					<span class="sm:hidden">{{ item.shortLabel }}</span>
+					<span class="hidden sm:inline">{{ item.label }}</span>
 				</button>
 			}
 		</div>
@@ -84,8 +111,8 @@
 			</label>
 		</div>
 
-		<!-- Liste -->
-		<div class="flex min-h-[12rem] flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
+		<!-- Contenu -->
+		<div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
 			@if (loading()) {
 				<div class="flex flex-1 items-center justify-center py-10 text-slate-400">
 					<iconify-icon [icon]="ICONS.loading" class="animate-spin text-2xl"></iconify-icon>
@@ -95,19 +122,73 @@
 					<iconify-icon [icon]="ICONS.alert" class="text-2xl text-red-400"></iconify-icon>
 					<p class="text-sm text-slate-400">{{ error() }}</p>
 				</div>
-			} @else if (entries().length === 0) {
-				<div class="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
-					<iconify-icon [icon]="ICONS.trophy" class="text-3xl text-slate-600"></iconify-icon>
-					<p class="text-sm font-semibold text-slate-300">Aucun score pour l'instant</p>
-					<p class="text-xs text-slate-500">{{ period() === 'week' ? 'Sois le premier classé cette semaine !' : 'Termine une partie pour inscrire ton nom.' }}</p>
-				</div>
-			} @else {
-				@for (entry of listedEntries(); track entry.user_id) {
-					<ng-container [ngTemplateOutlet]="row" [ngTemplateOutletContext]="{ $implicit: entry }"></ng-container>
+			} @else if (view() === 'global') {
+				@if (entries().length === 0) {
+					<ng-container [ngTemplateOutlet]="empty"></ng-container>
+				} @else {
+					@for (entry of listedEntries(); track entry.user_id) {
+						<ng-container [ngTemplateOutlet]="globalRow" [ngTemplateOutletContext]="{ $implicit: entry }"></ng-container>
+					}
+					@if (myDetachedEntry(); as mine) {
+						<div class="my-1 border-t border-dashed border-white/10"></div>
+						<ng-container [ngTemplateOutlet]="globalRow" [ngTemplateOutletContext]="{ $implicit: mine }"></ng-container>
+					}
 				}
-				@if (myDetachedEntry(); as mine) {
-					<div class="my-1 border-t border-dashed border-white/10"></div>
-					<ng-container [ngTemplateOutlet]="row" [ngTemplateOutletContext]="{ $implicit: mine }"></ng-container>
+			} @else if (personal(); as me) {
+				<!-- Résumé personnel -->
+				<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pb-1">
+					<div class="rounded-xl border border-white/[0.06] bg-slate-900/60 px-3 py-2.5">
+						<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">{{ isTrainersDefeated() ? 'Matchs joués' : 'Parties' }}</p>
+						<p class="text-xl font-black text-white tabular-nums">{{ me.games }}</p>
+					</div>
+					<div class="rounded-xl border border-yellow-400/20 bg-yellow-500/[0.07] px-3 py-2.5">
+						<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-yellow-300/70">{{ isTrainersDefeated() ? 'Dresseurs battus' : 'Record' }}</p>
+						<p class="text-xl font-black text-yellow-200 tabular-nums">{{ me.best === null ? '—' : formatScore(me.best) }}</p>
+					</div>
+					<div class="rounded-xl border border-white/[0.06] bg-slate-900/60 px-3 py-2.5">
+						<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Moyenne</p>
+						<p class="text-xl font-black text-white tabular-nums">{{ me.average === null ? '—' : formatScore(me.average) }}</p>
+					</div>
+					<div class="rounded-xl border border-white/[0.06] bg-slate-900/60 px-3 py-2.5">
+						<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Rang global</p>
+						<p class="text-xl font-black text-white tabular-nums">{{ me.rank === null ? '—' : '#' + me.rank }}</p>
+					</div>
+				</div>
+
+				@if (me.entries.length === 0) {
+					<ng-container [ngTemplateOutlet]="empty"></ng-container>
+				} @else {
+					<p class="px-1 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+						{{ isTrainersDefeated() ? 'Meilleure victoire contre chaque dresseur' : 'Tes meilleures parties' }}
+					</p>
+					@for (entry of me.entries; track $index) {
+						<div class="flex flex-col gap-2 rounded-xl border px-3 py-2 sm:flex-row sm:items-center sm:gap-3"
+							[class]="$index === 0 && !isTrainersDefeated() ? 'border-yellow-400/30 bg-yellow-500/[0.06]' : 'border-transparent bg-slate-700/40'">
+							<div class="flex min-w-0 flex-1 items-center gap-3">
+								<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs font-black" [class]="rankClass(isTrainersDefeated() ? 99 : $index + 1)">
+									@if (isTrainersDefeated()) {
+										<iconify-icon [icon]="ICONS.checkCircle" class="text-base text-emerald-300"></iconify-icon>
+									} @else {
+										{{ $index + 1 }}
+									}
+								</span>
+								<div class="min-w-0 flex-1">
+									<p class="truncate text-sm font-bold text-slate-100">
+										{{ isTrainersDefeated() ? trainerLabel(entry.settings_key) : formatDate(entry.achieved_at, true) }}
+									</p>
+									@if (isTrainersDefeated()) {
+										<p class="text-xs text-slate-500">{{ formatDate(entry.achieved_at, false) }}</p>
+									} @else if (mode() === 'draft_trainer') {
+										<p class="text-xs font-semibold" [class]="entry.won ? 'text-emerald-300' : 'text-red-300'">{{ entry.won ? 'Victoire' : 'Défaite' }}</p>
+									}
+								</div>
+								<span class="shrink-0 text-sm font-black tabular-nums text-white sm:order-last">{{ formatPersonalScore(entry.score) }}</span>
+							</div>
+							@if (showsTeams()) {
+								<ng-container [ngTemplateOutlet]="team" [ngTemplateOutletContext]="{ $implicit: entry.team }"></ng-container>
+							}
+						</div>
+					}
 				}
 			}
 		</div>
@@ -118,31 +199,52 @@
 	</div>
 </div>
 
-<ng-template #row let-entry>
+<ng-template #empty>
+	<div class="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
+		<iconify-icon [icon]="ICONS.trophy" class="text-3xl text-slate-600"></iconify-icon>
+		<p class="text-sm font-semibold text-slate-300">Aucun score pour l'instant</p>
+		<p class="text-xs text-slate-500">{{ period() === 'week' ? 'Joue cette semaine pour apparaître ici !' : 'Termine une partie pour inscrire ton nom.' }}</p>
+	</div>
+</ng-template>
+
+<ng-template #team let-ids>
+	<div class="flex shrink-0 items-center gap-0.5 pl-11 sm:pl-0">
+		@for (pokemon of teamPokemons(ids); track pokemon.id) {
+			<img [src]="pokemon.sprite" [alt]="pokemon.name" [title]="pokemon.name" loading="lazy" class="h-9 w-9 object-contain sm:h-10 sm:w-10" />
+		}
+	</div>
+</ng-template>
+
+<ng-template #globalRow let-entry>
 	<div
-		class="flex items-center gap-3 rounded-xl border px-3 py-2"
+		class="flex flex-col gap-2 rounded-xl border px-3 py-2 sm:flex-row sm:items-center sm:gap-3"
 		[class]="entry.is_me ? 'border-yellow-400/40 bg-yellow-500/10' : 'border-transparent bg-slate-700/40'"
 	>
-		<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs font-black" [class]="rankClass(entry.rank)">
-			@if (entry.rank === 1) {
-				<iconify-icon [icon]="ICONS.crown" class="text-base"></iconify-icon>
-			} @else {
-				{{ entry.rank }}
-			}
-		</span>
-		<div class="w-8 h-8 shrink-0 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold text-white overflow-hidden">
-			@if (entry.avatar_url) {
-				<img [src]="entry.avatar_url" alt="" class="w-full h-full object-cover" />
-			} @else {
-				{{ entry.username.charAt(0).toUpperCase() }}
-			}
+		<div class="flex min-w-0 flex-1 items-center gap-3">
+			<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs font-black" [class]="rankClass(entry.rank)">
+				@if (entry.rank === 1) {
+					<iconify-icon [icon]="ICONS.crown" class="text-base"></iconify-icon>
+				} @else {
+					{{ entry.rank }}
+				}
+			</span>
+			<div class="w-9 h-9 shrink-0 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold text-white overflow-hidden">
+				@if (entry.avatar_url) {
+					<img [src]="entry.avatar_url" alt="" class="w-full h-full object-cover" />
+				} @else {
+					{{ entry.username.charAt(0).toUpperCase() }}
+				}
+			</div>
+			<span class="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
+				{{ entry.username }}
+				@if (entry.is_me) {
+					<span class="ml-1 text-[10px] font-black uppercase tracking-wider text-yellow-300">Toi</span>
+				}
+			</span>
+			<span class="shrink-0 text-sm font-black tabular-nums text-white sm:order-last">{{ formatScore(entry.score) }}</span>
 		</div>
-		<span class="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
-			{{ entry.username }}
-			@if (entry.is_me) {
-				<span class="ml-1 text-[10px] font-black uppercase tracking-wider text-yellow-300">Toi</span>
-			}
-		</span>
-		<span class="shrink-0 text-sm font-black tabular-nums text-white">{{ formatScore(entry.score) }}</span>
+		@if (showsTeams() && entry.team) {
+			<ng-container [ngTemplateOutlet]="team" [ngTemplateOutletContext]="{ $implicit: entry.team }"></ng-container>
+		}
 	</div>
 </ng-template>

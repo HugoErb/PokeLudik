@@ -27,8 +27,10 @@ const draft = (user, run, value, team) => asUser(user,
   'SELECT public.submit_draft_score($1,$2::jsonb,$3) AS r', [run, settings(value), team]);
 const trainer = (user, run, index, team, opponent) => asUser(user,
   'SELECT public.submit_draft_trainer_score($1,$2,$3,$4) AS r', [run, index, team, opponent]);
+const mine = async (user, mode, key, period = 'all') => (await asUser(user,
+  'SELECT public.get_my_solo_scores($1,$2,$3) AS r', [mode, key, period])).rows[0].r;
 const board = (user, mode, key, period = 'all') => asUser(user,
-  'SELECT rank,user_id,score::float AS score,is_me FROM public.get_solo_leaderboard($1,$2,$3)', [mode, key, period]);
+  'SELECT rank,user_id,score::float AS score,is_me,team FROM public.get_solo_leaderboard($1,$2,$3)', [mode, key, period]);
 
 try {
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated;
@@ -58,7 +60,11 @@ try {
   await db.exec(`INSERT INTO public.pokemon_catalog VALUES ${pokemon.map(p => `(${p.id},${p.generation},${quote(p.category)},
     ARRAY[${p.types.map(quote).join(',')}]::text[],${Number(p.rating)},${p.stats.pv},${p.stats.attaque},${p.stats.defense},
     ${p.stats.atq_spe},${p.stats.def_spe},${p.stats.vitesse})`).join(',')};`);
-  await db.exec(read('sql-schema/migrations/solo-leaderboard.sql'));
+  // La migration de base est supprimée du dépôt une fois appliquée : SOLO_LEADERBOARD_BASE permet d'en fournir une copie.
+  await db.exec(process.env.SOLO_LEADERBOARD_BASE
+    ? readFileSync(process.env.SOLO_LEADERBOARD_BASE, 'utf8')
+    : read('sql-schema/migrations/solo-leaderboard.sql'));
+  await db.exec(read('sql-schema/migrations/solo-leaderboard-update.sql'));
   await db.exec(`INSERT INTO auth.users(id) VALUES ('${p1}'),('${p2}');
     INSERT INTO public.profiles(id,username) VALUES ('${p1}','Sacha'),('${p2}','Ondine');
     SET check_function_bodies = true; SET row_security = on;`);
@@ -108,6 +114,11 @@ try {
   check([result.is_record, Number(result.previous_best), result.rank_all_time], [false, 40, 2], 'Pas de record, rang du meilleur score');
   let rows = (await board(p1, 'who_that_pokemon', 'g=;c=bébé,starter;h=cry')).rows;
   check(rows.map(r => [r.rank, r.user_id, r.score, r.is_me]), [[1, p2, 45, false], [2, p1, 40, true]], 'Classement Who\'s That');
+  let personal = await mine(p1, 'who_that_pokemon', 'g=;c=bébé,starter;h=cry');
+  check([personal.games, Number(personal.best), Number(personal.average), personal.rank], [2, 40, 30, 2], 'Résumé personnel');
+  check(personal.entries.map(e => Number(e.score)), [40, 20], 'Parties personnelles triées');
+  personal = await mine(p1, 'stat_duel', 'g=;c=');
+  check([personal.games, personal.best, personal.rank, personal.entries], [0, null, null, []], 'Personnel sans partie');
   const categories = (await asUser(p1, "SELECT settings_key,players FROM public.get_solo_leaderboard_categories('who_that_pokemon','all')")).rows;
   check(categories, [{ settings_key: 'g=;c=bébé,starter;h=cry', players: 2 }], 'Catégories jouées');
 
@@ -121,6 +132,8 @@ try {
   result = (await draft(p1, runs[4], { generations: [3] }, team.map(p => p.id))).rows[0].r;
   const avg = team.reduce((sum, p) => sum + Math.round(p.rating * 10), 0) / 6;
   check(Number(result.score), Math.round(avg) / 10, 'Note Team Builder recalculée');
+  rows = (await asUser(p2, "SELECT user_id,team FROM public.get_solo_leaderboard('draft','g=3;c=','all')")).rows;
+  check(rows.map(r => [r.user_id, r.team]), [[p1, team.map(p => p.id)]], 'Équipe renvoyée par le classement Team Builder');
   await assert.rejects(draft(p1, runs[5], { generations: [4] }, team.map(p => p.id)), /invalid_team/); checks++;
   await assert.rejects(draft(p1, runs[5], {}, [1, 1, 2, 3, 4, 5]), /invalid_team/); checks++;
 
@@ -136,6 +149,10 @@ try {
   await trainer(p2, runs[10], 2, weak, strong);
   rows = (await board(p2, 'draft_trainer', 'trainers_defeated')).rows;
   check(rows.map(r => [r.rank, r.user_id, r.score, r.is_me]), [[1, p1, 2, false], [2, p2, 1, true]], 'Dresseurs battus distincts');
+  check(rows.map(r => r.team), [null, null], 'Aucune équipe pour « Dresseurs battus »');
+  personal = await mine(p1, 'draft_trainer', 'trainers_defeated');
+  check([personal.games, Number(personal.best), personal.rank], [3, 2, 1], 'Résumé personnel dresseurs');
+  check(personal.entries.map(e => [e.settings_key, e.team]), [['trainer:0', strong], ['trainer:1', strong]], 'Dresseurs battus personnels');
 
   console.log(`Classement solo : ${checks} vérifications OK.`);
 } catch (error) {

@@ -19,13 +19,11 @@ import { SoloScoreResult } from '../../models/leaderboard.model';
           @if (submitting()) {
             <iconify-icon [icon]="ICONS.loading" class="animate-spin text-xl"></iconify-icon>
           } @else {
-            <iconify-icon [icon]="result()?.is_record ? ICONS.crown : ICONS.trophy" class="text-xl"></iconify-icon>
+            <iconify-icon [icon]="ICONS.trophy" class="text-xl"></iconify-icon>
           }
         </span>
         <span class="relative min-w-0 flex-1">
-          <span class="block text-[15px] font-black tracking-[0.01em] text-slate-100">
-            {{ result()?.is_record ? 'Nouveau record !' : 'Voir le classement' }}
-          </span>
+          <span class="block text-[15px] font-black tracking-[0.01em] text-slate-100">Voir le classement</span>
           <span class="mt-0.5 block text-xs font-semibold" [class]="error() ? 'text-red-300/80' : 'text-yellow-200/60'">{{ subtitle() }}</span>
         </span>
       </button>
