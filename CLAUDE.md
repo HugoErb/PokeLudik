@@ -36,7 +36,7 @@ src/app/
 │   ├── pokedex/
 │   ├── pokemon-card/
 │   ├── rules-modal/
-│   └── size-up-board/  ← plateau Size Up (sprites à l'échelle)
+│   └── size-up-board/  ← plateau Size It Up (sprites à l'échelle)
 │
 ├── services/
 │   ├── supabase.service.ts   ← auth + DB + realtime (Supabase client)

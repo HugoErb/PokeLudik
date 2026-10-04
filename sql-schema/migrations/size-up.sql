@@ -1,5 +1,5 @@
 -- ============================================================================
--- Size Up : estimer la taille d'un Pokémon par rapport à un autre (solo + duo).
+-- Size It Up : estimer la taille d'un Pokémon par rapport à un autre (solo + duo).
 -- Idempotente : peut être rejouée sans erreur.
 -- ============================================================================
 
@@ -1047,7 +1047,7 @@ CREATE OR REPLACE FUNCTION public.size_up_points(p_guess numeric, p_actual numer
   END;
 $$;
 
--- ── Paramètres et clé de classement : ajout du chrono de Size Up ────────────
+-- ── Paramètres et clé de classement : ajout du chrono de Size It Up ────────────
 CREATE OR REPLACE FUNCTION public.solo_normalize_settings(p_mode text, p_settings jsonb) RETURNS jsonb
     LANGUAGE plpgsql IMMUTABLE
     SET search_path TO 'pg_catalog', 'public'

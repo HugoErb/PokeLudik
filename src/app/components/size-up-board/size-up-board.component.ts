@@ -26,7 +26,7 @@ const KEY_STEP = 1.02;
 const KEY_PAGE_STEP = 1.1;
 
 /**
- * Plateau Size Up : Pokémon de référence à l'échelle à gauche, Pokémon à estimer à droite.
+ * Plateau Size It Up : Pokémon de référence à l'échelle à gauche, Pokémon à estimer à droite.
  * Le joueur ajuste la taille du second (glisser, poignée, molette, pincement, clavier ou slider).
  */
 @Component({

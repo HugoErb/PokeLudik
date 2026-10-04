@@ -29,7 +29,7 @@ export interface ModeSettings {
   auctionFormat: AuctionFormat;
   startingBudget: number;
   randomAwardOnNoBid: boolean;
-  /** Durée d'une manche en secondes (Size Up), 0 = sans limite. */
+  /** Durée d'une manche en secondes (Size It Up), 0 = sans limite. */
   roundTimer: number;
 }
 

@@ -8,7 +8,7 @@ export interface LeaderboardSettings {
   categories?: string[];
   initialHint?: string;
   trainer?: number;
-  /** Size Up : chrono par manche en secondes (0 = sans limite). */
+  /** Size It Up : chrono par manche en secondes (0 = sans limite). */
   roundTimer?: number;
 }
 
@@ -64,7 +64,7 @@ export interface StatDuelScorePick {
   stat: string;
 }
 
-/** Manche d'une partie Size Up envoyée au serveur, qui recalcule les points. */
+/** Manche d'une partie Size It Up envoyée au serveur, qui recalcule les points. */
 export interface SizeUpScoreRound {
   reference_id: number;
   target_id: number;

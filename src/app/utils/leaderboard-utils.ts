@@ -12,7 +12,7 @@ export const SOLO_LEADERBOARD_MODES: LeaderboardModeInfo[] = [
   { mode: 'who_that_pokemon', label: "Who's That Pokémon", shortLabel: "Who's That" },
   { mode: 'draft', label: 'Team Builder', shortLabel: 'Team Builder' },
   { mode: 'draft_trainer', label: 'Contre un dresseur', shortLabel: 'Dresseurs' },
-  { mode: 'size_up', label: 'Size Up', shortLabel: 'Size Up' },
+  { mode: 'size_up', label: 'Size It Up', shortLabel: 'Size It Up' },
 ];
 
 /** Clé canonique d'une catégorie ; doit rester identique à public.solo_settings_key côté SQL. */

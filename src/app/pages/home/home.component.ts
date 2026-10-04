@@ -75,7 +75,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       buttonClass: 'bg-amber-500 hover:bg-amber-400 text-slate-950 focus-visible:ring-amber-300',
     },
     size_up: {
-      label: 'Size Up',
+      label: 'Size It Up',
       icon: ICONS.sizeUp,
       borderClass: 'border-emerald-500/60',
       glowClass: 'shadow-emerald-950/50',
@@ -411,7 +411,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.navigateToMode('who_that_pokemon', ['/who-that-pokemon']);
   }
 
-  /** Navigue vers Size Up. */
+  /** Navigue vers Size It Up. */
   startSizeUp(): void {
     void this.navigateToMode('size_up', ['/size-up']);
   }

@@ -169,7 +169,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		draft_duo: { title: 'Team Builder', subtitle: 'Deux joueurs en ligne', icon: ICONS.draft, iconClass: 'text-purple-200', iconSizeClass: 'text-4xl', playRoute: '/draft-duo' },
 		who_that_pokemon: { title: "Who's That Pokémon ?", subtitle: 'Deux joueurs en ligne', icon: ICONS.whoPokemon, iconClass: 'text-cyan-300', playRoute: '/who-that-pokemon' },
 		pokemon_auction: { title: 'Enchères Pokémon', subtitle: 'Deux joueurs en ligne', icon: ICONS.auction, iconClass: 'text-orange-300', helpMode: 'auction', playRoute: '/pokemon-auction' },
-		size_up: { title: 'Size Up', subtitle: 'Deux joueurs en ligne', icon: ICONS.sizeUp, iconClass: 'text-emerald-300', helpMode: 'size-up', playRoute: '/size-up' },
+		size_up: { title: 'Size It Up', subtitle: 'Deux joueurs en ligne', icon: ICONS.sizeUp, iconClass: 'text-emerald-300', helpMode: 'size-up', playRoute: '/size-up' },
 	};
 
 	/** Retourne la configuration d'affichage du mode courant. */
@@ -781,7 +781,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		} catch { void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } }); }
 	}
 
-	/** Initialise le lobby Size Up. */
+	/** Initialise le lobby Size It Up. */
 	private async initSizeUpLobby(): Promise<void> {
 		try {
 			let room = await this.supabaseService.getSizeUpRoom(this.roomId());
@@ -947,7 +947,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		}).catch(() => undefined);
 	}
 
-	/** Termine une room Size Up apres confirmation d'abandon. */
+	/** Termine une room Size It Up apres confirmation d'abandon. */
 	private async cancelSizeUpRoom(): Promise<void> {
 		await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
 		await this.supabaseService.updateSizeUpRoom(this.roomId(), {

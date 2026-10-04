@@ -210,7 +210,7 @@ export interface WhoPokemonRoom {
   created_at: string;
 }
 
-/** Manche jouée en duo Size Up, telle que stockée dans `size_up_rooms.history`. */
+/** Manche jouée en duo Size It Up, telle que stockée dans `size_up_rooms.history`. */
 export interface SizeUpHistoryEntry {
   round: number;
   reference_id: number;

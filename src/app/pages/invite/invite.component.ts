@@ -40,7 +40,7 @@ export class InviteComponent implements OnInit, OnDestroy {
 		} else if (mode === 'pokemon_auction') {
 			this.headerTitle = 'Enchères Pokémon'; this.headerIcon = ICONS.auction; this.headerIconClass = 'text-orange-300';
 		} else if (mode === 'size_up') {
-			this.headerTitle = 'Size Up'; this.headerIcon = ICONS.sizeUp; this.headerIconClass = 'text-emerald-300';
+			this.headerTitle = 'Size It Up'; this.headerIcon = ICONS.sizeUp; this.headerIconClass = 'text-emerald-300';
 		}
 		if (mode === 'stat_duel') {
 			this.loadStatDuelRoom();

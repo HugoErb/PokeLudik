@@ -686,7 +686,7 @@ export class SupabaseService implements OnDestroy {
         });
     }
 
-    // ─── Size Up ─────────────────────────────────────────────────────────────
+    // ─── Size It Up ─────────────────────────────────────────────────────────────
 
     async createSizeUpRoom(settings?: SizeUpGameSettings): Promise<string> {
         const user = this.userSubject.getValue();
@@ -721,7 +721,7 @@ export class SupabaseService implements OnDestroy {
         if (error) throw error;
     }
 
-    /** Met à jour les champs autorisés d'une room Size Up (paramètres, revanche, abandon). */
+    /** Met à jour les champs autorisés d'une room Size It Up (paramètres, revanche, abandon). */
     async updateSizeUpRoom(roomId: string, patch: Partial<SizeUpRoom>): Promise<void> {
         const { error } = await this.supabase.rpc('update_size_up_room', { p_room_id: roomId, p_patch: patch });
         if (error) throw error;
@@ -1270,7 +1270,7 @@ export class SupabaseService implements OnDestroy {
         return this.submitSoloScore('submit_who_that_pokemon_score', { p_run_id: runId, p_settings: settings, p_score: score, p_found: found });
     }
 
-    /** Enregistre une partie de Size Up ; le score est recalculé côté serveur à partir des estimations. */
+    /** Enregistre une partie de Size It Up ; le score est recalculé côté serveur à partir des estimations. */
     async submitSizeUpScore(runId: string, settings: LeaderboardSettings, rounds: SizeUpScoreRound[]): Promise<SoloScoreResult> {
         return this.submitSoloScore('submit_size_up_score', { p_run_id: runId, p_settings: settings, p_rounds: rounds });
     }

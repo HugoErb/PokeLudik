@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 
-// Vérifie la migration Size Up (sql-schema/migrations/size-up.sql) dans une base PGlite.
+// Vérifie la migration Size It Up (sql-schema/migrations/size-up.sql) dans une base PGlite.
 // Les fonctions de classement existantes (solo_scores, record_solo_score, …) sont lues dans
 // sql-schema/ddb-schema.sql, ou dans le fichier indiqué par SOLO_LEADERBOARD_BASE.
 
@@ -192,7 +192,7 @@ try {
   await rejects(submit(p1, runs[1], {}, rounds.map(r => ({ ...r, guess: 99 }))), /invalid_rounds/);
   await rejects(submit(p1, runs[1], { roundTimer: 20 }, rounds), /invalid_settings/);
 
-  console.log(`Size Up : ${checks} vérifications OK`);
+  console.log(`Size It Up : ${checks} vérifications OK`);
 } finally {
   await db.close();
 }
