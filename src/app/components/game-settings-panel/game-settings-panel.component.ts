@@ -1,5 +1,6 @@
 ﻿import { Component, computed, input, output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { ICONS } from '../../constants/icons';
+import { ALL_CATEGORIES, ALL_GENERATIONS, CATEGORY_LABELS, INITIAL_HINT_LABELS } from '../../constants/pokemon-categories';
 import {
   getSettingsDefinition,
   ModeSettings,
@@ -40,33 +41,20 @@ export class GameSettingsPanelComponent {
   settingsChange = output<ModeSettings>();
 
   protected readonly ICONS = ICONS;
-  protected readonly ALL_GENERATIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  protected readonly ALL_CATEGORIES = [
-    'classique', 'starter', 'légendaire', 'fabuleux', 'fossile',
-    'ultra-chimère', 'pseudo-légendaire', 'bébé', 'paradoxe',
-  ];
-  protected readonly CATEGORY_LABELS: Record<string, string> = {
-    classique: 'Classique',
-    starter: 'Starter',
-    légendaire: 'Légendaire',
-    fabuleux: 'Fabuleux',
-    fossile: 'Fossile',
-    'ultra-chimère': 'Ultra-Chimère',
-    'pseudo-légendaire': 'Pseudo-Lég.',
-    bébé: 'Bébé',
-    paradoxe: 'Paradoxe',
-  };
+  protected readonly ALL_GENERATIONS = ALL_GENERATIONS;
+  protected readonly ALL_CATEGORIES = ALL_CATEGORIES;
+  protected readonly CATEGORY_LABELS = CATEGORY_LABELS;
   protected readonly firstPlayerOptions: { value: FirstPlayer; label: string }[] = [
     { value: 'random', label: 'Aléatoire' },
     { value: 'player1', label: 'Vous' },
     { value: 'player2', label: 'Adversaire' },
   ];
   protected readonly hintModes: { value: WhoInitialHint; label: string; icon: string }[] = [
-    { value: 'silhouette', label: 'Silhouette', icon: ICONS.whoPokemon },
-    { value: 'cry', label: 'Cri', icon: ICONS.sound },
-    { value: 'pokedex_number', label: 'Numéro de Pokédex', icon: ICONS.pokedex },
-    { value: 'description', label: 'Description', icon: ICONS.rules },
-    { value: 'random', label: 'Aléatoire', icon: ICONS.dice },
+    { value: 'silhouette', label: INITIAL_HINT_LABELS['silhouette'], icon: ICONS.whoPokemon },
+    { value: 'cry', label: INITIAL_HINT_LABELS['cry'], icon: ICONS.sound },
+    { value: 'pokedex_number', label: INITIAL_HINT_LABELS['pokedex_number'], icon: ICONS.pokedex },
+    { value: 'description', label: INITIAL_HINT_LABELS['description'], icon: ICONS.rules },
+    { value: 'random', label: INITIAL_HINT_LABELS['random'], icon: ICONS.dice },
   ];
   protected readonly auctionFormats: { value: AuctionFormat; label: string; description: string }[] = [
     { value: 'live', label: 'En direct', description: 'Offres visibles et chrono prolongé.' },

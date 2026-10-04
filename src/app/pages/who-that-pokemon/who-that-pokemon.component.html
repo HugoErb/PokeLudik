@@ -394,8 +394,21 @@
         <p class="text-slate-200 text-2xl font-black">Score : {{ myScore() }} @if (room()) { - {{ opponentScore() }} }</p>
       </div>
       @if (feedback()) { <p role="alert" class="text-sm text-red-300">{{ feedback() }}</p> }
-      <app-end-game-actions class="mb-auto" [replayMode]="room() ? 'multi' : 'solo'" [iWantReplay]="isPlayer1() ? !!room()?.p1_ready : !!room()?.p2_ready" [opponentWantsReplay]="isPlayer1() ? !!room()?.p2_ready : !!room()?.p1_ready" [opponentLeft]="opponentLeft()" (replay)="replay()" (goHome)="goHome()" />
+      <app-end-game-actions class="mb-auto" [replayMode]="room() ? 'multi' : 'solo'" [iWantReplay]="isPlayer1() ? !!room()?.p1_ready : !!room()?.p2_ready" [opponentWantsReplay]="isPlayer1() ? !!room()?.p2_ready : !!room()?.p1_ready" [opponentLeft]="opponentLeft()" (replay)="replay()" (goHome)="goHome()">
+        @if (!room()) {
+          <app-solo-score-summary
+            [result]="scoreResult()"
+            [submitting]="scoreSubmitting()"
+            [error]="scoreError()"
+            (openLeaderboard)="showLeaderboard.set(true)"
+          />
+        }
+      </app-end-game-actions>
     </main>
+  }
+
+  @if (showLeaderboard()) {
+    <app-leaderboard-modal initialMode="who_that_pokemon" [initialSettingsKey]="leaderboardKey()" (close)="showLeaderboard.set(false)" />
   }
 
   @if (showCancelModal()) {

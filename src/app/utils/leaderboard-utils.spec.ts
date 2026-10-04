@@ -1,0 +1,32 @@
+import { buildSettingsKey, defaultSettingsKey, formatCategoryLabel, formatLeaderboardScore } from './leaderboard-utils';
+
+describe('leaderboard utils', () => {
+  it('construit la même clé canonique que le SQL (tri, dédoublonnage)', () => {
+    expect(buildSettingsKey('stat_duel', { generations: [3, 1, 3], categories: [] })).toBe('g=1,3;c=');
+    expect(buildSettingsKey('draft', { generations: [], categories: ['starter', 'bébé', 'starter'] })).toBe('g=;c=bébé,starter');
+    expect(buildSettingsKey('who_that_pokemon', { generations: [10, 9], categories: [], initialHint: 'cry' })).toBe('g=9,10;c=;h=cry');
+  });
+
+  it('utilise les paramètres par défaut quand aucun filtre n\'est choisi', () => {
+    expect(defaultSettingsKey('stat_duel')).toBe('g=;c=');
+    expect(defaultSettingsKey('who_that_pokemon')).toBe('g=;c=;h=silhouette');
+    expect(defaultSettingsKey('draft_trainer')).toBe('trainers_defeated');
+    expect(buildSettingsKey('draft_trainer', { trainer: 4 })).toBe('trainer:4');
+  });
+
+  it('affiche un libellé lisible pour chaque catégorie', () => {
+    expect(formatCategoryLabel('stat_duel', 'g=;c=', {})).toBe('Toutes générations · Toutes catégories');
+    expect(formatCategoryLabel('who_that_pokemon', 'g=1,2;c=légendaire;h=cry', {
+      generations: [1, 2], categories: ['légendaire'], initialHint: 'cry',
+    })).toBe('Gén. 1, 2 · Légendaire · Indice : Cri');
+    expect(formatCategoryLabel('draft_trainer', 'trainer:1', { trainer: 1 }, ['Pierre', 'Ondine'])).toBe('Ondine');
+    expect(formatCategoryLabel('draft_trainer', 'trainers_defeated', {})).toBe('Dresseurs battus');
+  });
+
+  it('formate les scores selon le mode', () => {
+    expect(formatLeaderboardScore('stat_duel', 'g=;c=', 612)).toBe('612');
+    expect(formatLeaderboardScore('draft', 'g=;c=', 7)).toBe('7.0/10');
+    expect(formatLeaderboardScore('who_that_pokemon', 'g=;c=;h=silhouette', 42)).toBe('42 pts');
+    expect(formatLeaderboardScore('draft_trainer', 'trainers_defeated', 3)).toBe('3 battus');
+  });
+});

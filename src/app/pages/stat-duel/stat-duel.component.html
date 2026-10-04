@@ -71,6 +71,10 @@
 		<app-help-modal mode="stat-duel" (close)="showHelpModal.set(false)" />
 	}
 
+	@if (showLeaderboard()) {
+		<app-leaderboard-modal initialMode="stat_duel" [initialSettingsKey]="leaderboardKey()" (close)="showLeaderboard.set(false)" />
+	}
+
 	@if (showCancelModal()) {
 		<app-cancel-modal [isCancelling]="isCancelling()" (confirm)="confirmCancel()" (cancel)="closeCancelModal()" />
 	}
@@ -580,7 +584,16 @@
 						[opponentLeft]="opponentLeft()"
 						(replay)="replay()"
 						(goHome)="goHome()"
-					/>
+					>
+						@if (isSolo()) {
+							<app-solo-score-summary
+								[result]="scoreResult()"
+								[submitting]="scoreSubmitting()"
+								[error]="scoreError()"
+								(openLeaderboard)="showLeaderboard.set(true)"
+							/>
+						}
+					</app-end-game-actions>
 				</div>
 			</div>
 		}

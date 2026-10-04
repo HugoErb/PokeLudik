@@ -28,6 +28,10 @@ import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft
 import { DuelIntroComponent } from '../../components/duel-intro/duel-intro.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
+import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
+import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
+import { SoloScoreResult } from '../../models/leaderboard.model';
+import { buildSettingsKey } from '../../utils/leaderboard-utils';
 import {
   computeDuoCoverageScore as computePokemonDuoCoverageScore,
   computeFinalScore,
@@ -58,7 +62,7 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 
 @Component({
   selector: 'app-draft-trainer',
-  imports: [NgClass, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent],
+  imports: [NgClass, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft-trainer.component.html',
@@ -171,6 +175,14 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
   readonly showScores = signal(false);
   private confettiFired = false;
 
+  readonly showLeaderboard = signal(false);
+  readonly scoreResult = signal<SoloScoreResult | null>(null);
+  readonly scoreSubmitting = signal(false);
+  readonly scoreError = signal('');
+  readonly trainerIndex = signal(0);
+  readonly leaderboardKey = computed(() => buildSettingsKey('draft_trainer', { trainer: this.trainerIndex() }));
+  private runId: string | null = null;
+
   readonly myStatsScore = computed(() => this.computeStatsScore(this.myTeamPokemons()));
   readonly opponentStatsScore = computed(() => this.computeStatsScore(this.opponentTeamPokemons()));
 
@@ -224,6 +236,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
       const selectedTrainer = trainers[id];
       this.trainer.set(selectedTrainer);
+      this.trainerIndex.set(id);
 
       if (this.allPokemon().length === 0) {
         const unsub = this.pokemonService.loadAll().subscribe(all => {
@@ -253,6 +266,9 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
   /** Initialise l'etat du draft. */
   private async initDraft(): Promise<void> {
+    this.runId = crypto.randomUUID();
+    this.scoreResult.set(null);
+    this.scoreError.set('');
     const pool = this.trainerPool();
     const starter = this.pickOneStarter(pool, new Set());
     const legendary = this.pickOneLegendary(pool, new Set(starter ? [starter.id] : []));
@@ -465,6 +481,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     this.myTeamPokemons.set(myTeam);
 
     this.phase.set('complete');
+    void this.submitScore(myTeam);
 
     setTimeout(() => {
       this.showScores.set(true);
@@ -480,6 +497,24 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
         }
       }
     }, 800);
+  }
+
+  /** Enregistre le match au classement ; les deux scores sont recalculés côté serveur. */
+  private async submitScore(myTeam: Pokemon[]): Promise<void> {
+    const runId = this.runId;
+    const opponent = this.opponentTeamPokemons().map(p => p.id);
+    if (!runId || myTeam.length !== 6 || opponent.length === 0) return;
+    this.runId = null;
+    this.scoreSubmitting.set(true);
+    this.scoreError.set('');
+    try {
+      this.scoreResult.set(await this.supabaseService.submitDraftTrainerScore(runId, this.trainerIndex(), myTeam.map(p => p.id), opponent));
+    } catch (err) {
+      console.error('[DraftTrainer] Score non enregistré', err);
+      this.scoreError.set('Score non enregistré au classement');
+    } finally {
+      this.scoreSubmitting.set(false);
+    }
   }
 
   /** Navigue vers la page d'accueil. */

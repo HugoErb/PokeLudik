@@ -9,10 +9,11 @@ import { modalAnimation } from '../../constants/animations';
 import { FriendsCardComponent } from '../../components/friends-card/friends-card.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { AccountMenuComponent } from '../../components/account-menu/account-menu.component';
+import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, FriendsCardComponent, AppHeaderComponent, AccountMenuComponent],
+  imports: [FormsModule, FriendsCardComponent, AppHeaderComponent, AccountMenuComponent, LeaderboardModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [modalAnimation],
   templateUrl: './home.component.html',
@@ -76,6 +77,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   };
   showPasswordModal = signal(false);
   showUsernameModal = signal(false);
+  showLeaderboardModal = signal(false);
 
   /** Ouvre la modal de changement de mot de passe. */
   openPasswordModal(): void {

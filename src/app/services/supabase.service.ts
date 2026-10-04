@@ -3,6 +3,7 @@ import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
+import { LeaderboardCategory, LeaderboardEntry, LeaderboardPeriod, LeaderboardSettings, SoloLeaderboardMode, SoloScoreResult, StatDuelScorePick } from '../models/leaderboard.model';
 import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
 
 @Injectable({ providedIn: 'root' })
@@ -1166,5 +1167,54 @@ export class SupabaseService implements OnDestroy {
         if ((existingCount ?? 0) > 0 && (data?.length ?? 0) === 0) {
             throw new Error('Suppression refusée par Supabase. Vérifie les policies RLS de defeated_trainers.');
         }
+    }
+
+    // ── Classement solo ───────────────────────────────────────────────────────
+
+    /** Enregistre une partie de Duel de Base Stats ; le total est recalculé côté serveur. */
+    async submitStatDuelScore(runId: string, settings: LeaderboardSettings, picks: StatDuelScorePick[]): Promise<SoloScoreResult> {
+        return this.submitSoloScore('submit_stat_duel_score', { p_run_id: runId, p_settings: settings, p_picks: picks });
+    }
+
+    /** Enregistre une partie de Who's That Pokémon. */
+    async submitWhoThatPokemonScore(runId: string, settings: LeaderboardSettings, score: number, found: number): Promise<SoloScoreResult> {
+        return this.submitSoloScore('submit_who_that_pokemon_score', { p_run_id: runId, p_settings: settings, p_score: score, p_found: found });
+    }
+
+    /** Enregistre une équipe du Team Builder solo ; la note est recalculée côté serveur. */
+    async submitDraftScore(runId: string, settings: LeaderboardSettings, team: number[]): Promise<SoloScoreResult> {
+        return this.submitSoloScore('submit_draft_score', { p_run_id: runId, p_settings: settings, p_team: team });
+    }
+
+    /** Enregistre un match contre un dresseur ; le score final est recalculé côté serveur. */
+    async submitDraftTrainerScore(runId: string, trainerIndex: number, team: number[], opponent: number[]): Promise<SoloScoreResult> {
+        return this.submitSoloScore('submit_draft_trainer_score', { p_run_id: runId, p_trainer_index: trainerIndex, p_team: team, p_opponent: opponent });
+    }
+
+    /** Charge le classement d'une catégorie (top + ligne du joueur connecté). */
+    async getSoloLeaderboard(mode: SoloLeaderboardMode, settingsKey: string, period: LeaderboardPeriod): Promise<LeaderboardEntry[]> {
+        const { data, error } = await this.supabase.rpc('get_solo_leaderboard', {
+            p_mode: mode, p_settings_key: settingsKey, p_period: period, p_limit: 50,
+        });
+        if (error) throw error;
+        return ((data ?? []) as LeaderboardEntry[]).map(entry => ({ ...entry, score: Number(entry.score) }));
+    }
+
+    /** Liste les catégories (combinaisons de paramètres) déjà jouées pour un mode. */
+    async getSoloLeaderboardCategories(mode: SoloLeaderboardMode, period: LeaderboardPeriod): Promise<LeaderboardCategory[]> {
+        const { data, error } = await this.supabase.rpc('get_solo_leaderboard_categories', { p_mode: mode, p_period: period });
+        if (error) throw error;
+        return (data ?? []) as LeaderboardCategory[];
+    }
+
+    private async submitSoloScore(fn: string, params: Record<string, unknown>): Promise<SoloScoreResult> {
+        const { data, error } = await this.supabase.rpc(fn, params);
+        if (error) throw error;
+        const result = data as SoloScoreResult;
+        return {
+            ...result,
+            score: Number(result.score),
+            previous_best: result.previous_best === null ? null : Number(result.previous_best),
+        };
     }
 }

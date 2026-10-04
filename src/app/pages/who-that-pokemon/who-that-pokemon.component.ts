@@ -17,6 +17,10 @@ import { Pokemon } from '../../models/pokemon.model';
 import { DEFAULT_WHO_SETTINGS, Profile, WhoPokemonRoom } from '../../models/room.model';
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toWhoSettings } from '../../models/game-settings.model';
 import { PokemonService } from '../../services/pokemon.service';
+import { SoloScoreResult } from '../../models/leaderboard.model';
+import { buildSettingsKey } from '../../utils/leaderboard-utils';
+import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
+import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 import { SupabaseService } from '../../services/supabase.service';
 import {
   buildWhoPokemonPool,
@@ -38,7 +42,7 @@ type WhoConfigMode = 'solo';
 
 @Component({
   selector: 'app-who-that-pokemon',
-  imports: [FormsModule, NgClass, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent, GameSettingsPanelComponent],
+  imports: [FormsModule, NgClass, AppHeaderComponent, EndGameActionsComponent, CancelModalComponent, ModeSelectComponent, ModeSelectCardComponent, HelpSectionTitleComponent, HelpCardComponent, GameSettingsPanelComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './who-that-pokemon.component.html',
   styles: [`
@@ -119,6 +123,12 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   readonly isCancelling = signal(false);
   readonly opponentLeft = signal(false);
   readonly opponentProfile = signal<Pick<Profile, 'id' | 'username' | 'avatar_url'> | null>(null);
+  readonly showLeaderboard = signal(false);
+  readonly scoreResult = signal<SoloScoreResult | null>(null);
+  readonly scoreSubmitting = signal(false);
+  readonly scoreError = signal('');
+  readonly leaderboardKey = computed(() => buildSettingsKey('who_that_pokemon', toWhoSettings(this.settings())));
+  private soloRunId: string | null = null;
 
   private roomSub?: Subscription;
   private broadcastSub?: Subscription;
@@ -281,7 +291,27 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     this.soloState.set({ roundIndex: 0, hintsRevealed: 0, score: 0, found: 0, status: 'playing' });
     this.guessInput.set('');
     this.feedback.set('');
+    this.soloRunId = crypto.randomUUID();
+    this.scoreResult.set(null);
+    this.scoreError.set('');
     this.phase.set('solo');
+  }
+
+  /** Termine la partie solo et l'enregistre au classement (une seule fois par partie). */
+  private finishSolo(state: WhoSoloState): void {
+    this.phase.set('complete');
+    const runId = this.soloRunId;
+    if (!runId) return;
+    this.soloRunId = null;
+    this.scoreSubmitting.set(true);
+    this.scoreError.set('');
+    this.supabaseService.submitWhoThatPokemonScore(runId, toWhoSettings(this.settings()), state.score, state.found)
+      .then(result => this.scoreResult.set(result))
+      .catch(err => {
+        console.error('[WhoThatPokemon] Score non enregistré', err);
+        this.scoreError.set('Score non enregistré au classement');
+      })
+      .finally(() => this.scoreSubmitting.set(false));
   }
 
   async createDuoRoom(): Promise<void> {
@@ -389,7 +419,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
       this.guessInput.set('');
       this.feedback.set('');
       if (target) this.showToast(`C'était ${target.name}.`, 'error', target);
-      if (next.status !== 'playing') this.phase.set('complete');
+      if (next.status !== 'playing') this.finishSolo(next);
       return;
     }
 
@@ -493,7 +523,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         this.feedback.set('');
         this.showToast(hadAllHints && target ? `C'était ${target.name}.` : 'Indice débloqué.', 'error', hadAllHints ? target : null);
       }
-      if (next.status !== 'playing') this.phase.set('complete');
+      if (next.status !== 'playing') this.finishSolo(next);
       return;
     }
 

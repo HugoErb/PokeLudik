@@ -20,6 +20,10 @@ import { GameSettingsPanelComponent } from '../../components/game-settings-panel
 import { PokemonStatsGridComponent } from '../../components/pokemon-stats-grid/pokemon-stats-grid.component';
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toGuessSettings } from '../../models/game-settings.model';
 import { shouldRevealStatDuelRound } from '../../utils/stat-duel-sync';
+import { buildSettingsKey } from '../../utils/leaderboard-utils';
+import { SoloScoreResult } from '../../models/leaderboard.model';
+import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
+import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 
 type Phase = 'mode-select' | 'waiting' | 'playing' | 'result';
 type StatConfigMode = 'solo';
@@ -48,7 +52,7 @@ const ROUND_DURATION_MS = ROUND_PICK_TIME_MS + ROUND_TRANSITION_TIME_MS;
 @Component({
     selector: 'app-stat-duel',
     standalone: true,
-    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent, PokemonStatsGridComponent],
+    imports: [NgClass, DuelIntroComponent, ModeSelectCardComponent, ModeSelectComponent, HelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent, PokemonStatsGridComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     templateUrl: './stat-duel.component.html',
     styles: [`
@@ -163,6 +167,14 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     showCancelModal = signal(false);
     isCancelling = signal(false);
 
+    // --- Classement solo ---------------------------------------------------------
+    showLeaderboard = signal(false);
+    scoreResult = signal<SoloScoreResult | null>(null);
+    scoreSubmitting = signal(false);
+    scoreError = signal('');
+    leaderboardKey = computed(() => buildSettingsKey('stat_duel', this.settings()));
+    private soloRunId: string | null = null;
+
     // --- Partage lien ------------------------------------------------------------
     inviteLink = '';
     linkCopied = signal(false);
@@ -250,6 +262,9 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.preloadImages(list);
         this.myPicks.set([]);
         this.currentRound.set(0);
+        this.soloRunId = crypto.randomUUID();
+        this.scoreResult.set(null);
+        this.scoreError.set('');
         this.phase.set('playing');
         this.startPokemonAnimation(() => this.startSoloClock());
     }
@@ -820,9 +835,31 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         if (next >= ROUND_COUNT) {
             this.phase.set('result');
             setTimeout(() => this.launchConfetti(), 300);
+            void this.submitSoloScore();
         } else {
             this.currentRound.set(next);
             this.startPokemonAnimation(() => this.startSoloClock());
+        }
+    }
+
+    /** Enregistre la partie solo au classement (une seule fois par partie). */
+    private async submitSoloScore(): Promise<void> {
+        const runId = this.soloRunId;
+        const pokemons = this.pokemonList();
+        const picks = this.myPicks();
+        if (!runId || picks.length !== ROUND_COUNT) return;
+        this.soloRunId = null;
+        this.scoreSubmitting.set(true);
+        this.scoreError.set('');
+        try {
+            const result = await this.supabaseService.submitStatDuelScore(runId, this.settings(),
+                picks.map((pick, index) => ({ pokemon_id: pokemons[index].id, stat: pick.stat })));
+            this.scoreResult.set(result);
+        } catch (err) {
+            console.error('[StatDuel] Score non enregistré', err);
+            this.scoreError.set('Score non enregistré au classement');
+        } finally {
+            this.scoreSubmitting.set(false);
         }
     }
 

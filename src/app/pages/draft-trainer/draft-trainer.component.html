@@ -346,6 +346,12 @@
 			</div>
 
 			<app-end-game-actions class="mb-auto" replayMode="solo" maxWidth="xs" (replay)="replay()" (goHome)="goHome()">
+				<app-solo-score-summary
+					[result]="scoreResult()"
+					[submitting]="scoreSubmitting()"
+					[error]="scoreError()"
+					(openLeaderboard)="showLeaderboard.set(true)"
+				/>
 				<div class="group/action w-full">
 					<button
 						type="button"
@@ -367,6 +373,10 @@
 	}
 
 	<!-- Modal aide -->
+	@if (showLeaderboard()) {
+		<app-leaderboard-modal initialMode="draft_trainer" [initialSettingsKey]="leaderboardKey()" (close)="showLeaderboard.set(false)" />
+	}
+
 	@if (showHelpModal()) {
 		<app-draft-help-modal [mode]="'trainer'" (close)="showHelpModal.set(false)" />
 	}

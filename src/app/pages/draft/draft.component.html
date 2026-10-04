@@ -270,11 +270,22 @@
 				</div>
 			}
 
-			<app-end-game-actions class="mb-auto" replayMode="solo" maxWidth="xs" (replay)="replay()" (goHome)="goHome()" />
+			<app-end-game-actions class="mb-auto" replayMode="solo" maxWidth="xs" (replay)="replay()" (goHome)="goHome()">
+				<app-solo-score-summary
+					[result]="scoreResult()"
+					[submitting]="scoreSubmitting()"
+					[error]="scoreError()"
+					(openLeaderboard)="showLeaderboard.set(true)"
+				/>
+			</app-end-game-actions>
 		</main>
 	}
 
 	<!-- Modal aide -->
+	@if (showLeaderboard()) {
+		<app-leaderboard-modal initialMode="draft" [initialSettingsKey]="leaderboardKey()" (close)="showLeaderboard.set(false)" />
+	}
+
 	@if (showHelpModal()) {
 		<app-draft-help-modal [mode]="'solo'" (close)="showHelpModal.set(false)" />
 	}

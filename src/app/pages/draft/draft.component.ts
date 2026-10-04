@@ -30,6 +30,10 @@ import { EndGameActionsComponent } from '../../components/end-game-actions/end-g
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { GameSettingsPanelComponent } from '../../components/game-settings-panel/game-settings-panel.component';
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings } from '../../models/game-settings.model';
+import { SoloScoreResult } from '../../models/leaderboard.model';
+import { buildSettingsKey } from '../../utils/leaderboard-utils';
+import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
+import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 import {
   computeRating as computePokemonRating,
   computeTotal as computePokemonTotal,
@@ -48,7 +52,7 @@ type DraftConfigMode = 'solo';
 
 @Component({
   selector: 'app-draft',
-  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, ModeSelectCardComponent, ModeSelectComponent, EndGameActionsComponent, AppHeaderComponent, GameSettingsPanelComponent],
+  imports: [NgClass, PokemonCardComponent, DraftHelpModalComponent, ModeSelectCardComponent, ModeSelectComponent, EndGameActionsComponent, AppHeaderComponent, GameSettingsPanelComponent, SoloScoreSummaryComponent, LeaderboardModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft.component.html',
@@ -84,6 +88,13 @@ export class DraftComponent implements OnInit {
   readonly draftConfigMode = signal<DraftConfigMode | null>(null);
   readonly settings = signal<ModeSettings>({ ...DEFAULT_MODE_SETTINGS.draft_duo });
   readonly configurationError = signal('');
+  readonly showLeaderboard = signal(false);
+  readonly scoreResult = signal<SoloScoreResult | null>(null);
+  readonly scoreSubmitting = signal(false);
+  readonly scoreError = signal('');
+  readonly leaderboardKey = computed(() => buildSettingsKey('draft', this.settings()));
+  /** Identifiant de la partie, conservé en sessionStorage : un rechargement renvoie le même run (idempotent). */
+  private runId: string = crypto.randomUUID();
 
   readonly lockedCount = computed(() => this.lockedIndices().size);
   readonly selectedPokemon = signal<Pokemon | null>(null);
@@ -112,6 +123,7 @@ export class DraftComponent implements OnInit {
       phase: this.phase(),
       showScore: this.showScore(),
       settings: this.settings(),
+      runId: this.runId,
     };
     sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(state));
   }
@@ -160,6 +172,8 @@ export class DraftComponent implements OnInit {
     this.slotStates.set(['idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
     this.phase.set(saved['phase'] as 'draft' | 'complete');
     this.showScore.set(saved['showScore'] as boolean);
+    this.runId = typeof saved['runId'] === 'string' ? saved['runId'] : crypto.randomUUID();
+    if (this.phase() === 'complete') void this.submitScore();
   }
 
   constructor() {
@@ -238,6 +252,9 @@ export class DraftComponent implements OnInit {
     this.slotStates.set(['idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
     this.showScore.set(false);
     this.isLockingPick = false;
+    this.runId = crypto.randomUUID();
+    this.scoreResult.set(null);
+    this.scoreError.set('');
     this.phase.set('draft');
     this.saveState();
   }
@@ -264,6 +281,7 @@ export class DraftComponent implements OnInit {
     if (unlocked.length === 0) {
       this.phase.set('complete');
       this.saveState();
+      void this.submitScore();
       setTimeout(() => {
         this.showScore.set(true);
         this.saveState();
@@ -369,6 +387,22 @@ export class DraftComponent implements OnInit {
     this.settings.set(settings);
     this.configurationError.set('');
     if (this.phase() === 'draft') this.saveState();
+  }
+
+  /** Enregistre l'équipe finale au classement ; la note est recalculée côté serveur. */
+  private async submitScore(): Promise<void> {
+    const team = this.lockedPokemon().filter((p): p is Pokemon => p !== null).map(p => p.id);
+    if (team.length !== 6 || this.scoreSubmitting()) return;
+    this.scoreSubmitting.set(true);
+    this.scoreError.set('');
+    try {
+      this.scoreResult.set(await this.supabaseService.submitDraftScore(this.runId, this.settings(), team));
+    } catch (err) {
+      console.error('[Draft] Score non enregistré', err);
+      this.scoreError.set('Score non enregistré au classement');
+    } finally {
+      this.scoreSubmitting.set(false);
+    }
   }
 
   /** Navigue vers la page d'accueil. */
