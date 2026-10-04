@@ -1,0 +1,95 @@
+<div class="flex w-full flex-col gap-3">
+  <div
+    #board
+    class="relative h-[min(56dvh,480px)] min-h-[260px] w-full select-none overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800"
+    [class.board-anim]="!interacting()"
+    [class.cursor-ns-resize]="!locked()"
+    style="touch-action: none"
+    (wheel)="onWheel($event)"
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerUp($event)"
+  >
+    <div class="pointer-events-none absolute inset-0 opacity-50" style="background-image: linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px); background-size: 100% 32px"></div>
+
+    @if (layout(); as l) {
+      <!-- Sol -->
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 border-t-2 border-emerald-400/40 bg-gradient-to-b from-emerald-900/30 to-slate-950/60" [style.top.px]="l.groundY"></div>
+
+      <!-- Ligne de repère au sommet de la référence -->
+      <div class="board-box pointer-events-none absolute left-0 right-0 border-t border-dashed border-slate-500/50" [style.top.px]="l.reference.box.top"></div>
+
+      <!-- Règle de la référence -->
+      <div class="board-box pointer-events-none absolute border-l-2 border-sky-300/80" [style.left.px]="l.reference.box.left - 10" [style.top.px]="l.reference.box.top" [style.height.px]="l.reference.box.height">
+        <span class="absolute -left-[5px] top-0 h-0.5 w-2.5 bg-sky-300/80"></span>
+        <span class="absolute -left-[5px] bottom-0 h-0.5 w-2.5 bg-sky-300/80"></span>
+      </div>
+      <div class="board-box pointer-events-none absolute flex justify-center" [style.left.px]="l.reference.box.left - 40" [style.width.px]="l.reference.box.width + 80" [style.top.px]="l.reference.box.top - 26">
+        <span class="whitespace-nowrap rounded-md bg-sky-500/20 px-2 py-0.5 text-[11px] font-black text-sky-200">{{ formatMeters(reference().height) }}</span>
+      </div>
+
+      <img [src]="reference().sprite" [alt]="reference().name" crossorigin="anonymous" draggable="false" class="pointer-events-none absolute max-w-none drop-shadow-xl" [style.left.px]="l.reference.image.left" [style.top.px]="l.reference.image.top" [style.width.px]="l.reference.image.width" [style.height.px]="l.reference.image.height" />
+
+      <!-- Révélation : le Pokémon à sa vraie taille, en transparence derrière l'estimation -->
+      @if (l.actual; as real) {
+        <img [src]="target().sprite" alt="" aria-hidden="true" crossorigin="anonymous" draggable="false" class="ghost-in pointer-events-none absolute max-w-none" [style.left.px]="real.image.left" [style.top.px]="real.image.top" [style.width.px]="real.image.width" [style.height.px]="real.image.height" />
+      }
+
+      <img [src]="target().sprite" [alt]="target().name" crossorigin="anonymous" draggable="false" class="pointer-events-none absolute max-w-none drop-shadow-xl" [class.opacity-60]="revealed()" [style.left.px]="l.target.image.left" [style.top.px]="l.target.image.top" [style.width.px]="l.target.image.width" [style.height.px]="l.target.image.height" />
+
+      <!-- Cadre de l'estimation + poignée -->
+      <div class="board-box pointer-events-none absolute rounded-md border" [class.border-white/30]="!locked()" [class.border-white/10]="locked()" [style.left.px]="l.target.box.left" [style.top.px]="l.target.box.top" [style.width.px]="l.target.box.width" [style.height.px]="l.target.box.height">
+        @if (!locked()) {
+          <span class="absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-lg shadow-emerald-950/50">
+            <iconify-icon [icon]="ICONS.sizeUp" class="text-xs text-white"></iconify-icon>
+          </span>
+        }
+      </div>
+      @if (!revealed()) {
+        <div class="board-box pointer-events-none absolute flex justify-center" [style.left.px]="l.target.box.left - 40" [style.width.px]="l.target.box.width + 80" [style.top.px]="l.target.box.top - 26">
+          <span class="whitespace-nowrap rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-black text-white">≈ {{ formatMeters(guess()) }}</span>
+        </div>
+      }
+
+      @if (l.opponent; as box) {
+        <div class="outline-in pointer-events-none absolute rounded-md border-2 border-dashed border-amber-300" [style.left.px]="box.left" [style.top.px]="box.top" [style.width.px]="box.width" [style.height.px]="box.height">
+          <span class="absolute -bottom-0.5 left-1/2 max-w-[8rem] -translate-x-1/2 translate-y-full truncate whitespace-nowrap rounded-md bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-slate-950">{{ opponentLabel() }}</span>
+        </div>
+      }
+      @if (l.actual?.box; as box) {
+        <div class="outline-in pointer-events-none absolute rounded-md border-2 border-dashed border-emerald-300 bg-emerald-400/10" [style.left.px]="box.left" [style.top.px]="box.top" [style.width.px]="box.width" [style.height.px]="box.height">
+          <span class="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-500 px-2 py-0.5 text-[11px] font-black text-slate-950">Réel : {{ formatMeters(target().height) }}</span>
+        </div>
+      }
+
+      <!-- Noms -->
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-2 gap-2 px-2 pb-1.5" [style.top.px]="l.groundY + 4">
+        <p class="self-center truncate text-center text-[11px] font-black text-sky-200 sm:text-xs">{{ reference().name }}</p>
+        <p class="self-center truncate text-center text-[11px] font-black text-white sm:text-xs">{{ target().name }}</p>
+      </div>
+    } @else {
+      <div class="absolute inset-0 flex items-center justify-center">
+        <iconify-icon [icon]="ICONS.loading" class="animate-spin text-3xl text-emerald-300"></iconify-icon>
+      </div>
+    }
+  </div>
+
+  <div class="flex items-center gap-2" [class.opacity-50]="locked()">
+    <button type="button" (click)="nudge(1 / 1.1)" [disabled]="locked()" aria-label="Réduire" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-600 bg-slate-800 text-lg font-black text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed">−</button>
+    <input
+      type="range"
+      min="0"
+      [max]="sliderSteps"
+      step="1"
+      [value]="sliderValue()"
+      (input)="onSliderInput($event)"
+      (keydown)="onKeydown($event)"
+      [disabled]="locked()"
+      [attr.aria-label]="'Taille estimée de ' + target().name"
+      [attr.aria-valuetext]="formatMeters(guess())"
+      class="h-2 min-w-0 flex-1 cursor-pointer accent-emerald-400 disabled:cursor-not-allowed"
+    />
+    <button type="button" (click)="nudge(1.1)" [disabled]="locked()" aria-label="Agrandir" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-600 bg-slate-800 text-lg font-black text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed">+</button>
+  </div>
+</div>

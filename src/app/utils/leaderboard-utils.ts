@@ -12,6 +12,7 @@ export const SOLO_LEADERBOARD_MODES: LeaderboardModeInfo[] = [
   { mode: 'who_that_pokemon', label: "Who's That Pokémon", shortLabel: "Who's That" },
   { mode: 'draft', label: 'Team Builder', shortLabel: 'Team Builder' },
   { mode: 'draft_trainer', label: 'Contre un dresseur', shortLabel: 'Dresseurs' },
+  { mode: 'size_up', label: 'Size Up', shortLabel: 'Size Up' },
 ];
 
 /** Clé canonique d'une catégorie ; doit rester identique à public.solo_settings_key côté SQL. */
@@ -23,7 +24,9 @@ export function buildSettingsKey(mode: SoloLeaderboardMode, settings: Leaderboar
   // Même tri que ORDER BY c en SQL (collation C : ordre des points de code).
   const categories = [...new Set(settings.categories ?? [])].sort(compareCodePoints);
   const key = `g=${generations.join(',')};c=${categories.join(',')}`;
-  return mode === 'who_that_pokemon' ? `${key};h=${settings.initialHint ?? 'silhouette'}` : key;
+  if (mode === 'who_that_pokemon') return `${key};h=${settings.initialHint ?? 'silhouette'}`;
+  if (mode === 'size_up') return `${key};t=${settings.roundTimer ?? 0}`;
+  return key;
 }
 
 /** Clé de la catégorie par défaut (aucun filtre). */
@@ -54,6 +57,10 @@ export function formatCategoryLabel(
     const hint = settings.initialHint ?? 'silhouette';
     parts.push(`Indice : ${INITIAL_HINT_LABELS[hint] ?? hint}`);
   }
+  if (mode === 'size_up') {
+    const timer = settings.roundTimer ?? 0;
+    parts.push(timer > 0 ? `Chrono ${timer} s` : 'Sans chrono');
+  }
   return parts.join(' · ');
 }
 
@@ -63,7 +70,7 @@ export function formatLeaderboardScore(mode: SoloLeaderboardMode, settingsKey: s
     return `${score} battu${score > 1 ? 's' : ''}`;
   }
   if (mode === 'draft' || mode === 'draft_trainer') return `${score.toFixed(1)}/10`;
-  if (mode === 'who_that_pokemon') return `${score} pts`;
+  if (mode === 'who_that_pokemon' || mode === 'size_up') return `${score} pts`;
   return `${score}`;
 }
 

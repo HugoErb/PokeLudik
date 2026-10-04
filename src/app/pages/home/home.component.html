@@ -206,6 +206,25 @@
 						<div class="flex flex-col items-start"><span class="text-sm font-black text-white sm:text-base">Enchères Pokémon</span><span class="mt-1 text-xs font-medium leading-relaxed text-slate-400">{{ isModeCreating('pokemon_auction') ? 'Création de la partie…' : "Mise intelligemment et construis l'équipe la plus forte" }}</span></div>
 					</button>
 					</div>
+
+					<!-- Bouton Size Up -->
+					<div class="group/mode min-w-0">
+					<button
+						(click)="startSizeUp()"
+						[disabled]="isCreating"
+						[attr.aria-busy]="isModeCreating('size_up') ? 'true' : null"
+						[class.opacity-50]="isCreating && !isModeCreating('size_up')"
+						class="h-full min-h-[112px] w-full transform-gpu will-change-transform rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.07] p-4 text-left transition-[transform,border-color,background-color] duration-300 ease-out group-hover/mode:-translate-y-0.5 group-hover/mode:border-emerald-400/50 group-hover/mode:bg-emerald-500/10 disabled:cursor-not-allowed disabled:group-hover/mode:translate-y-0"
+					>
+						<div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/10">
+							<iconify-icon [icon]="isModeCreating('size_up') ? ICONS.loading : ICONS.sizeUp" class="text-2xl text-emerald-300" [class.animate-spin]="isModeCreating('size_up')"></iconify-icon>
+						</div>
+						<div class="flex flex-col items-start">
+							<span class="text-sm font-black text-white sm:text-base">Size Up</span>
+							<span class="mt-1 text-xs font-medium leading-relaxed text-slate-400">{{ isModeCreating('size_up') ? 'Ouverture du mode…' : 'Compare deux Pokémon et estime la bonne taille' }}</span>
+						</div>
+					</button>
+					</div>
 				</div>
 			</div>
 

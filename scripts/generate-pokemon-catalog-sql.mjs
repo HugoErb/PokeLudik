@@ -15,14 +15,14 @@ const quote = value => `'${String(value).replaceAll("'", "''")}'`;
 const rows = pokemon.map(entry => {
   const stats = entry.stats;
   const types = `ARRAY[${entry.types.map(quote).join(',')}]::text[]`;
-  return `(${entry.id},${entry.generation},${quote(entry.category)},${types},${Number(entry.rating)},${stats.pv},${stats.attaque},${stats.defense},${stats.atq_spe},${stats.def_spe},${stats.vitesse})`;
+  return `(${entry.id},${entry.generation},${quote(entry.category)},${types},${Number(entry.rating)},${stats.pv},${stats.attaque},${stats.defense},${stats.atq_spe},${stats.def_spe},${stats.vitesse},${Number(entry.height)})`;
 });
 const seed = [
-  'INSERT INTO public.pokemon_catalog (id, generation, category, types, rating, pv, attaque, defense, atq_spe, def_spe, vitesse) VALUES',
+  'INSERT INTO public.pokemon_catalog (id, generation, category, types, rating, pv, attaque, defense, atq_spe, def_spe, vitesse, height) VALUES',
   `${rows.join(',\n')}\nON CONFLICT (id) DO UPDATE SET`,
   'generation = EXCLUDED.generation, category = EXCLUDED.category, types = EXCLUDED.types, rating = EXCLUDED.rating, pv = EXCLUDED.pv,',
   'attaque = EXCLUDED.attaque, defense = EXCLUDED.defense, atq_spe = EXCLUDED.atq_spe,',
-  'def_spe = EXCLUDED.def_spe, vitesse = EXCLUDED.vitesse;',
+  'def_spe = EXCLUDED.def_spe, vitesse = EXCLUDED.vitesse, height = EXCLUDED.height;',
 ].join('\n');
 
 const start = schema.indexOf(startMarker);

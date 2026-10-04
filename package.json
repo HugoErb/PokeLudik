@@ -12,6 +12,7 @@
     "verify:auction": "node scripts/verify-pokemon-auction.mjs",
     "verify:functional-sql": "node scripts/verify-functional-sql.mjs",
     "verify:solo-leaderboard": "node scripts/verify-solo-leaderboard.mjs",
+    "verify:size-up": "node scripts/verify-size-up.mjs",
     "add:ratings": "node scripts/add-ratings.js"
   },
   "overrides": {

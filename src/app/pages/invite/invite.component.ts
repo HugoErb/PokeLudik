@@ -39,6 +39,8 @@ export class InviteComponent implements OnInit, OnDestroy {
 			this.headerTitle = 'Qui est ce Pokémon ?'; this.headerIcon = ICONS.whoPokemon; this.headerIconClass = 'text-amber-300';
 		} else if (mode === 'pokemon_auction') {
 			this.headerTitle = 'Enchères Pokémon'; this.headerIcon = ICONS.auction; this.headerIconClass = 'text-orange-300';
+		} else if (mode === 'size_up') {
+			this.headerTitle = 'Size Up'; this.headerIcon = ICONS.sizeUp; this.headerIconClass = 'text-emerald-300';
 		}
 		if (mode === 'stat_duel') {
 			this.loadStatDuelRoom();
@@ -48,6 +50,8 @@ export class InviteComponent implements OnInit, OnDestroy {
 			this.loadWhoPokemonRoom();
 		} else if (mode === 'pokemon_auction') {
 			this.loadPokemonAuctionRoom();
+		} else if (mode === 'size_up') {
+			this.loadSizeUpRoom();
 		} else {
 			this.loadRoom();
 		}
@@ -155,6 +159,41 @@ export class InviteComponent implements OnInit, OnDestroy {
 			try {
 				await this.supabaseService.joinWhoPokemonRoom(this.roomId());
 				await this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'who_that_pokemon' } });
+			} catch {
+				this.state = 'error';
+				this.errorMessage = 'Impossible de rejoindre la partie.';
+			}
+		} catch {
+			this.state = 'error';
+			this.errorMessage = "Cette invitation n'est plus valide.";
+		}
+	}
+
+	private async loadSizeUpRoom(): Promise<void> {
+		try {
+			const room = await this.supabaseService.getSizeUpRoom(this.roomId());
+
+			if (room?.status !== 'waiting') {
+				this.state = 'error';
+				this.errorMessage = "Cette invitation n'est plus valide.";
+				return;
+			}
+
+			if (room.player2_id) {
+				this.state = 'full';
+				this.errorMessage = 'Cette partie est déjà complète.';
+				return;
+			}
+
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			if (currentUser?.id === room.player1_id) {
+				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'size_up' } });
+				return;
+			}
+
+			try {
+				await this.supabaseService.joinSizeUpRoom(this.roomId());
+				await this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'size_up' } });
 			} catch {
 				this.state = 'error';
 				this.errorMessage = 'Impossible de rejoindre la partie.';

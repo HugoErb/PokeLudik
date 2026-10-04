@@ -9,8 +9,8 @@ import { GameService } from '../../services/game.service';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Pokemon } from '../../models/pokemon.model';
-import { DraftDuoRoom, GameMode, PokemonAuctionRoom, Profile, Room, StatDuelRoom, WhoPokemonRoom } from '../../models/room.model';
-import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, resolvePendingSettingsAfterSave, toAuctionSettings, toGuessSettings, toWhoSettings } from '../../models/game-settings.model';
+import { DraftDuoRoom, GameMode, PokemonAuctionRoom, Profile, Room, SizeUpRoom, StatDuelRoom, WhoPokemonRoom } from '../../models/room.model';
+import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, resolvePendingSettingsAfterSave, toAuctionSettings, toGuessSettings, toSizeUpSettings, toWhoSettings } from '../../models/game-settings.model';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { HelpModalComponent } from '../../components/help-modal/help-modal.component';
@@ -79,16 +79,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private readonly draftDuoRoom = signal<DraftDuoRoom | null>(null);
 	private readonly whoPokemonRoom = signal<WhoPokemonRoom | null>(null);
 	private readonly pokemonAuctionRoom = signal<PokemonAuctionRoom | null>(null);
-	room = computed<Room | StatDuelRoom | DraftDuoRoom | WhoPokemonRoom | PokemonAuctionRoom | null>(() => {
+	private readonly sizeUpRoom = signal<SizeUpRoom | null>(null);
+	room = computed<Room | StatDuelRoom | DraftDuoRoom | WhoPokemonRoom | PokemonAuctionRoom | SizeUpRoom | null>(() => {
 		const statRoom = this.statDuelRoom();
 		const draftRoom = this.draftDuoRoom();
 		const whoRoom = this.whoPokemonRoom();
 		const auctionRoom = this.pokemonAuctionRoom();
+		const sizeUpRoom = this.sizeUpRoom();
 		const guessRoom = this.gameService.currentRoom();
 		if (this.gameMode === 'stat_duel') return statRoom;
 		if (this.gameMode === 'draft_duo') return draftRoom;
 		if (this.gameMode === 'who_that_pokemon') return whoRoom;
 		if (this.gameMode === 'pokemon_auction') return auctionRoom;
+		if (this.gameMode === 'size_up') return sizeUpRoom;
 		return guessRoom;
 	});
 	isPlayer1 = computed(() => {
@@ -160,16 +163,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private pollInterval: ReturnType<typeof setInterval> | null = null;
 	private pendingLocalSettings: ModeSettings | null = null;
 
-	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel' | 'auction'; playRoute: string }> = {
+	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel' | 'auction' | 'size-up'; playRoute: string }> = {
 		guess_my_pokemon: { title: 'Guess my Pokémon', icon: ICONS.guess, iconClass: 'text-red-400', playRoute: '/game' },
 		stat_duel: { title: 'Duel de Base Stats', subtitle: 'Deux joueurs en ligne', icon: ICONS.statDuel, iconClass: 'text-yellow-400', helpMode: 'stat-duel', playRoute: '/stat-duel' },
 		draft_duo: { title: 'Team Builder', subtitle: 'Deux joueurs en ligne', icon: ICONS.draft, iconClass: 'text-purple-200', iconSizeClass: 'text-4xl', playRoute: '/draft-duo' },
 		who_that_pokemon: { title: "Who's That Pokémon ?", subtitle: 'Deux joueurs en ligne', icon: ICONS.whoPokemon, iconClass: 'text-cyan-300', playRoute: '/who-that-pokemon' },
 		pokemon_auction: { title: 'Enchères Pokémon', subtitle: 'Deux joueurs en ligne', icon: ICONS.auction, iconClass: 'text-orange-300', helpMode: 'auction', playRoute: '/pokemon-auction' },
+		size_up: { title: 'Size Up', subtitle: 'Deux joueurs en ligne', icon: ICONS.sizeUp, iconClass: 'text-emerald-300', helpMode: 'size-up', playRoute: '/size-up' },
 	};
 
 	/** Retourne la configuration d'affichage du mode courant. */
-	get modeConfig(): { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel' | 'auction'; playRoute: string } {
+	get modeConfig(): { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel' | 'auction' | 'size-up'; playRoute: string } {
 		return this.MODE_CONFIG[this.gameMode];
 	}
 
@@ -181,6 +185,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			draft_duo: 'border-purple-400/25 bg-purple-500/10',
 			who_that_pokemon: 'border-cyan-400/25 bg-cyan-500/10',
 			pokemon_auction: 'border-orange-400/25 bg-orange-500/10',
+			size_up: 'border-emerald-400/25 bg-emerald-500/10',
 		};
 		return classes[this.gameMode];
 	}
@@ -193,6 +198,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			draft_duo: 'mode-theme-purple',
 			who_that_pokemon: 'mode-theme-cyan',
 			pokemon_auction: 'mode-theme-orange',
+			size_up: 'mode-theme-emerald',
 		};
 		return classes[this.gameMode];
 	}
@@ -239,6 +245,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 		if (this.gameMode === 'pokemon_auction') {
 			await this.initPokemonAuctionLobby();
+			return;
+		}
+
+		if (this.gameMode === 'size_up') {
+			await this.initSizeUpLobby();
 			return;
 		}
 
@@ -384,6 +395,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			await this.cancelDraftDuoRoom();
 		} else if (this.gameMode === 'pokemon_auction') {
 			await this.supabaseService.cancelPokemonAuctionRoom(this.roomId()).catch(() => undefined);
+		} else if (this.gameMode === 'size_up') {
+			await this.cancelSizeUpRoom();
 		} else {
 			await this.cancelWhoPokemonRoom();
 		}
@@ -466,6 +479,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				if (new Set(allPokemon.map(p => p.id)).size < 12) throw new Error('Le pool doit contenir au moins 12 Pokemon distincts');
 				await this.supabaseService.launchPokemonAuctionRoom(this.roomId(), toAuctionSettings(this.gameSettings));
 				void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
+			} else if (this.gameMode === 'size_up') {
+				let allPokemon = await firstValueFrom(this.pokemonService.loadAll());
+				if (this.gameSettings.generations.length) allPokemon = allPokemon.filter(p => this.gameSettings.generations.includes(p.generation));
+				if (this.gameSettings.categories.length) allPokemon = allPokemon.filter(p => this.gameSettings.categories.includes(p.category));
+				if (new Set(allPokemon.map(p => p.id)).size < 2) throw new Error('Le pool doit contenir au moins 2 Pokemon distincts');
+				await this.supabaseService.startSizeUpGame(this.roomId(), toSizeUpSettings(this.gameSettings));
+				void this.router.navigate([this.modeConfig.playRoute, this.roomId()]);
 			} else if (this.gameMode === 'who_that_pokemon') {
 				let pokemons = this.allPokemons;
 				if (pokemons.length === 0) {
@@ -495,7 +515,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			}
 		} catch (error) {
 			this.launchError = error instanceof Error && error.message.includes('au moins')
-				? `Ces filtres doivent laisser au moins ${this.gameMode === 'pokemon_auction' ? 12 : 6} Pokémon distincts.`
+				? `Ces filtres doivent laisser au moins ${this.gameMode === 'pokemon_auction' ? 12 : this.gameMode === 'size_up' ? 2 : 6} Pokémon distincts.`
 				: 'Erreur lors du lancement. Réessaie.';
 		} finally {
 			this.isLaunching = false;
@@ -530,6 +550,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				await this.supabaseService.updateDraftDuoRoom(this.roomId(), { settings: toGuessSettings(settings) });
 			} else if (this.gameMode === 'pokemon_auction') {
 				await this.supabaseService.setPokemonAuctionSettings(this.roomId(), toAuctionSettings(settings));
+			} else if (this.gameMode === 'size_up') {
+				await this.supabaseService.updateSizeUpRoom(this.roomId(), { settings: toSizeUpSettings(settings) });
 			}
 			return true;
 		} catch {
@@ -759,6 +781,39 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		} catch { void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } }); }
 	}
 
+	/** Initialise le lobby Size Up. */
+	private async initSizeUpLobby(): Promise<void> {
+		try {
+			let room = await this.supabaseService.getSizeUpRoom(this.roomId());
+			this.syncRemoteSettings('size_up', room.settings);
+			const user = this.supabaseService.getCurrentUser();
+			if (user && !room.player2_id && room.player1_id !== user.id) {
+				await this.supabaseService.joinSizeUpRoom(this.roomId());
+				room = await this.supabaseService.getSizeUpRoom(this.roomId());
+			}
+			this.sizeUpRoom.set(room);
+			this.isLoading = false;
+			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=size_up`;
+			this.supabaseService.trackPresence('in_game');
+			this.subscribeInviteDecline();
+			if (room.status === 'finished') {
+				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+			} else if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
+			this.multiRoomSub = this.supabaseService.subscribeToSizeUpRoom(this.roomId()).subscribe((updated) => {
+				this.sizeUpRoom.set(updated);
+				this.syncRemoteSettings('size_up', updated.settings);
+				if (updated.status === 'finished') {
+					void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+					return;
+				}
+				if (shouldEnterMultiplayerGame(updated)) void this.navigateToPlay();
+			});
+			this.startMultiPoll();
+		} catch {
+			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+		}
+	}
+
 	/** Initialise le lobby Who's That Pokemon. */
 	private async initWhoPokemonLobby(): Promise<void> {
 		try {
@@ -845,6 +900,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					this.syncRemoteSettings('pokemon_auction', room.settings);
 					if (room.status === 'finished') { void this.router.navigate(['/home'], { queryParams: { gameEnded: true } }); return; }
 					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
+				} else if (this.gameMode === 'size_up') {
+					const room = await this.supabaseService.getSizeUpRoom(this.roomId());
+					this.sizeUpRoom.set(room);
+					this.syncRemoteSettings('size_up', room.settings);
+					if (room.status === 'finished') {
+						void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+						return;
+					}
+					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				}
 			} catch {
 				// ignore les erreurs de polling
@@ -883,6 +947,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		}).catch(() => undefined);
 	}
 
+	/** Termine une room Size Up apres confirmation d'abandon. */
+	private async cancelSizeUpRoom(): Promise<void> {
+		await this.supabaseService.broadcastPlayerLeft().catch(() => undefined);
+		await this.supabaseService.updateSizeUpRoom(this.roomId(), {
+			status: 'finished',
+			winner: null,
+			p1_ready: false,
+			p2_ready: false,
+		}).catch(() => undefined);
+	}
+
 	/** Retourne une copie melangee du tableau donne. */
 	private shuffle<T>(arr: T[]): T[] {
 		const a = [...arr];
@@ -904,7 +979,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	/** Precharge l'intro de duel pour la room courante. */
 	private async preloadDuelIntroForRoom(): Promise<DuelIntroPlayer[] | null> {
 		const room = this.room();
-		if (!room || this.gameMode === 'draft_duo' || this.gameMode === 'pokemon_auction') return null;
+		if (!room || this.gameMode === 'draft_duo' || this.gameMode === 'pokemon_auction' || this.gameMode === 'size_up') return null;
 
 		const key = this.gameMode === 'stat_duel'
 			? `stat-duel-intro-data-${this.roomId()}`

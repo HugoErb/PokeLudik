@@ -32,6 +32,19 @@ export const DEFAULT_WHO_SETTINGS: WhoGameSettings = {
   initialHint: 'silhouette',
 };
 
+export interface SizeUpGameSettings {
+  generations: number[];
+  categories: string[];
+  /** Durée d'une manche en secondes, 0 = sans limite. */
+  roundTimer: number;
+}
+
+export const DEFAULT_SIZE_UP_SETTINGS: SizeUpGameSettings = {
+  generations: [],
+  categories: [],
+  roundTimer: 0,
+};
+
 export interface Room {
   id: string;
   player1_id: string;
@@ -67,7 +80,7 @@ export interface Friendship {
   created_at: string;
 }
 
-export type GameMode = 'guess_my_pokemon' | 'stat_duel' | 'draft_duo' | 'who_that_pokemon' | 'pokemon_auction';
+export type GameMode = 'guess_my_pokemon' | 'stat_duel' | 'draft_duo' | 'who_that_pokemon' | 'pokemon_auction' | 'size_up';
 
 export type AuctionFormat = 'live' | 'sealed' | 'turn_based';
 
@@ -195,6 +208,44 @@ export interface WhoPokemonRoom {
   p1_ready: boolean;
   p2_ready: boolean;
   created_at: string;
+}
+
+/** Manche jouée en duo Size Up, telle que stockée dans `size_up_rooms.history`. */
+export interface SizeUpHistoryEntry {
+  round: number;
+  reference_id: number;
+  target_id: number;
+  p1_guess: number | null;
+  p2_guess: number | null;
+  p1_points: number;
+  p2_points: number;
+}
+
+export interface SizeUpRoom {
+  id: string;
+  player1_id: string;
+  player2_id: string | null;
+  status: 'waiting' | 'playing' | 'finished';
+  settings: SizeUpGameSettings | null;
+  round: number;
+  round_phase: 'guessing' | 'reveal';
+  reference_pokemon_id: number | null;
+  target_pokemon_id: number | null;
+  used_pokemon_ids: number[];
+  round_deadline: string | null;
+  reveal_until: string | null;
+  /** Les estimations restent secrètes côté serveur jusqu'à la révélation. */
+  p1_submitted: boolean;
+  p2_submitted: boolean;
+  p1_score: number;
+  p2_score: number;
+  history: SizeUpHistoryEntry[];
+  winner: 'player1' | 'player2' | 'draw' | null;
+  p1_ready: boolean;
+  p2_ready: boolean;
+  created_at: string;
+  /** Incrémentée à chaque mise à jour : permet d'ignorer un état périmé. */
+  version?: number;
 }
 
 export type FriendStatus = 'online' | 'in_game' | 'offline';

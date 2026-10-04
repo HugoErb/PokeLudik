@@ -3,8 +3,8 @@ import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { LeaderboardCategory, LeaderboardEntry, LeaderboardPeriod, LeaderboardSettings, PersonalLeaderboard, SoloLeaderboardMode, SoloScoreResult, StatDuelScorePick } from '../models/leaderboard.model';
-import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, Profile, Room, RoomPatch, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
+import { LeaderboardCategory, LeaderboardEntry, LeaderboardPeriod, LeaderboardSettings, PersonalLeaderboard, SoloLeaderboardMode, SizeUpScoreRound, SoloScoreResult, StatDuelScorePick } from '../models/leaderboard.model';
+import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, Profile, Room, RoomPatch, SizeUpGameSettings, SizeUpRoom, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService implements OnDestroy {
@@ -686,6 +686,91 @@ export class SupabaseService implements OnDestroy {
         });
     }
 
+    // ─── Size Up ─────────────────────────────────────────────────────────────
+
+    async createSizeUpRoom(settings?: SizeUpGameSettings): Promise<string> {
+        const user = this.userSubject.getValue();
+        if (!user) throw new Error('Utilisateur non connecté');
+
+        const { data, error } = await this.supabase
+            .from('size_up_rooms')
+            .insert({ player1_id: user.id, settings: settings ?? null })
+            .select('id')
+            .single();
+
+        if (error) throw error;
+        return (data as { id: string }).id;
+    }
+
+    async getSizeUpRoom(roomId: string): Promise<SizeUpRoom> {
+        const { data, error } = await this.supabase.from('size_up_rooms').select('*').eq('id', roomId).single();
+        if (error) throw error;
+        return normalizeSizeUpRoom(data as SizeUpRoom);
+    }
+
+    async joinSizeUpRoom(roomId: string): Promise<void> {
+        const user = this.userSubject.getValue();
+        if (!user) throw new Error('Utilisateur non connecté');
+
+        const room = await this.getSizeUpRoom(roomId);
+        if (room.player1_id === user.id) throw new Error('Le créateur ne peut pas rejoindre sa propre room');
+        if (room.player2_id) throw new Error('Room déjà complète');
+        if (room.status !== 'waiting') throw new Error('Room non joignable');
+
+        const { error } = await this.supabase.rpc('join_size_up_room', { p_room_id: roomId });
+        if (error) throw error;
+    }
+
+    /** Met à jour les champs autorisés d'une room Size Up (paramètres, revanche, abandon). */
+    async updateSizeUpRoom(roomId: string, patch: Partial<SizeUpRoom>): Promise<void> {
+        const { error } = await this.supabase.rpc('update_size_up_room', { p_room_id: roomId, p_patch: patch });
+        if (error) throw error;
+    }
+
+    /** Lance (ou relance) la partie : le serveur tire la première paire et fixe le chrono. */
+    async startSizeUpGame(roomId: string, settings: SizeUpGameSettings): Promise<void> {
+        const { error } = await this.supabase.rpc('start_size_up_game', { p_room_id: roomId, p_settings: settings });
+        if (error) throw error;
+    }
+
+    /** Envoie l'estimation (en mètres) du joueur courant ; les points sont calculés côté serveur. */
+    async submitSizeUpGuess(roomId: string, round: number, guess: number): Promise<void> {
+        const { error } = await this.supabase.rpc('submit_size_up_guess', { p_room_id: roomId, p_round: round, p_guess: guess });
+        if (error) throw error;
+    }
+
+    /** Fait avancer la manche quand un délai est écoulé (chrono ou révélation) ; sans effet sinon. */
+    async finalizeSizeUpRound(roomId: string, round: number): Promise<void> {
+        const { error } = await this.supabase.rpc('finalize_size_up_round', { p_room_id: roomId, p_round: round });
+        if (error) throw error;
+    }
+
+    subscribeToSizeUpRoom(roomId: string): Observable<SizeUpRoom> {
+        return new Observable<SizeUpRoom>((observer) => {
+            const user = this.getCurrentUser();
+            const channel = this.supabase
+                .channel(`size-up-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'size_up_rooms', filter: `id=eq.${roomId}` },
+                    (payload) => { observer.next(normalizeSizeUpRoom(payload.new as SizeUpRoom)); },
+                )
+                .on('broadcast', { event: '*' }, ({ event, payload }) => {
+                    this.broadcastSubject.next({ event, payload });
+                })
+                .subscribe((status) => {
+                    if (status === 'CHANNEL_ERROR') observer.error(new Error(`Erreur canal size-up-${roomId}`));
+                    if (status === 'SUBSCRIBED' && user) void channel.track({ user_id: user.id });
+                });
+
+            this.activeRoomChannel = channel;
+            return () => {
+                this.supabase.removeChannel(channel);
+                this.activeRoomChannel = null;
+            };
+        });
+    }
+
     // ─── Utilitaire interne ──────────────────────────────────────────────────────
 
     /**
@@ -996,6 +1081,8 @@ export class SupabaseService implements OnDestroy {
                 roomId = await this.createWhoPokemonRoom();
             } else if (gameMode === 'pokemon_auction') {
                 roomId = await this.createPokemonAuctionRoom();
+            } else if (gameMode === 'size_up') {
+                roomId = await this.createSizeUpRoom();
             } else {
                 roomId = await this.createRoom();
             }
@@ -1042,6 +1129,8 @@ export class SupabaseService implements OnDestroy {
             await this.joinWhoPokemonRoom(roomId);
         } else if (gameMode === 'pokemon_auction') {
             await this.joinPokemonAuctionRoom(roomId);
+        } else if (gameMode === 'size_up') {
+            await this.joinSizeUpRoom(roomId);
         } else {
             await this.joinRoom(roomId);
         }
@@ -1181,6 +1270,11 @@ export class SupabaseService implements OnDestroy {
         return this.submitSoloScore('submit_who_that_pokemon_score', { p_run_id: runId, p_settings: settings, p_score: score, p_found: found });
     }
 
+    /** Enregistre une partie de Size Up ; le score est recalculé côté serveur à partir des estimations. */
+    async submitSizeUpScore(runId: string, settings: LeaderboardSettings, rounds: SizeUpScoreRound[]): Promise<SoloScoreResult> {
+        return this.submitSoloScore('submit_size_up_score', { p_run_id: runId, p_settings: settings, p_rounds: rounds });
+    }
+
     /** Enregistre une équipe du Team Builder solo ; la note est recalculée côté serveur. */
     async submitDraftScore(runId: string, settings: LeaderboardSettings, team: number[]): Promise<SoloScoreResult> {
         return this.submitSoloScore('submit_draft_score', { p_run_id: runId, p_settings: settings, p_team: team });
@@ -1233,4 +1327,13 @@ export class SupabaseService implements OnDestroy {
             previous_best: result.previous_best === null ? null : Number(result.previous_best),
         };
     }
+}
+
+/** Garantit des nombres pour les estimations de l'historique (numeric côté SQL). */
+function normalizeSizeUpRoom(room: SizeUpRoom): SizeUpRoom {
+    const toNumber = (value: number | string | null) => value === null || value === undefined ? null : Number(value);
+    return {
+        ...room,
+        history: (room.history ?? []).map(entry => ({ ...entry, p1_guess: toNumber(entry.p1_guess), p2_guess: toNumber(entry.p2_guess) })),
+    };
 }

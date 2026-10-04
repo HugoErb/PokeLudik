@@ -13,16 +13,16 @@
 
 				<div class="flex items-center gap-3 pr-10">
 					<div class="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0"
-						[ngClass]="mode() === 'guess' ? 'bg-cyan-600/20 border-cyan-500/30' : mode() === 'stat-duel' ? 'bg-yellow-600/20 border-yellow-500/30' : 'bg-orange-600/20 border-orange-500/30'">
+						[ngClass]="mode() === 'guess' ? 'bg-cyan-600/20 border-cyan-500/30' : mode() === 'stat-duel' ? 'bg-yellow-600/20 border-yellow-500/30' : mode() === 'size-up' ? 'bg-emerald-600/20 border-emerald-500/30' : 'bg-orange-600/20 border-orange-500/30'">
 						<iconify-icon
 							[icon]="ICONS.help"
 							class="text-2xl"
-							[ngClass]="mode() === 'guess' ? 'text-cyan-400' : mode() === 'stat-duel' ? 'text-yellow-400' : 'text-orange-300'"
+							[ngClass]="mode() === 'guess' ? 'text-cyan-400' : mode() === 'stat-duel' ? 'text-yellow-400' : mode() === 'size-up' ? 'text-emerald-300' : 'text-orange-300'"
 						></iconify-icon>
 					</div>
 					<div>
 						<h2 class="text-lg font-bold text-white uppercase tracking-wider">
-							{{ mode() === 'guess' ? 'Guess my Pokémon' : mode() === 'stat-duel' ? 'Duel de Base Stats' : 'Enchères Pokémon' }}
+							{{ mode() === 'guess' ? 'Guess my Pokémon' : mode() === 'stat-duel' ? 'Duel de Base Stats' : mode() === 'size-up' ? 'Size Up' : 'Enchères Pokémon' }}
 						</h2>
 						<p class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em]">Aide du mode</p>
 					</div>
@@ -83,6 +83,26 @@
 						</div>
 					</section>
 
+				} @else if (mode() === 'size-up') {
+					<section class="space-y-3">
+						<app-help-section-title label="Déroulement"></app-help-section-title>
+						<div class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4">
+							<ol class="space-y-3 text-sm text-slate-300 list-none">
+								<li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">1.</span><span>Chaque manche montre deux Pokémon. Celui de gauche est affiché à sa vraie taille.</span></li>
+								<li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">2.</span><span>Agrandis ou réduis celui de droite jusqu'à ce que la proportion te paraisse juste.</span></li>
+								<li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">3.</span><span>Les deux joueurs voient la même paire. La vraie taille est révélée quand les deux ont validé ou à la fin du chrono.</span></li>
+								<li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">4.</span><span>Chaque manche rapporte jusqu'à 100 points selon la précision. Le meilleur total après 5 manches gagne.</span></li>
+							</ol>
+						</div>
+					</section>
+
+					<section class="space-y-3">
+						<app-help-section-title label="Score"></app-help-section-title>
+						<div class="grid gap-2">
+							<app-help-card title="Précision" text="L'écart compte autant que tu voies trop grand ou trop petit." example="Exact : 100 pts · ×1,5 : 75 pts · ×2 : 57 pts · ×3 : 32 pts · ×5 ou plus : 0 pt."></app-help-card>
+							<app-help-card title="Chrono" text="Si un chrono est réglé, ton estimation actuelle est envoyée automatiquement à la fin du temps."></app-help-card>
+						</div>
+					</section>
 				} @else {
 					<section class="space-y-3">
 						<app-help-section-title label="Déroulement"></app-help-section-title>

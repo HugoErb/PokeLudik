@@ -26,6 +26,8 @@ export const ICONS = {
   skip: 'mdi:skip-next-outline',
   auction: 'mdi:currency-usd',
   money: 'mdi:cash',
+  sizeUp: 'mdi:human-male-height',
+  timer: 'mdi:timer-outline',
 
   // Auth
   password: 'mdi:lock-outline',

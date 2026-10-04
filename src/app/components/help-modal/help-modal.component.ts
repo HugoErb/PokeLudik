@@ -15,7 +15,7 @@ import { HelpCardComponent } from './help-card.component';
 	templateUrl: './help-modal.component.html',
 })
 export class HelpModalComponent {
-	mode = input<'guess' | 'stat-duel' | 'auction'>('guess');
+	mode = input<'guess' | 'stat-duel' | 'auction' | 'size-up'>('guess');
 	showFilters = input<boolean>(true);
 	close = output<void>();
 

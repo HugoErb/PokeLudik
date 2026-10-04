@@ -53,11 +53,11 @@
 		</div>
 
 		<!-- Onglets de mode -->
-		<div class="relative grid grid-cols-4 gap-1 rounded-xl border border-white/[0.06] bg-slate-950/70 p-1" role="tablist">
+		<div class="relative grid grid-cols-5 gap-1 rounded-xl border border-white/[0.06] bg-slate-950/70 p-1" role="tablist">
 			<div
 				class="absolute top-1 bottom-1 bg-slate-700 rounded-lg transition-all duration-200 ease-out pointer-events-none"
-				[style.width]="'calc((100% - 20px) / 4)'"
-				[style.left]="'calc(4px + ' + modeIndex() + ' * ((100% - 20px) / 4 + 4px))'"
+				[style.width]="'calc((100% - 24px) / 5)'"
+				[style.left]="'calc(4px + ' + modeIndex() + ' * ((100% - 24px) / 5 + 4px))'"
 			></div>
 			@for (item of MODES; track item.mode) {
 				<button

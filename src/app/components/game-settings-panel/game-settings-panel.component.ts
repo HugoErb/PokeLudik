@@ -11,6 +11,7 @@ import {
 import { FirstPlayer } from '../../models/room.model';
 import { AuctionFormat } from '../../models/room.model';
 import { normalizeAuctionBudget } from '../../utils/auction-utils';
+import { SIZE_UP_TIMER_OPTIONS } from '../../utils/size-up-utils';
 
 const SETTINGS_ACCENTS: Record<SettingsMode, { box: string; text: string }> = {
   guess_my_pokemon: { box: 'border-rose-400/20 bg-rose-500/10', text: 'text-rose-300' },
@@ -19,6 +20,7 @@ const SETTINGS_ACCENTS: Record<SettingsMode, { box: string; text: string }> = {
   draft_trainer: { box: 'border-purple-400/20 bg-purple-500/10', text: 'text-purple-300' },
   who_that_pokemon: { box: 'border-cyan-400/20 bg-cyan-500/10', text: 'text-cyan-300' },
   pokemon_auction: { box: 'border-orange-400/20 bg-orange-500/10', text: 'text-orange-300' },
+  size_up: { box: 'border-emerald-400/20 bg-emerald-500/10', text: 'text-emerald-300' },
 };
 
 @Component({
@@ -61,6 +63,8 @@ export class GameSettingsPanelComponent {
     { value: 'sealed', label: 'Secrètes', description: 'Une offre cachée et définitive.' },
     { value: 'turn_based', label: 'Tours alternés', description: 'Miser ou passer chacun son tour.' },
   ];
+
+  protected readonly roundTimerOptions = SIZE_UP_TIMER_OPTIONS.map(value => ({ value: value as number, label: value === 0 ? 'Aucun' : `${value} s` }));
 
   protected readonly definition = computed(() => getSettingsDefinition(this.mode()));
 

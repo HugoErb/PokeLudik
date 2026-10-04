@@ -1,0 +1,325 @@
+<div class="menu-surface mode-theme-emerald relative flex h-dvh flex-col overflow-hidden text-white">
+  <div class="menu-grid pointer-events-none absolute inset-0 opacity-60"></div>
+  <app-header [icon]="ICONS.sizeUp" iconClass="text-emerald-300" title="Size Up" />
+
+  <div class="relative z-20 bg-slate-800/50 border-b border-slate-700 px-3 py-2 flex items-center justify-between gap-2 sm:gap-3 shrink-0">
+    @if (phase() === 'solo' || phase() === 'duo') {
+      <div class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 min-w-0">
+        <span class="text-emerald-300">Manche {{ roundNumber() }} / {{ totalRounds }}</span>
+        <span>Score {{ myScore() }} @if (room()) { - {{ opponentScore() }} }</span>
+      </div>
+    } @else {
+      <div></div>
+    }
+    <div class="flex items-center gap-2 shrink-0">
+      <button
+        (click)="showHelpModal.set(true)"
+        class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/50 hover:bg-slate-600 border border-slate-600/50 rounded-lg text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-wider transition-all"
+      >
+        <iconify-icon [icon]="ICONS.help" class="text-sm"></iconify-icon>
+        <span class="hidden sm:inline">Aide</span>
+      </button>
+      <button
+        (click)="handleQuit()"
+        class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/50 hover:bg-red-900/50 border border-slate-600/50 hover:border-red-800 rounded-lg text-[10px] font-black text-slate-400 hover:text-red-300 uppercase tracking-wider transition-all"
+      >
+        <iconify-icon [icon]="ICONS.logout" class="text-sm"></iconify-icon>
+        <span class="hidden sm:inline">Quitter</span>
+      </button>
+    </div>
+  </div>
+
+  @if (showHelpModal()) {
+    <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-start md:items-center justify-center z-50 p-3 md:p-4 overflow-y-auto" (click)="showHelpModal.set(false)">
+      <div class="bg-slate-800 border border-slate-600 rounded-2xl p-4 md:p-6 max-w-lg w-full shadow-2xl flex flex-col gap-4 modal-content max-h-[calc(100dvh-1.5rem)] md:max-h-[90vh] overflow-y-auto relative my-auto" (click)="$event.stopPropagation()">
+        <button (click)="showHelpModal.set(false)" class="absolute top-4 right-4 z-10 bg-slate-900/60 hover:bg-red-600 rounded-full w-8 h-8 flex items-center justify-center text-slate-300 hover:text-white transition-colors">
+          <iconify-icon [icon]="ICONS.close" class="text-lg"></iconify-icon>
+        </button>
+        <div class="flex items-center gap-3 pr-10">
+          <div class="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <iconify-icon [icon]="ICONS.help" class="text-2xl text-emerald-300"></iconify-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white uppercase tracking-wider">Size Up</h2>
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em]">Aide du mode</p>
+          </div>
+        </div>
+        <section class="space-y-3">
+          <app-help-section-title label="Déroulement"></app-help-section-title>
+          <div class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4">
+            <ol class="space-y-3 text-sm text-slate-300 list-none">
+              <li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">1.</span><span>Chaque manche montre deux Pokémon. Celui de gauche est affiché à sa vraie taille, indiquée sur la règle.</span></li>
+              <li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">2.</span><span>Agrandis ou réduis le Pokémon de droite jusqu'à ce que la proportion entre les deux te paraisse juste.</span></li>
+              <li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">3.</span><span>Valide : sa vraie taille apparaît en pointillés verts par-dessus ton estimation.</span></li>
+              <li class="flex gap-3"><span class="text-emerald-300 font-bold shrink-0">4.</span><span>La partie compte {{ totalRounds }} manches.</span></li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <app-help-section-title label="Commandes"></app-help-section-title>
+          <div class="grid gap-2">
+            <app-help-card title="Glisser" text="Glisse vers le haut sur le plateau pour agrandir le Pokémon, vers le bas pour le réduire."></app-help-card>
+            <app-help-card title="Molette et pincement" text="La molette de la souris ou un pincement à deux doigts ajustent aussi la taille."></app-help-card>
+            <app-help-card title="Réglage fin" text="Utilise le curseur, les boutons − / + ou les flèches du clavier pour affiner."></app-help-card>
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <app-help-section-title label="Score"></app-help-section-title>
+          <div class="grid gap-2">
+            <app-help-card title="Jusqu'à 100 points par manche" text="Plus ton estimation est proche de la vraie taille, plus tu marques. L'écart compte autant que tu voies trop grand ou trop petit." example="Exact : 100 pts · ×1,5 : 75 pts · ×2 : 57 pts · ×3 : 32 pts · ×5 ou plus : 0 pt."></app-help-card>
+            <app-help-card title="Chrono" text="Si un chrono est réglé, ton estimation actuelle est validée automatiquement à la fin du temps."></app-help-card>
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <app-help-section-title label="Modes"></app-help-section-title>
+          <div class="grid gap-2">
+            <app-help-card title="Un joueur" text="Fais le meilleur score possible sur {{ totalRounds }} manches et grimpe au classement."></app-help-card>
+            <app-help-card title="Deux joueurs en ligne" text="Les deux joueurs reçoivent les mêmes paires en même temps. La réponse est révélée quand les deux ont validé ou quand le chrono est écoulé. Le meilleur total gagne."></app-help-card>
+          </div>
+        </section>
+        <button (click)="showHelpModal.set(false)" class="w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-bold text-white transition-colors">Fermer</button>
+      </div>
+    </div>
+  }
+
+  @if (phase() === 'setup') {
+    <main class="flex-1 min-h-0 overflow-y-auto">
+      <div class="menu-surface min-h-full flex flex-col items-center justify-center pt-8 pb-20 px-4">
+        <app-mode-select title="Size Up" [icon]="ICONS.sizeUp" iconColor="text-emerald-300" iconSize="text-4xl">
+          <app-mode-select-card
+            cardTitle="Un joueur"
+            description="Estime la taille de 5 Pokémon par rapport à un autre. Jusqu'à 100 points par manche selon ta précision."
+            [icon]="ICONS.user"
+            accent="red"
+            [selected]="configMode() === 'solo'"
+            (selected)="configMode.set('solo')"
+          />
+          <app-mode-select-card
+            cardTitle="Deux joueurs en ligne"
+            description="Les mêmes paires pour les deux joueurs, révélées en même temps. Le plus précis l'emporte."
+            [icon]="ICONS.friends"
+            accent="green"
+            [isLoading]="isBusy()"
+            [disabled]="isBusy()"
+            (selected)="createDuoRoom()"
+          />
+        </app-mode-select>
+
+        @if (configMode() === 'solo') {
+          <div class="settings-panel-reveal settings-shell w-full max-w-2xl mt-5 rounded-[26px] p-3.5 sm:p-5">
+            <app-game-settings-panel mode="size_up" [settings]="settings()" (settingsChange)="updateGameSettings($event)" />
+            <button (click)="startSolo()" class="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-3 text-sm font-black text-slate-950 shadow-lg shadow-emerald-950/30 transition hover:brightness-110">
+              <iconify-icon [icon]="ICONS.play" class="text-xl"></iconify-icon>
+              Lancer la partie
+            </button>
+          </div>
+        }
+
+        @if (feedback()) {
+          <p class="mt-5 text-sm text-red-300 bg-red-950/40 border border-red-800 rounded-xl p-3">{{ feedback() }}</p>
+        }
+      </div>
+    </main>
+  }
+
+  @if (phase() === 'waiting') {
+    <main class="relative min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:py-8">
+      <div class="relative mx-auto flex w-full max-w-5xl flex-col gap-4 sm:gap-5">
+        <section class="glass-panel overflow-hidden rounded-[26px] md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)]">
+          <div class="border-b border-white/[0.07] bg-gradient-to-br from-emerald-500/[0.08] to-transparent px-5 pb-5 pt-6 text-center sm:px-6 sm:py-6 md:border-b-0 md:border-r md:text-left">
+            @if (room()?.player2_id) {
+              <div class="relative mx-auto h-16 w-16 md:mx-0">
+                <div class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-emerald-400/40 bg-slate-800 text-xl font-black text-white">
+                  @if (opponentProfile()?.avatar_url) { <img [src]="opponentProfile()!.avatar_url" [alt]="'Photo de profil de ' + opponentProfile()!.username" class="h-full w-full object-cover" /> }
+                  @else { <span>{{ (opponentProfile()?.username || 'A').charAt(0).toUpperCase() }}</span> }
+                </div>
+                <span class="absolute bottom-0 right-0 h-4 w-4 rounded-full border-[3px] border-slate-900 bg-emerald-400"></span>
+              </div>
+            } @else {
+              <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/25 bg-emerald-500/10 md:mx-0"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-2xl text-emerald-300"></iconify-icon></div>
+            }
+            <p class="mt-4 text-[10px] font-black uppercase tracking-[0.2em]" [class.text-emerald-300]="room()?.player2_id" [class.text-slate-500]="!room()?.player2_id">{{ !room()?.player2_id ? 'Recherche en cours' : isPlayer1() ? 'Adversaire connecté' : 'Partie rejointe' }}</p>
+            <h1 class="mt-2 text-xl font-black tracking-tight sm:text-2xl">@if (!room()?.player2_id) { En attente de ton adversaire… } @else if (isPlayer1()) { {{ opponentProfile()?.username || 'Ton adversaire' }} a rejoint la partie } @else { Vous avez rejoint la partie de {{ opponentProfile()?.username || "l'hôte" }} }</h1>
+            <p class="mt-2 text-sm leading-relaxed text-slate-400">@if (isPlayer1()) { Invite un ami puis règle la partie. } @else { Les règles sont définies par {{ opponentProfile()?.username || "l'hôte" }}. La partie démarrera dès qu'il la lancera. }</p>
+          </div>
+
+          <div class="flex flex-col justify-center space-y-3 p-4 sm:p-5 md:p-6">
+            @if (isPlayer1()) {
+              <div class="flex min-w-0 gap-2">
+                <input [value]="inviteLink" readonly aria-label="Lien d'invitation" class="min-w-0 flex-1 truncate rounded-xl border border-white/[0.09] bg-slate-950/65 px-3 py-2.5 text-xs text-slate-300 outline-none" />
+                <button type="button" (click)="copyLink()" [attr.aria-label]="linkCopied() ? 'Lien copié' : 'Copier le lien'" class="flex w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.055] text-slate-300 transition hover:bg-white/[0.09] hover:text-white"><iconify-icon [icon]="linkCopied() ? ICONS.check : ICONS.copy" class="text-lg"></iconify-icon></button>
+              </div>
+              <button type="button" (click)="launchDuoGame()" [disabled]="!room()?.player2_id || isBusy()" class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-green-500 px-4 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400">
+                @if (isBusy() || !room()?.player2_id) { <iconify-icon [icon]="ICONS.loading" class="animate-spin text-lg"></iconify-icon> }
+                {{ isBusy() ? 'Lancement…' : !room()?.player2_id ? "En attente de l'adversaire" : 'Lancer la partie' }}
+              </button>
+              @if (feedback()) { <p role="alert" class="rounded-xl border border-rose-400/20 bg-rose-500/10 p-2.5 text-center text-xs text-rose-300">{{ feedback() }}</p> }
+            } @else {
+              <div class="flex items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-3 text-sm font-bold text-slate-400"><iconify-icon [icon]="ICONS.loading" class="animate-spin text-emerald-300"></iconify-icon>En attente du lancement</div>
+            }
+          </div>
+        </section>
+
+        <section class="settings-shell min-w-0 rounded-[26px] p-3.5 sm:p-5">
+          <app-game-settings-panel mode="size_up" [settings]="settings()" [readonly]="!isPlayer1()" (settingsChange)="updateGameSettings($event)" />
+        </section>
+      </div>
+    </main>
+  }
+
+  @if (phase() === 'solo' || phase() === 'duo') {
+    <main class="flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
+      <div class="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center gap-3 p-3 pb-6 sm:gap-4 sm:p-4 sm:pb-8">
+        @if (reference(); as ref) {
+          @if (target(); as tgt) {
+            <div class="flex w-full flex-col items-center gap-1 text-center">
+              <p class="text-sm font-bold text-slate-300 sm:text-base">
+                Quelle taille fait <span class="font-black text-white">{{ tgt.name }}</span> à côté de <span class="font-black text-sky-200">{{ ref.name }}</span> ?
+              </p>
+            </div>
+
+            @if (timeLeft(); as seconds) {
+              <div class="flex w-full items-center gap-2">
+                <iconify-icon [icon]="ICONS.timer" class="text-lg" [class.text-emerald-300]="seconds > 5" [class.text-rose-400]="seconds <= 5"></iconify-icon>
+                <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
+                  <div class="h-full rounded-full transition-[width] duration-200" [class.bg-emerald-400]="seconds > 5" [class.bg-rose-500]="seconds <= 5" [style.width.%]="timerPercent()"></div>
+                </div>
+                <span class="w-8 text-right text-sm font-black tabular-nums" [class.text-rose-300]="seconds <= 5">{{ seconds }}s</span>
+              </div>
+            } @else if (timeLeft() === 0) {
+              <p class="text-xs font-black uppercase tracking-widest text-rose-300">Temps écoulé</p>
+            }
+
+            <app-size-up-board
+              class="w-full"
+              [reference]="ref"
+              [target]="tgt"
+              [guess]="guess()"
+              [locked]="locked()"
+              [revealed]="revealed()"
+              [opponentGuess]="currentResult()?.opponentGuess ?? null"
+              [opponentLabel]="opponentProfile()?.username || 'Adversaire'"
+              (guessChange)="setGuess($event)"
+            />
+
+            @if (currentResult(); as result) {
+              <section class="result-in w-full rounded-2xl border border-emerald-400/25 bg-slate-800/90 p-3 shadow-xl sm:p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{{ errorFactorLabel(result.myGuess, tgt.height) }}</p>
+                    <p class="mt-1 text-sm text-slate-300">
+                      {{ tgt.name }} mesure <span class="font-black text-white">{{ formatMeters(tgt.height) }}</span>
+                      · ton estimation : <span class="font-black text-white">{{ formatMeters(result.myGuess) }}</span>
+                    </p>
+                    @if (room()) {
+                      <p class="mt-1 text-xs text-amber-200">
+                        {{ opponentProfile()?.username || 'Adversaire' }} : {{ formatMeters(result.opponentGuess) }} · +{{ result.opponentPoints }} pts
+                      </p>
+                    }
+                  </div>
+                  <span class="shrink-0 rounded-xl bg-emerald-500/15 px-3 py-1.5 text-xl font-black text-emerald-300">+{{ result.myPoints }}</span>
+                </div>
+                @if (phase() === 'solo') {
+                  <button type="button" (click)="nextSoloRound()" class="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:brightness-110">
+                    {{ roundNumber() >= totalRounds ? 'Voir le résultat' : 'Manche suivante' }}
+                    <iconify-icon [icon]="ICONS.skip" class="text-lg"></iconify-icon>
+                  </button>
+                } @else {
+                  <p class="mt-3 flex items-center justify-center gap-2 text-xs font-bold text-slate-400">
+                    <iconify-icon [icon]="ICONS.loading" class="animate-spin text-emerald-300"></iconify-icon>
+                    {{ roundNumber() >= totalRounds ? 'Résultat final' : 'Manche suivante' }} dans {{ revealTimeLeft() ?? 0 }} s
+                  </p>
+                }
+              </section>
+            } @else if (room() && hasSubmitted()) {
+              <div class="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200">
+                <iconify-icon [icon]="ICONS.loading" class="animate-spin text-lg"></iconify-icon>
+                Estimation envoyée · en attente de {{ opponentProfile()?.username || "l'adversaire" }}…
+              </div>
+            } @else {
+              <button type="button" (click)="validate()" [disabled]="!canValidate()" class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-green-500 px-4 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400">
+                <iconify-icon [icon]="isSubmitting() ? ICONS.loading : ICONS.check" class="text-lg" [class.animate-spin]="isSubmitting()"></iconify-icon>
+                Valider ≈ {{ formatMeters(guess()) }}
+              </button>
+            }
+
+            @if (room() && !revealed()) {
+              <p class="text-xs text-slate-500">
+                {{ opponentHasSubmitted() ? (opponentProfile()?.username || 'Adversaire') + ' a validé son estimation' : (opponentProfile()?.username || 'Adversaire') + ' réfléchit…' }}
+              </p>
+            }
+          }
+        } @else {
+          <iconify-icon [icon]="ICONS.loading" class="animate-spin text-3xl text-emerald-300"></iconify-icon>
+        }
+
+        @if (feedback()) {
+          <p role="alert" class="text-sm text-red-300">{{ feedback() }}</p>
+        }
+      </div>
+    </main>
+  }
+
+  @if (phase() === 'complete') {
+    <main class="flex min-h-0 flex-1 flex-col items-center justify-start gap-4 overflow-x-hidden overflow-y-auto px-3 pb-8 pt-5 text-center sm:gap-5 sm:px-4 sm:pb-10 sm:pt-6 lg:pb-12 lg:pt-8">
+      <div class="mt-auto w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-4 shadow-xl sm:rounded-2xl sm:p-6">
+        @if (room()) {
+          @if (isVictory()) {
+            <iconify-icon [icon]="ICONS.trophy" class="text-5xl text-yellow-400 mb-3 animate-bounce"></iconify-icon>
+          } @else if (statusTitle() === 'Défaite') {
+            <iconify-icon [icon]="ICONS.skull" class="text-5xl text-red-500 mb-3 animate-pulse"></iconify-icon>
+          }
+          <h2 class="text-2xl font-black mb-2">{{ statusTitle() }}</h2>
+          <p class="text-slate-200 text-2xl font-black">Score : {{ myScore() }} - {{ opponentScore() }}</p>
+        } @else {
+          <iconify-icon [icon]="ICONS.sizeUp" class="text-5xl text-emerald-300 mb-3"></iconify-icon>
+          <h2 class="text-2xl font-black mb-2">Partie terminée</h2>
+          <p class="text-slate-200 text-2xl font-black">{{ myScore() }} / {{ totalRounds * 100 }} pts</p>
+          <div class="mt-3 flex justify-center"><app-new-record-badge mode="size_up" [result]="scoreResult()" /></div>
+        }
+
+        @if (history().length > 0) {
+          <ul class="mt-4 space-y-2 text-left">
+            @for (entry of history(); track entry.round) {
+              <li class="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-slate-900/60 p-2">
+                <img [src]="entry.reference.sprite" [alt]="entry.reference.name" class="h-9 w-9 shrink-0 object-contain" />
+                <iconify-icon [icon]="ICONS.sizeUp" class="shrink-0 text-slate-500"></iconify-icon>
+                <img [src]="entry.target.sprite" [alt]="entry.target.name" class="h-9 w-9 shrink-0 object-contain" />
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-xs font-bold text-white">{{ entry.target.name }} · {{ formatMeters(entry.target.height) }}</p>
+                  <p class="truncate text-[11px] text-slate-400">
+                    Toi : {{ formatMeters(entry.myGuess) }}
+                    @if (room()) { · Adv. : {{ formatMeters(entry.opponentGuess) }} ({{ entry.opponentPoints }}) }
+                  </p>
+                </div>
+                <span class="shrink-0 text-sm font-black text-emerald-300">+{{ entry.myPoints }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      @if (feedback()) { <p role="alert" class="text-sm text-red-300">{{ feedback() }}</p> }
+      <app-end-game-actions class="mb-auto" [replayMode]="room() ? 'multi' : 'solo'" [iWantReplay]="isPlayer1() ? !!room()?.p1_ready : !!room()?.p2_ready" [opponentWantsReplay]="isPlayer1() ? !!room()?.p2_ready : !!room()?.p1_ready" [opponentLeft]="opponentLeft()" (replay)="replay()" (goHome)="goHome()">
+        @if (!room()) {
+          <app-solo-score-summary
+            [result]="scoreResult()"
+            [submitting]="scoreSubmitting()"
+            [error]="scoreError()"
+            (openLeaderboard)="showLeaderboard.set(true)"
+          />
+        }
+      </app-end-game-actions>
+    </main>
+  }
+
+  @if (showLeaderboard()) {
+    <app-leaderboard-modal initialMode="size_up" [initialSettingsKey]="leaderboardKey()" (close)="showLeaderboard.set(false)" />
+  }
+
+  @if (showCancelModal()) {
+    <app-cancel-modal [isCancelling]="isCancelling()" (confirm)="confirmCancel()" (cancel)="showCancelModal.set(false)" />
+  }
+</div>

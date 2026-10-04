@@ -205,6 +205,20 @@
           </div>
         </article>
       }
+
+      @if (hasControl('roundTimer')) {
+        <article class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3.5 sm:p-4" [class.opacity-60]="readonly()">
+          <p class="text-sm font-bold text-white">Chrono par manche</p>
+          <p class="mt-1 text-xs text-slate-400">À la fin du chrono, ton estimation actuelle est validée automatiquement.</p>
+          <div class="mt-3 grid grid-cols-4 gap-2">
+            @for (option of roundTimerOptions; track option.value) {
+              <button type="button" (click)="update({ roundTimer: option.value })" [disabled]="readonly()" [attr.aria-pressed]="settings().roundTimer === option.value" class="flex min-h-11 items-center justify-center rounded-xl border px-2 py-2 text-xs font-black transition" [class.border-emerald-400/50]="settings().roundTimer === option.value" [class.bg-emerald-500/10]="settings().roundTimer === option.value" [class.text-emerald-200]="settings().roundTimer === option.value" [class.border-white/[0.08]]="settings().roundTimer !== option.value" [class.bg-slate-950/50]="settings().roundTimer !== option.value" [class.text-slate-400]="settings().roundTimer !== option.value" [class.hover:bg-slate-800]="settings().roundTimer !== option.value">
+                {{ option.label }}
+              </button>
+            }
+          </div>
+        </article>
+      }
     </div>
   </section>
 }

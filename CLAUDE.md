@@ -20,7 +20,8 @@ src/app/
 │   ├── lobby/          /lobby/:roomId   (auth)
 │   ├── game/           /game/:roomId    (auth)
 │   ├── draft/          /draft           (auth)
-│   └── stat-duel/      /stat-duel       (auth) + /stat-duel/:roomId
+│   ├── stat-duel/      /stat-duel       (auth) + /stat-duel/:roomId
+│   └── size-up/        /size-up         (auth) + /size-up/:roomId
 │
 ├── components/                          ← réutilisables
 │   ├── cancel-modal/
@@ -34,7 +35,8 @@ src/app/
 │   ├── my-turn-modal/
 │   ├── pokedex/
 │   ├── pokemon-card/
-│   └── rules-modal/
+│   ├── rules-modal/
+│   └── size-up-board/  ← plateau Size Up (sprites à l'échelle)
 │
 ├── services/
 │   ├── supabase.service.ts   ← auth + DB + realtime (Supabase client)

@@ -74,6 +74,15 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       iconBoxClass: 'bg-amber-500/20 border-amber-500/30', iconClass: 'text-amber-300',
       buttonClass: 'bg-amber-500 hover:bg-amber-400 text-slate-950 focus-visible:ring-amber-300',
     },
+    size_up: {
+      label: 'Size Up',
+      icon: ICONS.sizeUp,
+      borderClass: 'border-emerald-500/60',
+      glowClass: 'shadow-emerald-950/50',
+      iconBoxClass: 'bg-emerald-500/20 border-emerald-500/30',
+      iconClass: 'text-emerald-300',
+      buttonClass: 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 focus-visible:ring-emerald-300',
+    },
   };
   showPasswordModal = signal(false);
   showUsernameModal = signal(false);
@@ -319,6 +328,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'who_that_pokemon' } });
       } else if (invite.game_mode === 'pokemon_auction') {
         this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'pokemon_auction' } });
+      } else if (invite.game_mode === 'size_up') {
+        this.router.navigate(['/lobby', invite.room_id], { queryParams: { mode: 'size_up' } });
       } else {
         this.router.navigate(['/lobby', invite.room_id]);
       }
@@ -370,6 +381,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'who_that_pokemon', inviteId, friendName: event.username } });
       } else if (event.gameMode === 'pokemon_auction') {
         await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'pokemon_auction', inviteId, friendName: event.username } });
+      } else if (event.gameMode === 'size_up') {
+        await this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'size_up', inviteId, friendName: event.username } });
       } else {
         await this.router.navigate(['/lobby', roomId], { queryParams: { inviteId, friendName: event.username } });
       }
@@ -396,6 +409,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Navigue vers Who's That Pokemon. */
   startWhoThatPokemon(): void {
     void this.navigateToMode('who_that_pokemon', ['/who-that-pokemon']);
+  }
+
+  /** Navigue vers Size Up. */
+  startSizeUp(): void {
+    void this.navigateToMode('size_up', ['/size-up']);
   }
 
   async startPokemonAuction(): Promise<void> {

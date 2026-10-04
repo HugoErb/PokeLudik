@@ -1,5 +1,5 @@
 import type { GameMode } from './room.model';
-import type { AuctionFormat, AuctionGameSettings } from './room.model';
+import type { AuctionFormat, AuctionGameSettings, SizeUpGameSettings } from './room.model';
 
 export type SettingsMode = GameMode | 'draft_trainer';
 export type FirstPlayer = 'player1' | 'player2' | 'random';
@@ -15,7 +15,8 @@ export type SettingsControl =
   | 'initialHint'
   | 'auctionFormat'
   | 'startingBudget'
-  | 'randomAwardOnNoBid';
+  | 'randomAwardOnNoBid'
+  | 'roundTimer';
 
 export interface ModeSettings {
   generations: number[];
@@ -28,6 +29,8 @@ export interface ModeSettings {
   auctionFormat: AuctionFormat;
   startingBudget: number;
   randomAwardOnNoBid: boolean;
+  /** Durée d'une manche en secondes (Size Up), 0 = sans limite. */
+  roundTimer: number;
 }
 
 export type GuessGameSettings = Pick<ModeSettings, 'generations' | 'categories' | 'noPokedex' | 'noSearch' | 'firstPlayer' | 'randomPokemon'>;
@@ -51,6 +54,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     auctionFormat: 'live',
     startingBudget: 1000,
     randomAwardOnNoBid: true,
+    roundTimer: 0,
   },
   stat_duel: {
     generations: [],
@@ -63,6 +67,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     auctionFormat: 'live',
     startingBudget: 1000,
     randomAwardOnNoBid: true,
+    roundTimer: 0,
   },
   draft_duo: {
     generations: [],
@@ -75,6 +80,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     auctionFormat: 'live',
     startingBudget: 1000,
     randomAwardOnNoBid: true,
+    roundTimer: 0,
   },
   who_that_pokemon: {
     generations: [],
@@ -87,6 +93,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     auctionFormat: 'live',
     startingBudget: 1000,
     randomAwardOnNoBid: true,
+    roundTimer: 0,
   },
   pokemon_auction: {
     generations: [],
@@ -99,6 +106,20 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     auctionFormat: 'live',
     startingBudget: 1000,
     randomAwardOnNoBid: true,
+    roundTimer: 0,
+  },
+  size_up: {
+    generations: [],
+    categories: [],
+    noPokedex: false,
+    noSearch: false,
+    firstPlayer: 'random',
+    randomPokemon: false,
+    initialHint: 'silhouette',
+    auctionFormat: 'live',
+    startingBudget: 1000,
+    randomAwardOnNoBid: true,
+    roundTimer: 0,
   },
   draft_trainer: {
     generations: [],
@@ -111,6 +132,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     auctionFormat: 'live',
     startingBudget: 1000,
     randomAwardOnNoBid: true,
+    roundTimer: 0,
   },
 };
 
@@ -138,6 +160,10 @@ const SETTINGS_DEFINITIONS: Record<SettingsMode, SettingsDefinition> = {
   pokemon_auction: {
     configurable: true,
     controls: ['generations', 'categories', 'auctionFormat', 'startingBudget', 'randomAwardOnNoBid'],
+  },
+  size_up: {
+    configurable: true,
+    controls: ['generations', 'categories', 'roundTimer'],
   },
 };
 
@@ -175,6 +201,14 @@ export function toAuctionSettings(settings: ModeSettings): AuctionGameSettings {
     auctionFormat: settings.auctionFormat,
     startingBudget: settings.startingBudget,
     randomAwardOnNoBid: settings.randomAwardOnNoBid,
+  };
+}
+
+export function toSizeUpSettings(settings: ModeSettings): SizeUpGameSettings {
+  return {
+    generations: settings.generations,
+    categories: settings.categories,
+    roundTimer: settings.roundTimer,
   };
 }
 

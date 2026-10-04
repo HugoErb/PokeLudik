@@ -1,4 +1,4 @@
-export type SoloLeaderboardMode = 'stat_duel' | 'who_that_pokemon' | 'draft' | 'draft_trainer';
+export type SoloLeaderboardMode = 'stat_duel' | 'who_that_pokemon' | 'draft' | 'draft_trainer' | 'size_up';
 export type LeaderboardPeriod = 'all' | 'week';
 export type LeaderboardView = 'global' | 'personal';
 
@@ -8,6 +8,8 @@ export interface LeaderboardSettings {
   categories?: string[];
   initialHint?: string;
   trainer?: number;
+  /** Size Up : chrono par manche en secondes (0 = sans limite). */
+  roundTimer?: number;
 }
 
 export interface LeaderboardEntry {
@@ -60,6 +62,13 @@ export interface SoloScoreResult {
 export interface StatDuelScorePick {
   pokemon_id: number;
   stat: string;
+}
+
+/** Manche d'une partie Size Up envoyée au serveur, qui recalcule les points. */
+export interface SizeUpScoreRound {
+  reference_id: number;
+  target_id: number;
+  guess: number | null;
 }
 
 /** Catégorie spéciale du mode dresseur : nombre de dresseurs différents battus. */
