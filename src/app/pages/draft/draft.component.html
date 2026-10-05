@@ -257,6 +257,15 @@
 			<!-- Score final (solo = uniquement la note de base stats) -->
 			@if (showScore()) {
 				<div class="flex flex-col items-center gap-3 w-full max-w-xl shrink-0 mt-2 mb-2 md:mt-0 md:mb-0" [@scoreReveal]>
+					<div class="flex items-center gap-2">
+						@if (isSoloVictory()) {
+							<iconify-icon [icon]="ICONS.trophy" class="text-3xl text-yellow-400 animate-bounce"></iconify-icon>
+							<h2 class="text-2xl font-black uppercase tracking-tight text-yellow-400">Victoire !</h2>
+						} @else {
+							<iconify-icon [icon]="ICONS.skull" class="text-3xl text-red-500 animate-pulse"></iconify-icon>
+							<h2 class="text-2xl font-black uppercase tracking-tight text-red-400">Défaite</h2>
+						}
+					</div>
 					<app-new-record-badge mode="draft" [result]="scoreResult()" />
 					<div class="flex flex-col items-center gap-1.5 bg-slate-800 border border-yellow-500/40 rounded-xl p-3 md:p-4 ring-1 ring-yellow-500/20 w-40 md:w-52">
 						<span class="text-[10px] text-slate-500 uppercase tracking-wider text-center">Note finale</span>
@@ -267,6 +276,7 @@
 						<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
 							<div class="h-full rounded-full transition-all duration-700" [ngClass]="getScoreBarColor(statsScore())" [style.width]="getRatingWidth(statsScore())"></div>
 						</div>
+						<span class="text-[10px] font-semibold text-slate-400">Objectif : {{ DRAFT_SOLO_WIN_RATING }}/10</span>
 					</div>
 				</div>
 			}

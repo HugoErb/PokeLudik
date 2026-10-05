@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription, firstValueFrom } from 'rxjs';
-import confetti from 'canvas-confetti';
+import { launchDefeatRain, launchVictoryConfetti } from '../../utils/end-game-effects';
 import { Pokemon } from '../../models/pokemon.model';
 import { PokemonAuctionRoom } from '../../models/room.model';
 import { SupabaseService } from '../../services/supabase.service';
@@ -60,7 +60,8 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   private lastFinalizeAttempt = 0;
   private serverClockOffset = 0;
   private paymentFxId = 0;
-  private confettiFired = false;
+  private endEffectFired = false;
+  private stopDefeatRain: (() => void) | null = null;
 
   readonly room = signal<PokemonAuctionRoom | null>(null);
   readonly allPokemon = signal<Pokemon[]>([]);
@@ -161,6 +162,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopDefeatRain?.();
     this.roomSub?.unsubscribe();
     if (this.timer) clearInterval(this.timer);
     if (this.poll) clearInterval(this.poll);
@@ -282,7 +284,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
       this.bidAmount = Math.min(this.maxBid(), this.minimumBid());
     }
     if (room.status === 'finished') void this.saveResultIfNeeded(room);
-    if (room.status === 'finished' && room.winner === this.myRole()) this.launchConfetti();
+    if (room.status === 'finished' && room.winner && room.winner !== 'draw') this.launchEndEffect(room.winner === this.myRole());
   }
 
   /** Efface les pop-ups et animations héritées de la partie précédente. */
@@ -290,7 +292,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     this.clearResultToast();
     this.paymentFx.set([]);
     this.iWantReplay.set(false);
-    this.confettiFired = false;
+    this.endEffectFired = false;
     this.error.set('');
   }
 
@@ -307,11 +309,12 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
 
   protected paymentsFor(role: 'player1' | 'player2'): PaymentFx[] { return this.paymentFx().filter(fx => fx.role === role); }
 
-  private launchConfetti(): void {
-    if (this.confettiFired) return;
-    this.confettiFired = true;
-    const colors = ['#fb923c', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
-    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+  /** Lance les confettis en cas de victoire, la pluie grise en cas de défaite. */
+  private launchEndEffect(victory: boolean): void {
+    if (this.endEffectFired) return;
+    this.endEffectFired = true;
+    if (victory) launchVictoryConfetti();
+    else this.stopDefeatRain = launchDefeatRain();
   }
 
   private clearResultToast(): void {

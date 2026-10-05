@@ -1,6 +1,5 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, OnDestroy, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import confetti from 'canvas-confetti';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
@@ -21,6 +20,7 @@ import { Pokemon } from '../../models/pokemon.model';
 import { Profile, SizeUpRoom } from '../../models/room.model';
 import { PokemonService } from '../../services/pokemon.service';
 import { SupabaseService } from '../../services/supabase.service';
+import { isSizeUpSoloVictory, launchDefeatRain, launchVictoryConfetti, SIZE_UP_SOLO_WIN_SCORE } from '../../utils/end-game-effects';
 import { buildSettingsKey } from '../../utils/leaderboard-utils';
 import { isStaleRoomState } from '../../utils/multiplayer-room-state';
 import {
@@ -116,7 +116,9 @@ export class SizeUpComponent implements OnInit, OnDestroy {
   private autoSubmittedRound = 0;
   private lastFinalizeAttempt = 0;
   private replayLaunchInProgress = false;
-  private confettiFired = false;
+  private endEffectFired = false;
+  private stopDefeatRain: (() => void) | null = null;
+  protected readonly SIZE_UP_SOLO_WIN_SCORE = SIZE_UP_SOLO_WIN_SCORE;
   private currentRoundKey = '';
 
   readonly leaderboardKey = computed(() => buildSettingsKey('size_up', toSizeUpSettings(this.settings())));
@@ -225,13 +227,19 @@ export class SizeUpComponent implements OnInit, OnDestroy {
 
   readonly isVictory = computed(() => {
     const room = this.room();
-    if (!room) return false;
+    if (!room) return isSizeUpSoloVictory(this.myScore());
     return (room.winner === 'player1' && this.isPlayer1()) || (room.winner === 'player2' && !this.isPlayer1());
+  });
+
+  readonly isDefeat = computed(() => {
+    const room = this.room();
+    if (!room) return !this.isVictory();
+    return !!room.winner && room.winner !== 'draw' && !this.isVictory();
   });
 
   readonly statusTitle = computed(() => {
     const room = this.room();
-    if (!room) return 'Partie terminée';
+    if (!room) return this.isVictory() ? 'Victoire !' : 'Défaite';
     if (room.winner === 'draw') return 'Égalité !';
     if (!room.winner) return 'Partie interrompue';
     return this.isVictory() ? 'Victoire !' : 'Défaite';
@@ -254,10 +262,10 @@ export class SizeUpComponent implements OnInit, OnDestroy {
 
     effect(() => {
       if (this.phase() !== 'complete') {
-        this.confettiFired = false;
+        this.endEffectFired = false;
         return;
       }
-      if (this.isVictory()) setTimeout(() => this.launchConfetti(), 300);
+      if (this.isVictory() || this.isDefeat()) setTimeout(() => this.launchEndEffect(), 300);
     });
   }
 
@@ -269,6 +277,7 @@ export class SizeUpComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopDefeatRain?.();
     this.roomSub?.unsubscribe();
     this.broadcastSub?.unsubscribe();
     this.inviteResponseSub?.unsubscribe();
@@ -628,10 +637,11 @@ export class SizeUpComponent implements OnInit, OnDestroy {
     }
   }
 
-  private launchConfetti(): void {
-    if (this.confettiFired) return;
-    this.confettiFired = true;
-    const colors = ['#10b981', '#facc15', '#38bdf8', '#a855f7', '#ffffff'];
-    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+  /** Lance les confettis en cas de victoire, la pluie grise en cas de défaite. */
+  private launchEndEffect(): void {
+    if (this.endEffectFired || this.phase() !== 'complete') return;
+    this.endEffectFired = true;
+    if (this.isVictory()) launchVictoryConfetti();
+    else if (this.isDefeat()) this.stopDefeatRain = launchDefeatRain();
   }
 }

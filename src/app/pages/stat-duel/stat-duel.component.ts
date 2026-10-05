@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, inject, signal, computed } from '@angular/core';
-import confetti from 'canvas-confetti';
 import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -21,6 +20,7 @@ import { PokemonStatsGridComponent } from '../../components/pokemon-stats-grid/p
 import { DEFAULT_MODE_SETTINGS, ModeSettings, normalizeModeSettings, toGuessSettings } from '../../models/game-settings.model';
 import { shouldRevealStatDuelRound } from '../../utils/stat-duel-sync';
 import { buildSettingsKey } from '../../utils/leaderboard-utils';
+import { isStatDuelSoloVictory, launchDefeatRain, launchVictoryConfetti, STAT_DUEL_SOLO_WIN_SCORE } from '../../utils/end-game-effects';
 import { SoloScoreResult } from '../../models/leaderboard.model';
 import { NewRecordBadgeComponent } from '../../components/new-record-badge/new-record-badge.component';
 import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/solo-score-summary.component';
@@ -115,6 +115,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     pickedStatKeys = computed(() => new Set(this.myPicks().map(p => p.stat)));
     hasPickedThisRound = computed(() => this.myPicks().length > this.currentRound());
     myTotal = computed(() => this.myPicks().reduce((s, p) => s + p.value, 0));
+    isSoloVictory = computed(() => isStatDuelSoloVictory(this.myTotal()));
+    protected readonly STAT_DUEL_SOLO_WIN_SCORE = STAT_DUEL_SOLO_WIN_SCORE;
     opponentTotal = computed(() => this.opponentPicks().reduce((s, p) => s + p.value, 0));
     myRevealedPicks = computed(() => this.myPicks().slice(0, this.revealedRound() + 1));
     opponentRevealedPicks = computed(() => this.opponentPicks().slice(0, this.revealedRound() + 1));
@@ -191,7 +193,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     };
 
     // --- Animation & Effects --------------------------------------------------
-    private confettiFired = false;
+    private endEffectFired = false;
+    private stopDefeatRain: (() => void) | null = null;
     private replayLaunchInProgress = false;
     private finishingInProgress = false;
 
@@ -232,6 +235,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
     ngOnDestroy(): void {
+        this.stopDefeatRain?.();
         this.stopClock();
         this.roomSub?.unsubscribe();
         this.inviteResponseSub?.unsubscribe();
@@ -239,12 +243,12 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.stopWaitingPoll();
     }
 
-    /** Lance l'animation de confettis. */
-    private launchConfetti(): void {
-        if (this.confettiFired) return;
-        this.confettiFired = true;
-        const colors = ['#ef4444', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
-        confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+    /** Lance les confettis en cas de victoire, la pluie grise en cas de défaite. */
+    private launchEndEffect(victory: boolean): void {
+        if (this.endEffectFired || this.phase() !== 'result') return;
+        this.endEffectFired = true;
+        if (victory) launchVictoryConfetti();
+        else this.stopDefeatRain = launchDefeatRain();
     }
 
     // --- Mode select -------------------------------------------------------------
@@ -346,7 +350,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                 if (this.phase() !== 'result') {
                     this.endMultiGame(updated);
                 } else {
-                    this.maybeFireMultiConfetti(updated);
+                    this.maybeFireMultiEndEffect(updated);
                 }
             }
 
@@ -835,7 +839,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         const next = this.currentRound() + 1;
         if (next >= ROUND_COUNT) {
             this.phase.set('result');
-            setTimeout(() => this.launchConfetti(), 300);
+            setTimeout(() => this.launchEndEffect(this.isSoloVictory()), 300);
             void this.submitSoloScore();
         } else {
             this.currentRound.set(next);
@@ -871,7 +875,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         if (room.status === 'finished') {
             this.stopClock();
             this.phase.set('result');
-            this.maybeFireMultiConfetti(room);
+            this.maybeFireMultiEndEffect(room);
             return;
         }
         if (!this.roomId || this.finishingInProgress || room.p1_picks.length !== ROUND_COUNT || room.p2_picks.length !== ROUND_COUNT) return;
@@ -890,13 +894,13 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             .finally(() => { this.finishingInProgress = false; });
     }
 
-    /** Lance les confettis si le resultat multijoueur le justifie. */
-    private maybeFireMultiConfetti(room: StatDuelRoom): void {
+    /** Lance l'effet de victoire ou de défaite selon le resultat multijoueur (rien en cas d'égalité). */
+    private maybeFireMultiEndEffect(room: StatDuelRoom): void {
         const me = this.supabaseService.getCurrentUser();
         if (!me || !room?.winner || room.winner === 'draw') return;
         const isMeP1 = room.player1_id === me.id;
         const iWon = (room.winner === 'player1' && isMeP1) || (room.winner === 'player2' && !isMeP1);
-        if (iWon) setTimeout(() => this.launchConfetti(), 300);
+        setTimeout(() => this.launchEndEffect(iWon), 300);
     }
 
     // --- Bot (dev mode) ----------------------------------------------------------
@@ -1004,7 +1008,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.stopClock();
 
         this.duelShown = false;
-        this.confettiFired = false;
+        this.endEffectFired = false;
         if (this.roomId) {
             sessionStorage.removeItem(`stat-duel-intro-shown-${this.roomId}`);
         }

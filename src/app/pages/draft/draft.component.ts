@@ -1,6 +1,7 @@
 import {
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
+  OnDestroy,
   OnInit,
   computed,
   effect,
@@ -21,7 +22,7 @@ import {
   slotStateAnimation,
   slotsGridAnimation,
 } from '../../constants/animations';
-import confetti from 'canvas-confetti';
+import { DRAFT_SOLO_WIN_RATING, isDraftSoloVictory, launchDefeatRain, launchVictoryConfetti } from '../../utils/end-game-effects';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft-help-modal.component';
 import { ModeSelectCardComponent } from '../../components/mode-select-card/mode-select-card.component';
@@ -58,7 +59,7 @@ type DraftConfigMode = 'solo';
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft.component.html',
 })
-export class DraftComponent implements OnInit {
+export class DraftComponent implements OnInit, OnDestroy {
   protected readonly ICONS = ICONS;
 
   private readonly router = inject(Router);
@@ -99,7 +100,9 @@ export class DraftComponent implements OnInit {
 
   readonly lockedCount = computed(() => this.lockedIndices().size);
   readonly selectedPokemon = signal<Pokemon | null>(null);
-  private confettiFired = false;
+  private endEffectFired = false;
+  private stopDefeatRain: (() => void) | null = null;
+  protected readonly DRAFT_SOLO_WIN_RATING = DRAFT_SOLO_WIN_RATING;
   private isLockingPick = false;
 
   readonly statsScore = computed((): number => {
@@ -111,6 +114,8 @@ export class DraftComponent implements OnInit {
     if (ratings.length === 0) return 0;
     return Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10;
   });
+
+  readonly isSoloVictory = computed(() => isDraftSoloVictory(this.statsScore()));
 
   private readonly STORAGE_KEY = 'draft_state';
 
@@ -194,7 +199,7 @@ export class DraftComponent implements OnInit {
 
     effect(() => {
       if (this.showScore()) {
-        untracked(() => this.launchConfetti());
+        untracked(() => this.launchEndEffect());
       }
     });
   }
@@ -367,7 +372,7 @@ export class DraftComponent implements OnInit {
   /** Relance une partie. */
   replay(): void {
     this.clearSavedState();
-    this.confettiFired = false;
+    this.endEffectFired = false;
     this.isLockingPick = false;
     this.phase.set('loading');
   }
@@ -490,18 +495,23 @@ export class DraftComponent implements OnInit {
     });
   }
 
-  // ─── Confetti ────────────────────────────────────────────────────────────────
+  // ─── Effets de fin de partie ─────────────────────────────────────────────────
 
   /** Lifecycle Angular : initialise le composant. */
   ngOnInit(): void {
     this.supabaseService.trackPresence('in_game');
   }
 
-  /** Lance l'animation de confettis. */
-  private launchConfetti(): void {
-    if (this.confettiFired) return;
-    this.confettiFired = true;
-    const colors = ['#ef4444', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
-    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+  /** Lifecycle Angular : arrete l'effet de fin de partie en cours. */
+  ngOnDestroy(): void {
+    this.stopDefeatRain?.();
+  }
+
+  /** Lance les confettis si la note atteint l'objectif, la pluie grise sinon. */
+  private launchEndEffect(): void {
+    if (this.endEffectFired) return;
+    this.endEffectFired = true;
+    if (this.isSoloVictory()) launchVictoryConfetti();
+    else this.stopDefeatRain = launchDefeatRain();
   }
 }

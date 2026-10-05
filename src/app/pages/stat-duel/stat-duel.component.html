@@ -474,8 +474,14 @@
 					<!-- Titre -->
 					<div class="text-center flex flex-col items-center gap-2">
 						@if (isSolo()) {
-							<iconify-icon [icon]="ICONS.trophy" class="text-6xl text-yellow-400 animate-bounce"></iconify-icon>
-							<h2 class="text-3xl font-black text-yellow-400 uppercase tracking-tight">Victoire !</h2>
+							@if (isSoloVictory()) {
+								<iconify-icon [icon]="ICONS.trophy" class="text-6xl text-yellow-400 animate-bounce"></iconify-icon>
+								<h2 class="text-3xl font-black text-yellow-400 uppercase tracking-tight">Victoire !</h2>
+							} @else {
+								<iconify-icon [icon]="ICONS.skull" class="text-6xl text-red-500 animate-pulse"></iconify-icon>
+								<h2 class="text-3xl font-black text-red-400 uppercase tracking-tight">Défaite</h2>
+							}
+							<p class="text-xs font-semibold text-slate-400">Objectif : {{ STAT_DUEL_SOLO_WIN_SCORE }} pts</p>
 							<app-new-record-badge mode="stat_duel" [result]="scoreResult()" />
 						} @else {
 							@let winner = isMultiWinner();

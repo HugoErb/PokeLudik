@@ -21,7 +21,7 @@ import {
   slotStateAnimation,
   slotsGridAnimation,
 } from '../../constants/animations';
-import confetti from 'canvas-confetti';
+import { launchDefeatRain, launchVictoryConfetti } from '../../utils/end-game-effects';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { PokemonTypeIconComponent } from '../../components/pokemon-type-icon/pokemon-type-icon.component';
 import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft-help-modal.component';
@@ -174,7 +174,8 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     return t.pokemons.map(id => byId.get(id)).filter((p): p is Pokemon => !!p);
   });
   readonly showScores = signal(false);
-  private confettiFired = false;
+  private endEffectFired = false;
+  private stopDefeatRain: (() => void) | null = null;
 
   readonly showLeaderboard = signal(false);
   readonly scoreResult = signal<SoloScoreResult | null>(null);
@@ -256,6 +257,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
   /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
   ngOnDestroy(): void {
+    this.stopDefeatRain?.();
     this.stopTimer();
   }
 
@@ -486,8 +488,8 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
     setTimeout(() => {
       this.showScores.set(true);
+      if (this.winner() !== 'draw') this.launchEndEffect(this.winner() === 'me');
       if (this.winner() === 'me') {
-        this.launchConfetti();
         
         // Enregistrer la victoire
         const user = this.supabaseService.getCurrentUser();
@@ -527,7 +529,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
   async replay(): Promise<void> {
     this.phase.set('loading');
     this.showScores.set(false);
-    this.confettiFired = false;
+    this.endEffectFired = false;
     this.isLockingPick = false;
     this.myTeamPokemons.set([]);
     
@@ -628,11 +630,11 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     return preloadPokemonImages(urls);
   }
 
-  /** Lance l'animation de confettis. */
-  private launchConfetti(): void {
-    if (this.confettiFired) return;
-    this.confettiFired = true;
-    const colors = ['#ef4444', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
-    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+  /** Lance les confettis en cas de victoire, la pluie grise en cas de défaite. */
+  private launchEndEffect(victory: boolean): void {
+    if (this.endEffectFired) return;
+    this.endEffectFired = true;
+    if (victory) launchVictoryConfetti();
+    else this.stopDefeatRain = launchDefeatRain();
   }
 }

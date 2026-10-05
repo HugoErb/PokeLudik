@@ -19,7 +19,7 @@ import { DuelIntroComponent } from '../../components/duel-intro/duel-intro.compo
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { ICONS } from '../../constants/icons';
 import { environment } from '../../../environments/environment';
-import confetti from 'canvas-confetti';
+import { launchDefeatRain, launchVictoryConfetti } from '../../utils/end-game-effects';
 
 type DuelIntroPlayer = { username: string; avatar_url?: string };
 
@@ -73,6 +73,7 @@ export class GameComponent implements OnInit, OnDestroy {
 	showMyTurnModal = signal(false);
 	pendingMyTurnModal = signal(false);
 	isWinner = false;
+	private stopDefeatRain: (() => void) | null = null;
 	devOpponentTries = signal(0);
 	private isSimulatingTurn = false;
 	private isInitialized = false;
@@ -323,7 +324,7 @@ export class GameComponent implements OnInit, OnDestroy {
 
 	/**
 	 * Traite la fin de partie : détermine le vainqueur, charge le Pokémon adverse
-	 * pour la modal de résultat et lance les confettis si le joueur a gagné.
+	 * pour la modal de résultat et lance l'effet de victoire ou de défaite.
 	 */
 	private async handleGameFinished(r: { winner_id: string | null; pokemon_p1: number | null; pokemon_p2: number | null }): Promise<void> {
 		const currentUser = this.supabaseService.getCurrentUser();
@@ -345,15 +346,12 @@ export class GameComponent implements OnInit, OnDestroy {
 		this.pendingMyTurnModal.set(false);
 
 		if (this.isWinner) {
-			this.launchConfetti();
+			launchVictoryConfetti();
+		} else if (r.winner_id) {
+			this.stopDefeatRain?.();
+			this.stopDefeatRain = launchDefeatRain();
 		}
 		this.showEndModal = true;
-	}
-
-	/** Lance l'animation de confettis pour célébrer la victoire. */
-	private launchConfetti(): void {
-		const colors = ['#ef4444', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
-		confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
 	}
 
 	/**
@@ -500,6 +498,7 @@ export class GameComponent implements OnInit, OnDestroy {
 
 	/** Lifecycle Angular — nettoie les confettis et les abonnements. */
 	ngOnDestroy(): void {
+		this.stopDefeatRain?.();
 		this.gameService.stopWatching();
 		this.pokemonSub?.unsubscribe();
 		this.opponentSub?.unsubscribe();

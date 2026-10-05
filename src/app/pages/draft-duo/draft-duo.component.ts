@@ -25,7 +25,7 @@ import {
   slotStateAnimation,
   slotsGridAnimation,
 } from '../../constants/animations';
-import confetti from 'canvas-confetti';
+import { launchDefeatRain, launchVictoryConfetti } from '../../utils/end-game-effects';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { PokemonTypeIconComponent } from '../../components/pokemon-type-icon/pokemon-type-icon.component';
 import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft-help-modal.component';
@@ -180,7 +180,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
   private broadcastSub?: Subscription;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private enteringComplete = false;
-  private confettiFired = false;
+  private endEffectFired = false;
+  private stopDefeatRain: (() => void) | null = null;
   private isLockingPick = false;
   private replayLaunchInProgress = false;
   private destroyed = false;
@@ -249,6 +250,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
   /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
   ngOnDestroy(): void {
+    this.stopDefeatRain?.();
     this.destroyed = true;
     this.stopTimer();
     this.roomSub?.unsubscribe();
@@ -319,8 +321,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     if (updated.status === 'finished') {
       if (this.phase() !== 'complete') {
         await this.enterCompletePhase(updated);
-      } else if (this.winner() === 'me') {
-        this.launchConfetti();
+      } else if (this.winner() !== 'draw') {
+        this.launchEndEffect(this.winner() === 'me');
       }
     }
   }
@@ -628,8 +630,8 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.showScores.set(true);
       void this.saveWinner(room);
-      if (this.winner() === 'me') {
-        this.launchConfetti();
+      if (this.winner() !== 'draw') {
+        this.launchEndEffect(this.winner() === 'me');
       }
     }, 800);
   }
@@ -751,7 +753,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     this.saveError.set('');
     this.isLockingPick = false;
     this.enteringComplete = false;
-    this.confettiFired = false;
+    this.endEffectFired = false;
     this.opponentLeft.set(false);
     this.showScores.set(false);
     this.myTeamPokemons.set([]);
@@ -840,11 +842,11 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     return preloadPokemonImages(urls);
   }
 
-  /** Lance l'animation de confettis. */
-  private launchConfetti(): void {
-    if (this.confettiFired) return;
-    this.confettiFired = true;
-    const colors = ['#ef4444', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
-    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+  /** Lance les confettis en cas de victoire, la pluie grise en cas de défaite. */
+  private launchEndEffect(victory: boolean): void {
+    if (this.endEffectFired) return;
+    this.endEffectFired = true;
+    if (victory) launchVictoryConfetti();
+    else this.stopDefeatRain = launchDefeatRain();
   }
 }

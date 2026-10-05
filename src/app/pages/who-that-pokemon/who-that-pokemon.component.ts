@@ -2,8 +2,8 @@ import { Component, CUSTOM_ELEMENTS_SCHEMA, OnDestroy, OnInit, computed, effect,
 import { FormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import confetti from 'canvas-confetti';
 import { firstValueFrom, Subscription } from 'rxjs';
+import { isWhoSoloVictory, launchDefeatRain, launchVictoryConfetti, WHO_SOLO_WIN_SCORE } from '../../utils/end-game-effects';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
 import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
@@ -137,7 +137,9 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   private pollInterval?: ReturnType<typeof setInterval>;
   private toastTimeout?: ReturnType<typeof setTimeout>;
   private currentSilhouetteTargetId = 0;
-  private confettiFired = false;
+  private endEffectFired = false;
+  private stopDefeatRain: (() => void) | null = null;
+  protected readonly WHO_SOLO_WIN_SCORE = WHO_SOLO_WIN_SCORE;
   private replayLaunchInProgress = false;
 
   readonly targetPokemon = computed(() => {
@@ -150,7 +152,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   readonly statusTitle = computed(() => {
     if (this.phase() === 'complete') {
       const r = this.room();
-      if (!r) return this.soloState().status === 'won' ? 'Victoire !' : 'Fin de partie';
+      if (!r) return this.isVictory() ? 'Victoire !' : 'Défaite';
       if (r.winner === 'draw') return 'Égalité !';
       const iWin = (r.winner === 'player1' && this.isPlayer1()) || (r.winner === 'player2' && !this.isPlayer1());
       return iWin ? 'Victoire !' : 'Défaite';
@@ -160,9 +162,15 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
 
   readonly isVictory = computed(() => {
     const r = this.room();
-    if (!r) return this.soloState().status === 'won';
+    if (!r) return isWhoSoloVictory(this.soloState().score);
     if (!r.winner || r.winner === 'draw') return false;
     return (r.winner === 'player1' && this.isPlayer1()) || (r.winner === 'player2' && !this.isPlayer1());
+  });
+
+  readonly isDefeat = computed(() => {
+    const r = this.room();
+    if (!r) return !this.isVictory();
+    return !!r.winner && r.winner !== 'draw' && !this.isVictory();
   });
 
   readonly myHintsRevealed = computed(() => {
@@ -266,6 +274,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopDefeatRain?.();
     this.roomSub?.unsubscribe();
     this.broadcastSub?.unsubscribe();
     this.inviteResponseSub?.unsubscribe();
@@ -373,10 +382,10 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
 
     effect(() => {
       if (this.phase() !== 'complete') {
-        this.confettiFired = false;
+        this.endEffectFired = false;
         return;
       }
-      if (this.isVictory()) setTimeout(() => this.launchConfetti(), 300);
+      if (this.isVictory() || this.isDefeat()) setTimeout(() => this.launchEndEffect(), 300);
     });
   }
 
@@ -797,10 +806,11 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     }, 3000);
   }
 
-  private launchConfetti(): void {
-    if (this.confettiFired) return;
-    this.confettiFired = true;
-    const colors = ['#ef4444', '#facc15', '#a855f7', '#3b82f6', '#ffffff'];
-    confetti({ particleCount: 160, spread: 110, origin: { x: 0.5, y: 0.4 }, colors });
+  /** Lance les confettis en cas de victoire, la pluie grise en cas de défaite. */
+  private launchEndEffect(): void {
+    if (this.endEffectFired || this.phase() !== 'complete') return;
+    this.endEffectFired = true;
+    if (this.isVictory()) launchVictoryConfetti();
+    else if (this.isDefeat()) this.stopDefeatRain = launchDefeatRain();
   }
 }
