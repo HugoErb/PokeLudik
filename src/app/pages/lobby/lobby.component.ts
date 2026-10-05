@@ -283,7 +283,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}`;
 
 		// 5. Marquer l'utilisateur comme "en jeu" dans le système de présence
-		this.supabaseService.trackPresence('in_game');
+		this.supabaseService.trackPresence('in_game', 'guess_my_pokemon');
 
 		// 6. Écouter le refus si on a invité un ami directement
 		const inviteId = this.route.snapshot.queryParamMap.get('inviteId');
@@ -700,7 +700,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.statDuelRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=stat_duel`;
-			this.supabaseService.trackPresence('in_game');
+			this.supabaseService.trackPresence('in_game', 'stat_duel');
 			this.subscribeInviteDecline();
 			if (room.status === 'finished') {
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
@@ -733,7 +733,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.draftDuoRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=draft_duo`;
-			this.supabaseService.trackPresence('in_game');
+			this.supabaseService.trackPresence('in_game', 'draft_duo');
 			this.subscribeInviteDecline();
 			if (room.status === 'finished') {
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
@@ -767,7 +767,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.pokemonAuctionRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=pokemon_auction`;
-			this.supabaseService.trackPresence('in_game');
+			this.supabaseService.trackPresence('in_game', 'pokemon_auction');
 			this.subscribeInviteDecline();
 			if (room.status === 'finished') void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
 			else if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
@@ -794,7 +794,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.sizeUpRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=size_up`;
-			this.supabaseService.trackPresence('in_game');
+			this.supabaseService.trackPresence('in_game', 'size_up');
 			this.subscribeInviteDecline();
 			if (room.status === 'finished') {
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
@@ -827,7 +827,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			this.whoPokemonRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=who_that_pokemon`;
-			this.supabaseService.trackPresence('in_game');
+			this.supabaseService.trackPresence('in_game', 'who_that_pokemon');
 			this.subscribeInviteDecline();
 			if (room.status === 'finished') {
 				void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });

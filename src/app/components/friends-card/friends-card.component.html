@@ -64,7 +64,7 @@
 				</div>
 			} @else {
 				<div class="tab-content flex-1 min-h-0 flex flex-col gap-2 overflow-y-auto pr-1">
-					@for (friend of friends(); track friend.id + '_' + friend.status) {
+					@for (friend of friends(); track friend.id + '_' + friend.status + '_' + friend.gameMode) {
 						<div class="relative flex items-center gap-3 bg-slate-700/50 rounded-xl px-3 py-2">
 							<!-- Avatar -->
 							<div class="relative flex-shrink-0">
@@ -83,7 +83,7 @@
 							<!-- Pseudo + statut -->
 							<div class="flex-1 min-w-0">
 								<p class="text-sm font-bold text-white truncate">{{ friend.username }}</p>
-								<p class="text-xs" [class]="statusTextClass(friend.status)">{{ statusLabel(friend.status) }}</p>
+								<p class="text-xs truncate" [class]="statusTextClass(friend.status)" [title]="statusLabel(friend)">{{ statusLabel(friend) }}</p>
 							</div>
 							<!-- Bouton trois points -->
 							<button

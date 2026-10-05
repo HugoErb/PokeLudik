@@ -270,7 +270,7 @@ export class SizeUpComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    this.supabaseService.trackPresence(this.roomId() ? 'in_game' : 'online');
+    this.supabaseService.trackPresence(this.roomId() ? 'in_game' : 'online', 'size_up');
     this.allPokemons.set(await firstValueFrom(this.pokemonService.loadAll()));
     this.tickInterval = setInterval(() => this.tick(), 250);
     if (this.roomId()) await this.loadDuoRoom();

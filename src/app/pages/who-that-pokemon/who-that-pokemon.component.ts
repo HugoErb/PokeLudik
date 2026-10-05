@@ -268,7 +268,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    this.supabaseService.trackPresence(this.roomId() ? 'in_game' : 'online');
+    this.supabaseService.trackPresence(this.roomId() ? 'in_game' : 'online', 'who_that_pokemon');
     this.allPokemons.set(await firstValueFrom(this.pokemonService.loadAll()));
     if (this.roomId()) await this.loadDuoRoom();
   }

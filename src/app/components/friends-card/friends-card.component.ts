@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, Output, EventEmitter, CUSTOM_ELEMENTS_SCH
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { SupabaseService } from '../../services/supabase.service';
-import { FriendStatus, FriendWithStatus, FriendRequest, GameMode } from '../../models/room.model';
+import { FriendStatus, FriendWithStatus, FriendRequest, GameMode, PRESENCE_MODE_LABELS } from '../../models/room.model';
 import { ICONS } from '../../constants/icons';
 
 @Component({
@@ -93,7 +93,10 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 			this.presenceSub = this.supabaseService.subscribeToFriendsPresence(friendIds).subscribe((statusMap) => {
 				this.friends.update((list) =>
 					list
-						.map((f) => ({ ...f, status: statusMap.get(f.friendId) ?? 'offline' }))
+						.map((f) => {
+							const presence = statusMap.get(f.friendId);
+							return { ...f, status: presence?.status ?? 'offline', gameMode: presence?.mode };
+						})
 						.sort((a, b) => {
 							const order: Record<FriendStatus, number> = { online: 0, in_game: 1, offline: 2 };
 							return order[a.status] - order[b.status];
@@ -221,10 +224,12 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 		this.addFriendSuccess = '';
 	}
 
-	/** Retourne le libelle d'un statut d'ami. */
-	statusLabel(status: FriendStatus): string {
-		if (status === 'online') return 'En ligne';
-		if (status === 'in_game') return 'En jeu';
+	/** Retourne le libelle d'un statut d'ami, avec le mode de jeu quand il est connu. */
+	statusLabel(friend: FriendWithStatus): string {
+		if (friend.status === 'online') return 'En ligne';
+		if (friend.status === 'in_game') {
+			return friend.gameMode ? `En jeu · ${PRESENCE_MODE_LABELS[friend.gameMode]}` : 'En jeu';
+		}
 		return 'Hors ligne';
 	}
 

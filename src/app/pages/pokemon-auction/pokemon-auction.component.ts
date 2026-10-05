@@ -156,7 +156,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
       this.roomSub = this.supabase.subscribeToPokemonAuctionRoom(this.roomId()).subscribe(room => this.onRoom(room));
       this.timer = setInterval(() => this.tick(), 250);
       this.poll = setInterval(() => void this.refresh(), 2000);
-      this.supabase.trackPresence('in_game');
+      this.supabase.trackPresence('in_game', 'pokemon_auction');
     } catch { void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } }); }
     this.loading.set(false);
   }

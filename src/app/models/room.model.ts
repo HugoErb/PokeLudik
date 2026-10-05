@@ -253,12 +253,31 @@ export interface SizeUpRoom {
 
 export type FriendStatus = 'online' | 'in_game' | 'offline';
 
+/** Mode diffusé dans la présence quand un joueur est en jeu ; `draft` = Team Builder solo. */
+export type PresenceGameMode = GameMode | 'draft';
+
+export const PRESENCE_MODE_LABELS: Record<PresenceGameMode, string> = {
+  guess_my_pokemon: 'Guess my Pokémon',
+  who_that_pokemon: "Who's That Pokémon ?",
+  draft_duo: 'Duel de team builder',
+  draft: 'Team Builder',
+  stat_duel: 'Duel de base stats',
+  pokemon_auction: 'Enchères Pokémon',
+  size_up: 'Size It Up',
+};
+
+export interface FriendPresence {
+  status: FriendStatus;
+  mode?: PresenceGameMode;
+}
+
 export interface FriendWithStatus {
   id: string;
   friendId: string;
   username: string;
   avatarUrl?: string;
   status: FriendStatus;
+  gameMode?: PresenceGameMode;
 }
 
 export interface FriendRequest {

@@ -216,7 +216,7 @@ export class GameComponent implements OnInit, OnDestroy {
 
 	/** Lifecycle Angular — initialise la page de jeu. */
 	ngOnInit(): void {
-		this.supabaseService.trackPresence('in_game');
+		this.supabaseService.trackPresence('in_game', 'guess_my_pokemon');
 		void this.init();
 	}
 

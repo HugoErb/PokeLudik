@@ -4,7 +4,7 @@ import { filter, map } from 'rxjs/operators';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { LeaderboardCategory, LeaderboardEntry, LeaderboardPeriod, LeaderboardSettings, PersonalLeaderboard, SoloLeaderboardMode, SizeUpScoreRound, SoloScoreResult, StatDuelScorePick } from '../models/leaderboard.model';
-import { AuctionGameSettings, DraftDuoRoom, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, Profile, Room, RoomPatch, SizeUpGameSettings, SizeUpRoom, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
+import { AuctionGameSettings, DraftDuoRoom, FriendPresence, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, PresenceGameMode, Profile, Room, RoomPatch, SizeUpGameSettings, SizeUpRoom, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService implements OnDestroy {
@@ -817,15 +817,18 @@ export class SupabaseService implements OnDestroy {
     private readonly presenceStateSubject = new BehaviorSubject<Record<string, any[]>>({});
     private presenceUpdateState: (() => void) | null = null;
     private currentPresenceStatus: 'online' | 'in_game' | null = null;
+    private currentPresenceMode: PresenceGameMode | null = null;
 
-    /** Rejoint le canal de présence global et diffuse le statut de l'utilisateur. */
-    trackPresence(status: 'online' | 'in_game'): void {
+    /** Rejoint le canal de présence global et diffuse le statut (et le mode de jeu) de l'utilisateur. */
+    trackPresence(status: 'online' | 'in_game', mode?: PresenceGameMode): void {
         const user = this.getCurrentUser();
         if (!user) return;
+        const presenceMode = status === 'in_game' ? mode ?? null : null;
+        const payload = { user_id: user.id, status, mode: presenceMode };
 
         if (this.presenceChannel) {
-            if (this.currentPresenceStatus === status) {
-                this.presenceChannel.track({ user_id: user.id, status })
+            if (this.currentPresenceStatus === status && this.currentPresenceMode === presenceMode) {
+                this.presenceChannel.track(payload)
                     .then(() => this.presenceUpdateState?.())
                     .catch(() => undefined);
                 return;
@@ -835,9 +838,10 @@ export class SupabaseService implements OnDestroy {
             this.presenceChannel.untrack()
                 .catch(() => undefined)
                 .finally(() => {
-                    this.presenceChannel.track({ user_id: user.id, status })
+                    this.presenceChannel.track(payload)
                         .then(() => {
                             this.currentPresenceStatus = status;
+                            this.currentPresenceMode = presenceMode;
                             this.presenceUpdateState?.();
                         })
                         .catch(() => undefined);
@@ -858,8 +862,9 @@ export class SupabaseService implements OnDestroy {
             .on('presence', { event: 'leave' }, updateState)
             .subscribe(async (s: string) => {
                 if (s === 'SUBSCRIBED') {
-                    await channel.track({ user_id: user.id, status });
+                    await channel.track(payload);
                     this.currentPresenceStatus = status;
+                    this.currentPresenceMode = presenceMode;
                 }
             });
 
@@ -872,19 +877,20 @@ export class SupabaseService implements OnDestroy {
             this.presenceChannel.untrack().catch(() => undefined);
         }
         this.currentPresenceStatus = null;
+        this.currentPresenceMode = null;
         this.ngZone.run(() => this.presenceStateSubject.next({}));
     }
 
-    /** Retourne un Observable du statut de présence de chaque ami. */
-    subscribeToFriendsPresence(friendIds: string[]): Observable<Map<string, FriendStatus>> {
+    /** Retourne un Observable du statut de présence (et du mode de jeu) de chaque ami. */
+    subscribeToFriendsPresence(friendIds: string[]): Observable<Map<string, FriendPresence>> {
         return this.presenceStateSubject.pipe(
             map((state) => {
-                const result = new Map<string, FriendStatus>();
-                for (const id of friendIds) result.set(id, 'offline');
+                const result = new Map<string, FriendPresence>();
+                for (const id of friendIds) result.set(id, { status: 'offline' });
                 for (const [key, presences] of Object.entries(state)) {
                     if (friendIds.includes(key) && presences.length > 0) {
-                        const p = presences[0] as { status: 'online' | 'in_game' };
-                        result.set(key, p.status ?? 'offline');
+                        const p = presences[0] as { status: 'online' | 'in_game'; mode?: PresenceGameMode | null };
+                        result.set(key, { status: p.status ?? 'offline', mode: p.mode ?? undefined });
                     }
                 }
                 return result;
@@ -896,12 +902,13 @@ export class SupabaseService implements OnDestroy {
     async refreshFriendsPresence(): Promise<void> {
         const channel = this.presenceChannel;
         const status = this.currentPresenceStatus;
+        const mode = this.currentPresenceMode;
         if (!channel || !status) return;
         await this.supabase.removeChannel(channel);
-        if (this.presenceChannel !== channel || this.currentPresenceStatus !== status) return;
+        if (this.presenceChannel !== channel || this.currentPresenceStatus !== status || this.currentPresenceMode !== mode) return;
         this.presenceChannel = null;
         this.presenceUpdateState = null;
-        this.trackPresence(status);
+        this.trackPresence(status, mode ?? undefined);
     }
 
     // ─── Amis ────────────────────────────────────────────────────────────────────

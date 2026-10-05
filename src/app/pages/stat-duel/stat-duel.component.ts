@@ -202,7 +202,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Lifecycle Angular : initialise le composant. */
     ngOnInit(): void {
-        this.supabaseService.trackPresence('in_game');
+        this.supabaseService.trackPresence('in_game', 'stat_duel');
         this.roomId = this.route.snapshot.paramMap.get('roomId');
         if (this.route.snapshot.queryParams['dev'] === '1') {
             this.isDevMode.set(true);

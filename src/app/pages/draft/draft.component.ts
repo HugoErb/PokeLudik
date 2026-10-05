@@ -499,7 +499,7 @@ export class DraftComponent implements OnInit, OnDestroy {
 
   /** Lifecycle Angular : initialise le composant. */
   ngOnInit(): void {
-    this.supabaseService.trackPresence('in_game');
+    this.supabaseService.trackPresence('in_game', 'draft');
   }
 
   /** Lifecycle Angular : arrete l'effet de fin de partie en cours. */
