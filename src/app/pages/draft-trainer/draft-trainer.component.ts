@@ -539,6 +539,13 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     }, 500);
   }
 
+  /** Recommence la partie en cours avec le même dresseur. */
+  restart(): void {
+    if (this.phase() !== 'playing') return;
+    this.stopTimer();
+    void this.replay();
+  }
+
   /** Navigue vers la selection de dresseur. */
   async goToTrainerSelect(): Promise<void> {
     void this.router.navigate(['/trainer-select']);
