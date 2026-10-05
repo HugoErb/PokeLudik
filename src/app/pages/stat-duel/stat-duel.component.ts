@@ -49,6 +49,7 @@ const ROUND_COUNT = 6;
 const ROUND_PICK_TIME_MS = 10_000;
 const ROUND_TRANSITION_TIME_MS = 5_000;
 const ROUND_DURATION_MS = ROUND_PICK_TIME_MS + ROUND_TRANSITION_TIME_MS;
+const SOLO_TRANSITION_TIME_MS = 4_000;
 
 @Component({
     selector: 'app-stat-duel',
@@ -534,9 +535,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     private startSoloTransition(): void {
         this.stopClock();
         const startTime = Date.now();
+        this.nextRoundCountdown.set(Math.ceil(SOLO_TRANSITION_TIME_MS / 1000));
         this.clockInterval = setInterval(() => {
             const elapsed = Date.now() - startTime;
-            const remaining = Math.max(0, (ROUND_TRANSITION_TIME_MS - elapsed) / 1000);
+            const remaining = Math.max(0, (SOLO_TRANSITION_TIME_MS - elapsed) / 1000);
             this.nextRoundCountdown.set(Math.ceil(remaining));
             if (remaining <= 0) {
                 this.stopClock();
@@ -751,12 +753,9 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         this.myPicks.update(arr => [...arr, pick]);
 
         if (this.isSolo()) {
-            this.stopClock();
             this.justPickedStat.set(pick);
-            setTimeout(() => {
-                this.justPickedStat.set(null);
-                this.startSoloTransition();
-            }, 1000);
+            this.startSoloTransition();
+            setTimeout(() => this.justPickedStat.set(null), 1000);
         } else {
             const me = this.supabaseService.getCurrentUser();
             if (!me || !this.roomId) return;
