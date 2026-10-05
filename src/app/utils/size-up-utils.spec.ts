@@ -4,6 +4,7 @@ import {
   formatMeters,
   metersToSlider,
   pickSizeUpPairs,
+  roundToCm,
   SIZE_UP_MAX_M,
   SIZE_UP_MIN_M,
   SIZE_UP_SLIDER_STEPS,
@@ -65,6 +66,15 @@ describe('size-up-utils', () => {
     expect(formatMeters(1.5)).toBe('1,5 m');
     expect(formatMeters(14.5)).toBe('14,5 m');
     expect(formatMeters(2)).toBe('2 m');
+    expect(formatMeters(14.53)).toBe('14,53 m');
+    expect(formatMeters(20)).toBe('20 m');
+  });
+
+  it('arrondit les estimations au centimètre entier', () => {
+    expect(roundToCm(0.403)).toBe(0.4);
+    expect(roundToCm(1.236)).toBe(1.24);
+    expect(roundToCm(14.534)).toBe(14.53);
+    expect(sizeUpPoints(roundToCm(0.104), 0.1)).toBe(100);
   });
 
   it('tire des paires de Pokémon distincts sans répétition tant que le pool suffit', () => {

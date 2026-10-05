@@ -42,6 +42,11 @@ export function clampSizeUpGuess(meters: number): number {
   return Math.min(SIZE_UP_MAX_M, Math.max(SIZE_UP_MIN_M, meters));
 }
 
+/** Arrondit au centimètre entier : l'estimation ne doit pas contenir de décimales invisibles à l'affichage. */
+export function roundToCm(meters: number): number {
+  return Math.round(meters * 100) / 100;
+}
+
 /** Position du slider (0 → SIZE_UP_SLIDER_STEPS) vers une taille en mètres, sur une échelle logarithmique. */
 export function sliderToMeters(position: number): number {
   const ratio = Math.min(1, Math.max(0, position / SIZE_UP_SLIDER_STEPS));
@@ -66,8 +71,7 @@ export function computeBoardScale(boardHeightPx: number, referenceMeters: number
 export function formatMeters(meters: number | null | undefined): string {
   if (meters === null || meters === undefined || !Number.isFinite(meters)) return '—';
   if (meters < 1) return `${Math.round(meters * 100)} cm`;
-  const digits = meters < 10 ? 2 : 1;
-  return `${meters.toFixed(digits).replace(/\.?0+$/, '').replace('.', ',')} m`;
+  return `${meters.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')} m`;
 }
 
 /** Tire `rounds` paires de deux Pokémon distincts, sans réutiliser un Pokémon tant que le pool le permet. */

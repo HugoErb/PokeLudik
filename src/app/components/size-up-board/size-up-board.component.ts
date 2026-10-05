@@ -2,7 +2,7 @@ import { AfterViewInit, Component, CUSTOM_ELEMENTS_SCHEMA, ElementRef, OnDestroy
 import { ICONS } from '../../constants/icons';
 import { Pokemon } from '../../models/pokemon.model';
 import { SpriteBounds, measureSpriteBounds } from '../../utils/sprite-bounds';
-import { clampSizeUpGuess, formatMeters, metersToSlider, SIZE_UP_SLIDER_STEPS, sliderToMeters } from '../../utils/size-up-utils';
+import { clampSizeUpGuess, formatMeters, metersToSlider, roundToCm, SIZE_UP_SLIDER_STEPS, sliderToMeters } from '../../utils/size-up-utils';
 
 interface Rect {
   left: number;
@@ -216,7 +216,7 @@ export class SizeUpBoardComponent implements AfterViewInit, OnDestroy {
 
   private emitGuess(meters: number): void {
     if (this.locked()) return;
-    this.guessChange.emit(Math.round(clampSizeUpGuess(meters) * 1000) / 1000);
+    this.guessChange.emit(roundToCm(clampSizeUpGuess(meters)));
   }
 }
 
