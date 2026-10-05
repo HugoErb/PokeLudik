@@ -10,6 +10,8 @@ export interface LeaderboardSettings {
   trainer?: number;
   /** Size It Up : chrono par manche en secondes (0 = sans limite). */
   roundTimer?: number;
+  /** Size It Up : tailles en mètres affichées pendant la manche (absent = true). */
+  showMeters?: boolean;
 }
 
 export interface LeaderboardEntry {

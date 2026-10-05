@@ -6,6 +6,8 @@ describe('leaderboard utils', () => {
     expect(buildSettingsKey('draft', { generations: [], categories: ['starter', 'bébé', 'starter'] })).toBe('g=;c=bébé,starter');
     expect(buildSettingsKey('who_that_pokemon', { generations: [10, 9], categories: [], initialHint: 'cry' })).toBe('g=9,10;c=;h=cry');
     expect(buildSettingsKey('size_up', { generations: [2], categories: [], roundTimer: 30 })).toBe('g=2;c=;t=30');
+    expect(buildSettingsKey('size_up', { generations: [], categories: [], roundTimer: 0, showMeters: true })).toBe('g=;c=;t=0');
+    expect(buildSettingsKey('size_up', { generations: [], categories: [], roundTimer: 15, showMeters: false })).toBe('g=;c=;t=15;m=0');
   });
 
   it('utilise les paramètres par défaut quand aucun filtre n\'est choisi', () => {
@@ -25,6 +27,7 @@ describe('leaderboard utils', () => {
     expect(formatCategoryLabel('draft_trainer', 'trainers_defeated', {})).toBe('Dresseurs battus');
     expect(formatCategoryLabel('size_up', 'g=;c=;t=15', { roundTimer: 15 })).toBe('Toutes générations · Toutes catégories · Chrono 15 s');
     expect(formatCategoryLabel('size_up', 'g=;c=;t=0', {})).toBe('Toutes générations · Toutes catégories · Sans chrono');
+    expect(formatCategoryLabel('size_up', 'g=;c=;t=0;m=0', { roundTimer: 0, showMeters: false })).toBe('Toutes générations · Toutes catégories · Sans chrono · Sans mètres');
   });
 
   it('formate les scores selon le mode', () => {

@@ -25,7 +25,7 @@ export function buildSettingsKey(mode: SoloLeaderboardMode, settings: Leaderboar
   const categories = [...new Set(settings.categories ?? [])].sort(compareCodePoints);
   const key = `g=${generations.join(',')};c=${categories.join(',')}`;
   if (mode === 'who_that_pokemon') return `${key};h=${settings.initialHint ?? 'silhouette'}`;
-  if (mode === 'size_up') return `${key};t=${settings.roundTimer ?? 0}`;
+  if (mode === 'size_up') return `${key};t=${settings.roundTimer ?? 0}${settings.showMeters === false ? ';m=0' : ''}`;
   return key;
 }
 
@@ -60,6 +60,7 @@ export function formatCategoryLabel(
   if (mode === 'size_up') {
     const timer = settings.roundTimer ?? 0;
     parts.push(timer > 0 ? `Chrono ${timer} s` : 'Sans chrono');
+    if (settings.showMeters === false) parts.push('Sans mètres');
   }
   return parts.join(' · ');
 }

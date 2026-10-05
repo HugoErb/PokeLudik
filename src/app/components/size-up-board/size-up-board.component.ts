@@ -61,6 +61,8 @@ export class SizeUpBoardComponent implements AfterViewInit, OnDestroy {
   readonly revealed = input(false);
   readonly opponentGuess = input<number | null>(null);
   readonly opponentLabel = input('Adversaire');
+  /** Affiche les tailles en mètres avant la révélation. */
+  readonly showMeters = input(true);
   readonly guessChange = output<number>();
 
   private readonly board = viewChild.required<ElementRef<HTMLDivElement>>('board');

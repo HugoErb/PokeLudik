@@ -219,6 +219,20 @@
           </div>
         </article>
       }
+
+      @if (hasControl('showMeters')) {
+        <article class="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3.5 sm:p-4" [class.opacity-60]="readonly()">
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-white">Afficher les mètres</p>
+              <p class="mt-1 text-xs text-slate-400">Taille de la référence et de ton estimation visibles pendant la manche.</p>
+            </div>
+            <button type="button" role="switch" aria-label="Afficher les mètres pendant la manche" [attr.aria-checked]="settings().showMeters" (click)="update({ showMeters: !settings().showMeters })" [disabled]="readonly()" class="relative h-7 w-12 shrink-0 rounded-full border transition duration-200" [class.border-emerald-400/50]="settings().showMeters" [class.bg-emerald-500]="settings().showMeters" [class.border-white/10]="!settings().showMeters" [class.bg-slate-700]="!settings().showMeters">
+              <span class="absolute left-0.5 top-0.5 h-[22px] w-[22px] rounded-full bg-white shadow-md transition-transform duration-200" [class.translate-x-5]="settings().showMeters"></span>
+            </button>
+          </div>
+        </article>
+      }
     </div>
   </section>
 }

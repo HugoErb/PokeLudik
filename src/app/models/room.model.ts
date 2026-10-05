@@ -37,12 +37,15 @@ export interface SizeUpGameSettings {
   categories: string[];
   /** Durée d'une manche en secondes, 0 = sans limite. */
   roundTimer: number;
+  /** Affiche les tailles en mètres (référence et estimation) pendant la manche. */
+  showMeters: boolean;
 }
 
 export const DEFAULT_SIZE_UP_SETTINGS: SizeUpGameSettings = {
   generations: [],
   categories: [],
   roundTimer: 0,
+  showMeters: true,
 };
 
 export interface Room {

@@ -202,6 +202,7 @@
               [revealed]="revealed()"
               [opponentGuess]="currentResult()?.opponentGuess ?? null"
               [opponentLabel]="opponentProfile()?.username || 'Adversaire'"
+              [showMeters]="settings().showMeters"
               (guessChange)="setGuess($event)"
             />
 
@@ -242,7 +243,7 @@
             } @else {
               <button type="button" (click)="validate()" [disabled]="!canValidate()" class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-green-500 px-4 py-3 text-sm font-black text-slate-950 transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400">
                 <iconify-icon [icon]="isSubmitting() ? ICONS.loading : ICONS.check" class="text-lg" [class.animate-spin]="isSubmitting()"></iconify-icon>
-                Valider ≈ {{ formatMeters(guess()) }}
+                Valider @if (settings().showMeters) { ≈ {{ formatMeters(guess()) }} }
               </button>
             }
 

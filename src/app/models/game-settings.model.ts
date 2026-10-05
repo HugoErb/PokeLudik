@@ -16,7 +16,8 @@ export type SettingsControl =
   | 'auctionFormat'
   | 'startingBudget'
   | 'randomAwardOnNoBid'
-  | 'roundTimer';
+  | 'roundTimer'
+  | 'showMeters';
 
 export interface ModeSettings {
   generations: number[];
@@ -31,6 +32,8 @@ export interface ModeSettings {
   randomAwardOnNoBid: boolean;
   /** Durée d'une manche en secondes (Size It Up), 0 = sans limite. */
   roundTimer: number;
+  /** Affiche les tailles en mètres pendant la manche (Size It Up). */
+  showMeters: boolean;
 }
 
 export type GuessGameSettings = Pick<ModeSettings, 'generations' | 'categories' | 'noPokedex' | 'noSearch' | 'firstPlayer' | 'randomPokemon'>;
@@ -55,6 +58,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     startingBudget: 1000,
     randomAwardOnNoBid: true,
     roundTimer: 0,
+    showMeters: true,
   },
   stat_duel: {
     generations: [],
@@ -68,6 +72,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     startingBudget: 1000,
     randomAwardOnNoBid: true,
     roundTimer: 0,
+    showMeters: true,
   },
   draft_duo: {
     generations: [],
@@ -81,6 +86,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     startingBudget: 1000,
     randomAwardOnNoBid: true,
     roundTimer: 0,
+    showMeters: true,
   },
   who_that_pokemon: {
     generations: [],
@@ -94,6 +100,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     startingBudget: 1000,
     randomAwardOnNoBid: true,
     roundTimer: 0,
+    showMeters: true,
   },
   pokemon_auction: {
     generations: [],
@@ -107,6 +114,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     startingBudget: 1000,
     randomAwardOnNoBid: true,
     roundTimer: 0,
+    showMeters: true,
   },
   size_up: {
     generations: [],
@@ -120,6 +128,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     startingBudget: 1000,
     randomAwardOnNoBid: true,
     roundTimer: 0,
+    showMeters: true,
   },
   draft_trainer: {
     generations: [],
@@ -133,6 +142,7 @@ export const DEFAULT_MODE_SETTINGS: Record<SettingsMode, ModeSettings> = {
     startingBudget: 1000,
     randomAwardOnNoBid: true,
     roundTimer: 0,
+    showMeters: true,
   },
 };
 
@@ -163,7 +173,7 @@ const SETTINGS_DEFINITIONS: Record<SettingsMode, SettingsDefinition> = {
   },
   size_up: {
     configurable: true,
-    controls: ['generations', 'categories', 'roundTimer'],
+    controls: ['generations', 'categories', 'roundTimer', 'showMeters'],
   },
 };
 
@@ -209,6 +219,7 @@ export function toSizeUpSettings(settings: ModeSettings): SizeUpGameSettings {
     generations: settings.generations,
     categories: settings.categories,
     roundTimer: settings.roundTimer,
+    showMeters: settings.showMeters,
   };
 }
 
