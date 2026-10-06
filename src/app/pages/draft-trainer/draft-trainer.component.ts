@@ -639,9 +639,8 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     return pickOneLegendaryPokemon(pool, exclude, [...this.slots(), ...newlyPicked]);
   }
 
-  /** Retourne le pool utilisable pour un slot normal. */
+  /** Retourne le pool utilisable pour un slot normal (sans légendaires ni fabuleux, Pato compris). */
   private normalSlotPool(pool: Pokemon[]): Pokemon[] {
-    if (this.trainer()?.nom === 'Pato') return pool;
     return pool.filter(p => p.category !== 'légendaire' && p.category !== 'fabuleux');
   }
 
