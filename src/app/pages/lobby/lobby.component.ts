@@ -86,7 +86,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		const whoRoom = this.whoPokemonRoom();
 		const auctionRoom = this.pokemonAuctionRoom();
 		const sizeUpRoom = this.sizeUpRoom();
-		const guessRoom = this.gameService.currentRoom();
+		// La room Guess du service peut encore être celle d'une partie précédente.
+		const currentGuessRoom = this.gameService.currentRoom();
+		const guessRoom = currentGuessRoom?.id === this.roomId() ? currentGuessRoom : null;
 		if (this.gameMode === 'stat_duel') return statRoom;
 		if (this.gameMode === 'draft_duo') return draftRoom;
 		if (this.gameMode === 'who_that_pokemon') return whoRoom;
@@ -162,6 +164,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private multiRoomSub?: Subscription;
 	private pollInterval: ReturnType<typeof setInterval> | null = null;
 	private pendingLocalSettings: ModeSettings | null = null;
+	private destroyed = false;
+	/** Enregistrement en cours du Pokémon choisi : « Je suis prêt » doit l'attendre. */
+	private pendingSelection: Promise<boolean> | null = null;
 
 	private readonly MODE_CONFIG: Record<GameMode, { title: string; subtitle?: string; icon: string; iconClass: string; iconSizeClass?: string; helpMode?: 'stat-duel' | 'auction' | 'size-up'; playRoute: string }> = {
 		guess_my_pokemon: { title: 'Guess my Pokémon', icon: ICONS.guess, iconClass: 'text-red-400', playRoute: '/game' },
@@ -226,6 +231,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 	private async init(): Promise<void> {
 		// 1. Attendre que l'auth soit prête
 		await firstValueFrom(this.supabaseService.authReady$);
+		if (this.destroyed) return;
 		this.gameMode = this.resolveMode();
 
 		if (this.gameMode === 'stat_duel') {
@@ -268,9 +274,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		try {
 			await this.gameService.joinAndWatch(this.roomId());
 		} catch {
+			if (this.destroyed) return;
 			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
 			return;
 		}
+		if (this.destroyed) return;
 
 		if (!this.room()) {
 			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
@@ -305,6 +313,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 	/** Lifecycle Angular — arrête le watch de la room et les abonnements. */
 	ngOnDestroy(): void {
+		this.destroyed = true;
 		this.gameService.stopWatching();
 		this.pokemonsSub?.unsubscribe();
 		this.inviteResponseSub?.unsubscribe();
@@ -316,15 +325,25 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
 	/** Sélectionne un Pokémon et l'enregistre en base si le joueur n'est pas encore prêt. */
 	async selectPokemon(pokemon: Pokemon): Promise<void> {
-		if (this.isReady) return;
+		if (this.isReady || this.isSettingReady) return;
 		this.selectedPokemon = pokemon;
 		this.selectError = '';
-		try {
-			await this.gameService.selectPokemon(this.roomId(), pokemon.id);
-		} catch {
-			this.selectError = 'Erreur lors de la sélection. Réessaie.';
-			this.selectedPokemon = null;
-		}
+		// Les enregistrements sont enchaînés pour que la base garde le dernier choix affiché.
+		const previous = this.pendingSelection ?? Promise.resolve(true);
+		const selection = previous.then(() => this.gameService.selectPokemon(this.roomId(), pokemon.id)).then(
+			() => true,
+			() => {
+				// Un choix plus récent a pu remplacer celui-ci entre-temps.
+				if (this.selectedPokemon === pokemon) {
+					this.selectError = 'Erreur lors de la sélection. Réessaie.';
+					this.selectedPokemon = null;
+				}
+				return false;
+			},
+		);
+		this.pendingSelection = selection;
+		await selection;
+		if (this.pendingSelection === selection) this.pendingSelection = null;
 	}
 
 	/** Sélectionne un Pokémon aléatoire parmi ceux autorisés par les paramètres de génération et de catégorie. */
@@ -370,6 +389,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 		if (!this.selectedPokemon || this.isSettingReady || this.isReady) return;
 		this.isSettingReady = true;
 		try {
+			// Ne pas se déclarer prêt avant que le choix du Pokémon soit enregistré en base.
+			if (this.pendingSelection && !(await this.pendingSelection)) return;
+			if (!this.selectedPokemon) return;
 			await this.gameService.setReady(this.roomId());
 			this.isReady = true;
 			// Navigation directe si la partie démarre (ne pas attendre le Realtime)
@@ -697,6 +719,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				await this.supabaseService.joinStatDuelRoom(this.roomId());
 				room = await this.supabaseService.getStatDuelRoom(this.roomId());
 			}
+			if (this.destroyed) return;
 			this.statDuelRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=stat_duel`;
@@ -716,7 +739,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			});
 			this.startMultiPoll();
 		} catch {
-			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+			if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
 		}
 	}
 
@@ -730,6 +753,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				await this.supabaseService.joinDraftDuoRoom(this.roomId());
 				room = await this.supabaseService.getDraftDuoRoom(this.roomId());
 			}
+			if (this.destroyed) return;
 			this.draftDuoRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=draft_duo`;
@@ -749,7 +773,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			});
 			this.startMultiPoll();
 		} catch {
-			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+			if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
 		}
 	}
 
@@ -764,6 +788,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				await this.supabaseService.joinPokemonAuctionRoom(this.roomId());
 				room = await this.supabaseService.getPokemonAuctionRoom(this.roomId());
 			}
+			if (this.destroyed) return;
 			this.pokemonAuctionRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=pokemon_auction`;
@@ -778,7 +803,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				else if (shouldEnterMultiplayerGame(updated)) void this.navigateToPlay();
 			});
 			this.startMultiPoll();
-		} catch { void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } }); }
+		} catch { if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } }); }
 	}
 
 	/** Initialise le lobby Size It Up. */
@@ -791,6 +816,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				await this.supabaseService.joinSizeUpRoom(this.roomId());
 				room = await this.supabaseService.getSizeUpRoom(this.roomId());
 			}
+			if (this.destroyed) return;
 			this.sizeUpRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=size_up`;
@@ -810,7 +836,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			});
 			this.startMultiPoll();
 		} catch {
-			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+			if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
 		}
 	}
 
@@ -824,6 +850,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				await this.supabaseService.joinWhoPokemonRoom(this.roomId());
 				room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
 			}
+			if (this.destroyed) return;
 			this.whoPokemonRoom.set(room);
 			this.isLoading = false;
 			this.inviteLink = `${globalThis.location.origin}/invite/${this.roomId()}?mode=who_that_pokemon`;
@@ -846,7 +873,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 				this.allPokemons = pokemons;
 			});
 		} catch {
-			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+			if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
 		}
 	}
 
@@ -869,6 +896,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 			try {
 				if (this.gameMode === 'stat_duel') {
 					const room = await this.supabaseService.getStatDuelRoom(this.roomId());
+					if (this.destroyed) return;
 					this.statDuelRoom.set(room);
 					this.syncRemoteSettings('stat_duel', room.settings);
 					if (room.status === 'finished') {
@@ -878,6 +906,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				} else if (this.gameMode === 'draft_duo') {
 					const room = await this.supabaseService.getDraftDuoRoom(this.roomId());
+					if (this.destroyed) return;
 					this.draftDuoRoom.set(room);
 					this.syncRemoteSettings('draft_duo', room.settings);
 					if (room.status === 'finished') {
@@ -887,6 +916,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				} else if (this.gameMode === 'who_that_pokemon') {
 					const room = await this.supabaseService.getWhoPokemonRoom(this.roomId());
+					if (this.destroyed) return;
 					this.whoPokemonRoom.set(room);
 					this.syncRemoteSettings('who_that_pokemon', room.settings);
 					if (room.status === 'finished') {
@@ -896,12 +926,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				} else if (this.gameMode === 'pokemon_auction') {
 					const room = await this.supabaseService.getPokemonAuctionRoom(this.roomId());
+					if (this.destroyed) return;
 					this.pokemonAuctionRoom.set(room);
 					this.syncRemoteSettings('pokemon_auction', room.settings);
 					if (room.status === 'finished') { void this.router.navigate(['/home'], { queryParams: { gameEnded: true } }); return; }
 					if (shouldEnterMultiplayerGame(room)) void this.navigateToPlay();
 				} else if (this.gameMode === 'size_up') {
 					const room = await this.supabaseService.getSizeUpRoom(this.roomId());
+					if (this.destroyed) return;
 					this.sizeUpRoom.set(room);
 					this.syncRemoteSettings('size_up', room.settings);
 					if (room.status === 'finished') {

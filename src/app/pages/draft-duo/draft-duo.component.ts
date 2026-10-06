@@ -193,6 +193,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     this.supabaseService.trackPresence('in_game', 'draft_duo');
     try {
       const room = await this.supabaseService.getDraftDuoRoom(this.roomId());
+      if (this.destroyed) return;
       this.room.set(room);
       if (room.status === 'finished' && room.winner === null) {
         void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
@@ -206,13 +207,17 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
 
       // Subscription Realtime
       this.roomSub = this.supabaseService.subscribeToDraftDuoRoom(this.roomId()).subscribe(updated => {
-        this.onRoomUpdated(updated);
+        this.onRoomUpdated(updated).catch(() => undefined);
       });
 
       // Polling de secours
       this.pollInterval = setInterval(async () => {
-        const r = await this.supabaseService.getDraftDuoRoom(this.roomId());
-        this.onRoomUpdated(r);
+        try {
+          const r = await this.supabaseService.getDraftDuoRoom(this.roomId());
+          if (!this.destroyed) await this.onRoomUpdated(r);
+        } catch {
+          // Le prochain tick retentera la synchronisation.
+        }
       }, 2000);
 
       if (room.status === 'playing') {
@@ -223,6 +228,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
         this.phase.set('waiting');
         await this.loadWaitingOpponentProfile(room);
       }
+      if (this.destroyed) return;
 
       const inviteId = this.route.snapshot.queryParamMap.get('inviteId');
       const friendName = this.route.snapshot.queryParamMap.get('friendName') ?? 'Ton ami';
@@ -244,7 +250,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
         }
       });
     } catch {
-      this.router.navigate(['/home']);
+      if (!this.destroyed) void this.router.navigate(['/home']);
     }
   }
 
@@ -628,6 +634,7 @@ export class DraftDuoComponent implements OnInit, OnDestroy {
     this.phase.set('complete');
 
     setTimeout(() => {
+      if (this.destroyed) return;
       this.showScores.set(true);
       void this.saveWinner(room);
       if (this.winner() !== 'draw') {

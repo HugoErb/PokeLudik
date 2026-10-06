@@ -114,6 +114,7 @@ export class SizeUpComponent implements OnInit, OnDestroy {
   private pollInterval?: ReturnType<typeof setInterval>;
   private tickInterval?: ReturnType<typeof setInterval>;
   private autoSubmittedRound = 0;
+  private destroyed = false;
   private lastFinalizeAttempt = 0;
   private replayLaunchInProgress = false;
   private endEffectFired = false;
@@ -265,18 +266,20 @@ export class SizeUpComponent implements OnInit, OnDestroy {
         this.endEffectFired = false;
         return;
       }
-      if (this.isVictory() || this.isDefeat()) setTimeout(() => this.launchEndEffect(), 300);
+      if (this.isVictory() || this.isDefeat()) setTimeout(() => { if (!this.destroyed) this.launchEndEffect(); }, 300);
     });
   }
 
   async ngOnInit(): Promise<void> {
     this.supabaseService.trackPresence(this.roomId() ? 'in_game' : 'online', 'size_up');
     this.allPokemons.set(await firstValueFrom(this.pokemonService.loadAll()));
+    if (this.destroyed) return;
     this.tickInterval = setInterval(() => this.tick(), 250);
     if (this.roomId()) await this.loadDuoRoom();
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stopDefeatRain?.();
     this.roomSub?.unsubscribe();
     this.broadcastSub?.unsubscribe();
@@ -453,7 +456,17 @@ export class SizeUpComponent implements OnInit, OnDestroy {
   }
 
   async copyLink(): Promise<void> {
-    await navigator.clipboard.writeText(this.inviteLink);
+    try {
+      await navigator.clipboard.writeText(this.inviteLink);
+    } catch {
+      // Presse-papiers indisponible (HTTP, permission refusée) : ancienne méthode de copie.
+      const el = document.createElement('input');
+      el.value = this.inviteLink;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
     this.linkCopied.set(true);
     setTimeout(() => this.linkCopied.set(false), 2000);
   }
@@ -523,14 +536,24 @@ export class SizeUpComponent implements OnInit, OnDestroy {
       void this.router.navigate(['/login']);
       return;
     }
-    const [room, offset] = await Promise.all([
-      this.supabaseService.getSizeUpRoom(roomId),
-      this.supabaseService.getServerClockOffset(),
-    ]);
+    let room: SizeUpRoom;
+    let offset: number;
+    try {
+      [room, offset] = await Promise.all([
+        this.supabaseService.getSizeUpRoom(roomId),
+        this.supabaseService.getServerClockOffset().catch(() => 0),
+      ]);
+    } catch {
+      if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+      return;
+    }
+    if (this.destroyed) return;
     this.serverOffset = offset;
     this.isPlayer1.set(room.player1_id === user.id);
     this.applyRoom(room);
     await this.loadOpponentProfile(room);
+    // La page a pu être quittée pendant le chargement : ne pas ouvrir de canal ni de polling orphelin.
+    if (this.destroyed) return;
 
     this.roomSub = this.supabaseService.subscribeToSizeUpRoom(roomId).subscribe(updated => this.applyRoom(updated));
     this.pollInterval = setInterval(() => void this.refreshRoom(), 2000);
@@ -557,6 +580,7 @@ export class SizeUpComponent implements OnInit, OnDestroy {
     if (!roomId) return null;
     try {
       const room = await this.supabaseService.getSizeUpRoom(roomId);
+      if (this.destroyed) return null;
       this.applyRoom(room);
       return room;
     } catch {
@@ -567,6 +591,8 @@ export class SizeUpComponent implements OnInit, OnDestroy {
   private applyRoom(room: SizeUpRoom): void {
     if (isStaleRoomState(this.room(), room)) return;
     const previous = this.room();
+    // Nouvelle partie (revanche) : les manches repartent de 1, la réponse automatique doit pouvoir repartir.
+    if (room.status === 'playing' && previous?.status !== 'playing') this.autoSubmittedRound = 0;
     this.room.set(room);
     this.settings.set(normalizeModeSettings('size_up', room.settings));
 

@@ -98,9 +98,15 @@
 							description="Affronte un ami sur 6 Pokémon communs."
 							[icon]="ICONS.friends"
 							accent="green"
+							[isLoading]="isCreatingRoom()"
+							[disabled]="isCreatingRoom()"
 							(selected)="createMultiRoom()"
 						/>
 					</app-mode-select>
+
+					@if (statConfigMode() !== 'solo' && configurationError()) {
+						<p class="mt-3 text-sm text-red-400" role="alert">{{ configurationError() }}</p>
+					}
 
 					@if (statConfigMode() === 'solo') {
 						<div class="settings-panel-reveal settings-shell w-full max-w-2xl mt-5 rounded-[26px] p-3.5 sm:p-5">

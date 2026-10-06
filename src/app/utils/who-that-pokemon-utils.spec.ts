@@ -4,7 +4,9 @@ import {
   getWhoHintOrder,
   nextSoloState,
   pickWhoPokemonSequence,
-  resolveWhoInitialHint,  WHO_MAX_HINTS,  WhoSoloState,
+  resolveWhoInitialHint,
+  WHO_MAX_HINTS,
+  WhoSoloState,
 } from './who-that-pokemon-utils';
 
 const pokemon = (id: number, generation = 1, category: Pokemon['category'] = 'classique'): Pokemon => ({
@@ -29,6 +31,17 @@ describe('who-that-pokemon-utils', () => {
     const result = buildWhoPokemonPool(pool, { generations: [2], categories: ['starter'] });
 
     expect(result.map(p => p.id)).toEqual([2]);
+  });
+
+  it('mélange uniformément : chaque Pokémon peut sortir en premier', () => {
+    const pool = Array.from({ length: 5 }, (_, index) => pokemon(index + 1));
+    const counts = new Map<number, number>();
+    for (let i = 0; i < 5000; i++) {
+      const [first] = pickWhoPokemonSequence(pool, 1);
+      counts.set(first.id, (counts.get(first.id) ?? 0) + 1);
+    }
+    // Attendu ~1000 par Pokémon ; le tri biaisé précédent sortait le dernier bien moins souvent.
+    for (const p of pool) expect(counts.get(p.id) ?? 0).toBeGreaterThan(800);
   });
 
   it('tire une sequence sans doublon quand le pool est suffisant', () => {

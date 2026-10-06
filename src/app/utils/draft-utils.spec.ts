@@ -1,5 +1,5 @@
 import { Pokemon } from '../models/pokemon.model';
-import { buildDraftSlots, canUseRoomForDuoComplete, computeDuoCoverageScore, computeFinalScore, computeStatsScore, hasEnoughPokemonForDraft, pickOneStarter } from './draft-utils';
+import { buildDraftSlots, canUseRoomForDuoComplete, computeDuoCoverageScore, computeFinalScore, computeStatsScore, hasEnoughPokemonForDraft, pickOneLegendary, pickOneStarter } from './draft-utils';
 
 function pokemon(id: number, name: string, types: string[]): Pokemon {
   return {
@@ -62,6 +62,12 @@ describe('arrondi des scores', () => {
     const team = [5.6, 6.8, 8.2, 5.5, 6.8, 8.2].map((rating, i) => ({ ...pokemon(i, `P${i}`, ['Normal']), rating }));
     expect(computeStatsScore(team, { min: 0, max: 1 })).toBe(6.9);
   });
+
+  it('arrondit une moyenne à x,x5 vers le haut, comme le serveur (Team Builder solo)', () => {
+    // La moyenne flottante vaut 6,9499… : l'ancien calcul affichait 6,9 (défaite) au lieu de 7,0.
+    const team = [6.7, 8.2, 6.9, 5.9, 8.2, 5.8].map((rating, i) => ({ ...pokemon(i, `P${i}`, ['Normal']), rating }));
+    expect(computeStatsScore(team, { min: 0, max: 1 })).toBe(7);
+  });
 });
 
 describe('validation du pool de draft', () => {
@@ -78,5 +84,35 @@ describe('validation du pool de draft', () => {
 
   it('refuse explicitement de tirer dans un pool vide', () => {
     expect(() => pickOneStarter([], new Set())).toThrowError('Aucun Pokemon disponible pour ce draft');
+  });
+});
+
+describe('tirage de remplacement du draft', () => {
+  const withCategory = (id: number, category: Pokemon['category']): Pokemon => ({ ...pokemon(id, `P${id}`, ['Normal']), category });
+
+  it('ne reprend pas un légendaire déjà présent quand tous ont été vus', () => {
+    const legends = [withCategory(1, 'légendaire'), withCategory(2, 'fabuleux')];
+    const others = [withCategory(3, 'classique'), withCategory(4, 'classique')];
+    const pool = [...legends, ...others];
+    const seen = new Set(pool.map(p => p.id));
+    for (let i = 0; i < 50; i++) {
+      const picked = pickOneLegendary(pool, seen, [legends[0], legends[1], others[0]]);
+      expect(picked.id).toBe(4);
+    }
+  });
+
+  it('privilégie un légendaire déjà vu mais absent du draft', () => {
+    const legends = [withCategory(1, 'légendaire'), withCategory(2, 'légendaire')];
+    const pool = [...legends, withCategory(3, 'classique')];
+    const seen = new Set(pool.map(p => p.id));
+    for (let i = 0; i < 50; i++) {
+      expect(pickOneLegendary(pool, seen, [legends[0]]).id).toBe(2);
+    }
+  });
+
+  it('sans starter dans le pool, ignore les Pokémon déjà présents', () => {
+    const pool = [withCategory(1, 'classique'), withCategory(2, 'classique'), withCategory(3, 'classique')];
+    expect(pickOneStarter(pool, new Set([1, 2, 3]), [pool[0]]).id).toBe(2);
+    expect(pickOneStarter(pool, new Set([1]), [pool[0]]).id).toBe(2);
   });
 });

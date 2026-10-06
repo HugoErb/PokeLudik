@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy, signal, inject, NgZone } from '@angular/core';
-import { BehaviorSubject, combineLatest, Observable, Subject } from 'rxjs';
+import { BehaviorSubject, combineLatest, Observable, Subject, Subscriber } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
-import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { createClient, RealtimeChannel, SupabaseClient, User } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { LeaderboardCategory, LeaderboardEntry, LeaderboardPeriod, LeaderboardSettings, PersonalLeaderboard, SoloLeaderboardMode, SizeUpScoreRound, SoloScoreResult, StatDuelScorePick } from '../models/leaderboard.model';
 import { AuctionGameSettings, DraftDuoRoom, FriendPresence, FriendRequest, FriendStatus, FriendWithStatus, Friendship, GameInvite, GameMode, PokemonAuctionRoom, PresenceGameMode, Profile, Room, RoomPatch, SizeUpGameSettings, SizeUpRoom, StatDuelRoom, StatPick, WhoGameSettings, WhoPokemonRoom } from '../models/room.model';
@@ -254,10 +254,10 @@ export class SupabaseService implements OnDestroy {
      * Émet les nouvelles valeurs de la room à chaque modification.
      */
     subscribeToRoom(roomId: string): Observable<Room> {
-        return new Observable<Room>((observer) => {
+        return this.watchChannel<Room>(`room-${roomId}`, true, (topic, observer) => {
             const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`room-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
+                .channel(topic, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     {
@@ -281,14 +281,7 @@ export class SupabaseService implements OnDestroy {
                         void channel.track({ user_id: user.id });
                     }
                 });
-
-            this.activeRoomChannel = channel;
-
-            // Cleanup : retirer le canal à la désinscription
-            return () => {
-                this.supabase.removeChannel(channel);
-                this.activeRoomChannel = null;
-            };
+            return channel;
         });
     }
 
@@ -382,10 +375,10 @@ export class SupabaseService implements OnDestroy {
 
     /** S'abonne aux mises à jour Realtime d'une room Duel de Base Stats. */
     subscribeToStatDuelRoom(roomId: string): Observable<StatDuelRoom> {
-        return new Observable<StatDuelRoom>((observer) => {
+        return this.watchChannel<StatDuelRoom>(`stat-duel-${roomId}`, true, (topic, observer) => {
             const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`stat-duel-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
+                .channel(topic, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     {
@@ -409,13 +402,7 @@ export class SupabaseService implements OnDestroy {
                         void channel.track({ user_id: user.id });
                     }
                 });
-
-            this.activeRoomChannel = channel;
-
-            return () => {
-                this.supabase.removeChannel(channel);
-                this.activeRoomChannel = null;
-            };
+            return channel;
         });
     }
 
@@ -472,10 +459,10 @@ export class SupabaseService implements OnDestroy {
 
     /** S'abonne aux mises à jour Realtime d'une room Draft Duo. */
     subscribeToDraftDuoRoom(roomId: string): Observable<DraftDuoRoom> {
-        return new Observable<DraftDuoRoom>((observer) => {
+        return this.watchChannel<DraftDuoRoom>(`draft-duo-${roomId}`, true, (topic, observer) => {
             const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`draft-duo-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
+                .channel(topic, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     { event: '*', schema: 'public', table: 'draft_duo_rooms', filter: `id=eq.${roomId}` },
@@ -492,13 +479,7 @@ export class SupabaseService implements OnDestroy {
                         void channel.track({ user_id: user.id });
                     }
                 });
-
-            this.activeRoomChannel = channel;
-
-            return () => {
-                this.supabase.removeChannel(channel);
-                this.activeRoomChannel = null;
-            };
+            return channel;
         });
     }
 
@@ -580,13 +561,11 @@ export class SupabaseService implements OnDestroy {
     }
 
     subscribeToPokemonAuctionRoom(roomId: string): Observable<PokemonAuctionRoom> {
-        return new Observable<PokemonAuctionRoom>((observer) => {
-            const channel = this.supabase.channel(`pokemon-auction-${roomId}`)
+        return this.watchChannel<PokemonAuctionRoom>(`pokemon-auction-${roomId}`, false, (topic, observer) =>
+            this.supabase.channel(topic)
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'pokemon_auction_rooms', filter: `id=eq.${roomId}` },
                     (payload) => observer.next(payload.new as PokemonAuctionRoom))
-                .subscribe((status) => { if (status === 'CHANNEL_ERROR') observer.error(new Error('Canal enchères indisponible')); });
-            return () => { this.supabase.removeChannel(channel); };
-        });
+                .subscribe((status) => { if (status === 'CHANNEL_ERROR') observer.error(new Error('Canal enchères indisponible')); }));
     }
 
     async createWhoPokemonRoom(settings?: WhoGameSettings): Promise<string> {
@@ -661,10 +640,10 @@ export class SupabaseService implements OnDestroy {
     }
 
     subscribeToWhoPokemonRoom(roomId: string): Observable<WhoPokemonRoom> {
-        return new Observable<WhoPokemonRoom>((observer) => {
+        return this.watchChannel<WhoPokemonRoom>(`who-that-pokemon-${roomId}`, true, (topic, observer) => {
             const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`who-that-pokemon-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
+                .channel(topic, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     { event: '*', schema: 'public', table: 'who_that_pokemon_rooms', filter: `id=eq.${roomId}` },
@@ -677,12 +656,7 @@ export class SupabaseService implements OnDestroy {
                     if (status === 'CHANNEL_ERROR') observer.error(new Error(`Erreur canal who-that-pokemon-${roomId}`));
                     if (status === 'SUBSCRIBED' && user) void channel.track({ user_id: user.id });
                 });
-
-            this.activeRoomChannel = channel;
-            return () => {
-                this.supabase.removeChannel(channel);
-                this.activeRoomChannel = null;
-            };
+            return channel;
         });
     }
 
@@ -746,10 +720,10 @@ export class SupabaseService implements OnDestroy {
     }
 
     subscribeToSizeUpRoom(roomId: string): Observable<SizeUpRoom> {
-        return new Observable<SizeUpRoom>((observer) => {
+        return this.watchChannel<SizeUpRoom>(`size-up-${roomId}`, true, (topic, observer) => {
             const user = this.getCurrentUser();
             const channel = this.supabase
-                .channel(`size-up-${roomId}`, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
+                .channel(topic, { config: { presence: { key: user?.id ?? crypto.randomUUID() } } })
                 .on(
                     'postgres_changes',
                     { event: '*', schema: 'public', table: 'size_up_rooms', filter: `id=eq.${roomId}` },
@@ -762,16 +736,53 @@ export class SupabaseService implements OnDestroy {
                     if (status === 'CHANNEL_ERROR') observer.error(new Error(`Erreur canal size-up-${roomId}`));
                     if (status === 'SUBSCRIBED' && user) void channel.track({ user_id: user.id });
                 });
-
-            this.activeRoomChannel = channel;
-            return () => {
-                this.supabase.removeChannel(channel);
-                this.activeRoomChannel = null;
-            };
+            return channel;
         });
     }
 
     // ─── Utilitaire interne ──────────────────────────────────────────────────────
+
+    /** Fermetures de canaux Realtime en cours, par nom de canal. */
+    private readonly channelRemovals = new Map<string, Promise<unknown>>();
+
+    /**
+     * Ouvre un canal Realtime une fois le canal homonyme précédent complètement fermé.
+     * Sans cette attente, `channel(topic)` renvoie le canal encore en cours de fermeture
+     * (lobby → page de jeu) : son `subscribe()` ne fait rien et plus aucun événement n'arrive.
+     * `isRoomChannel` en fait le canal utilisé par les broadcasts de la room active.
+     */
+    private watchChannel<T>(topic: string, isRoomChannel: boolean, open: (topic: string, observer: Subscriber<T>) => RealtimeChannel): Observable<T> {
+        return new Observable<T>((observer) => {
+            let channel: RealtimeChannel | null = null;
+            let closed = false;
+            void (this.channelRemovals.get(topic) ?? Promise.resolve()).then(() => {
+                if (closed) return;
+                try {
+                    channel = open(topic, observer);
+                } catch (err) {
+                    observer.error(err);
+                    return;
+                }
+                if (isRoomChannel) this.activeRoomChannel = channel;
+            });
+
+            return () => {
+                closed = true;
+                if (!channel) return;
+                if (this.activeRoomChannel === channel) this.activeRoomChannel = null;
+                this.releaseChannel(topic, channel);
+            };
+        });
+    }
+
+    /** Ferme un canal et mémorise la fermeture pour qu'une réouverture du même nom l'attende. */
+    private releaseChannel(topic: string, channel: RealtimeChannel): void {
+        const removal = this.supabase.removeChannel(channel).catch(() => undefined);
+        this.channelRemovals.set(topic, removal);
+        void removal.then(() => {
+            if (this.channelRemovals.get(topic) === removal) this.channelRemovals.delete(topic);
+        });
+    }
 
     /**
      * Diffuse le guess d'un joueur via le canal Broadcast de la room active.
@@ -818,6 +829,7 @@ export class SupabaseService implements OnDestroy {
     private presenceUpdateState: (() => void) | null = null;
     private currentPresenceStatus: 'online' | 'in_game' | null = null;
     private currentPresenceMode: PresenceGameMode | null = null;
+    private latestPresence: { payload: { user_id: string; status: 'online' | 'in_game'; mode: PresenceGameMode | null }; status: 'online' | 'in_game'; mode: PresenceGameMode | null } | null = null;
 
     /** Rejoint le canal de présence global et diffuse le statut (et le mode de jeu) de l'utilisateur. */
     trackPresence(status: 'online' | 'in_game', mode?: PresenceGameMode): void {
@@ -825,6 +837,7 @@ export class SupabaseService implements OnDestroy {
         if (!user) return;
         const presenceMode = status === 'in_game' ? mode ?? null : null;
         const payload = { user_id: user.id, status, mode: presenceMode };
+        this.latestPresence = { payload, status, mode: presenceMode };
 
         if (this.presenceChannel) {
             if (this.currentPresenceStatus === status && this.currentPresenceMode === presenceMode) {
@@ -835,10 +848,12 @@ export class SupabaseService implements OnDestroy {
             }
 
             // Force un leave/join pour que les autres clients reçoivent le changement immédiatement.
-            this.presenceChannel.untrack()
+            const channel = this.presenceChannel;
+            channel.untrack()
                 .catch(() => undefined)
                 .finally(() => {
-                    this.presenceChannel.track(payload)
+                    if (this.presenceChannel !== channel) return;
+                    channel.track(payload)
                         .then(() => {
                             this.currentPresenceStatus = status;
                             this.currentPresenceMode = presenceMode;
@@ -862,9 +877,12 @@ export class SupabaseService implements OnDestroy {
             .on('presence', { event: 'leave' }, updateState)
             .subscribe(async (s: string) => {
                 if (s === 'SUBSCRIBED') {
-                    await channel.track(payload);
-                    this.currentPresenceStatus = status;
-                    this.currentPresenceMode = presenceMode;
+                    // Un trackPresence()/untrackPresence() appelé avant la connexion a pu changer le statut : diffuser le plus récent.
+                    const latest = this.latestPresence;
+                    if (!latest) return;
+                    await channel.track(latest.payload);
+                    this.currentPresenceStatus = latest.status;
+                    this.currentPresenceMode = latest.mode;
                 }
             });
 
@@ -878,6 +896,7 @@ export class SupabaseService implements OnDestroy {
         }
         this.currentPresenceStatus = null;
         this.currentPresenceMode = null;
+        this.latestPresence = null;
         this.ngZone.run(() => this.presenceStateSubject.next({}));
     }
 
@@ -974,19 +993,21 @@ export class SupabaseService implements OnDestroy {
             return this.friendsCache.value.map((friend) => ({ ...friend }));
         }
 
-        const { data: friendships } = await this.supabase
+        const { data: friendships, error } = await this.supabase
             .from('friendships')
             .select('*')
             .eq('status', 'accepted')
             .or(`requester_id.eq.${me.id},recipient_id.eq.${me.id}`);
 
+        // Une erreur ne doit pas être mise en cache : la liste resterait vide toute la session.
+        if (error) return [];
         if (!friendships?.length) {
             this.friendsCache = { userId: me.id, value: [] };
             return [];
         }
 
         const friendIds = friendships.map((f: Friendship) => (f.requester_id === me.id ? f.recipient_id : f.requester_id));
-        const { data: profiles } = await this.supabase.from('profiles').select('id, username, avatar_url').in('id', friendIds);
+        const { data: profiles, error: profilesError } = await this.supabase.from('profiles').select('id, username, avatar_url').in('id', friendIds);
         const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
         const friends = friendships.map((f: Friendship) => {
@@ -994,7 +1015,7 @@ export class SupabaseService implements OnDestroy {
             const profile = profileMap.get(friendId);
             return { id: f.id, friendId, username: profile?.username ?? 'Inconnu', avatarUrl: profile?.avatar_url, status: 'offline' as FriendStatus };
         });
-        this.friendsCache = { userId: me.id, value: friends };
+        if (!profilesError) this.friendsCache = { userId: me.id, value: friends };
         return friends.map((friend) => ({ ...friend }));
     }
 
@@ -1007,26 +1028,27 @@ export class SupabaseService implements OnDestroy {
             return this.pendingRequestsCache.value.map((request) => ({ ...request }));
         }
 
-        const { data: friendships } = await this.supabase
+        const { data: friendships, error } = await this.supabase
             .from('friendships')
             .select('*')
             .eq('status', 'pending')
             .eq('recipient_id', me.id);
 
+        if (error) return [];
         if (!friendships?.length) {
             this.pendingRequestsCache = { userId: me.id, value: [] };
             return [];
         }
 
         const requesterIds = friendships.map((f: Friendship) => f.requester_id);
-        const { data: profiles } = await this.supabase.from('profiles').select('id, username, avatar_url').in('id', requesterIds);
+        const { data: profiles, error: profilesError } = await this.supabase.from('profiles').select('id, username, avatar_url').in('id', requesterIds);
         const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
         const requests = friendships.map((f: Friendship) => {
             const profile = profileMap.get(f.requester_id);
             return { id: f.id, requesterId: f.requester_id, username: profile?.username ?? 'Inconnu', avatarUrl: profile?.avatar_url };
         });
-        this.pendingRequestsCache = { userId: me.id, value: requests };
+        if (!profilesError) this.pendingRequestsCache = { userId: me.id, value: requests };
         return requests.map((request) => ({ ...request }));
     }
 
@@ -1053,22 +1075,19 @@ export class SupabaseService implements OnDestroy {
 
     /** S'abonne aux changements de la table friendships pour l'utilisateur courant. */
     subscribeToFriendships(): Observable<void> {
-        return new Observable((observer) => {
-            const userId = this.getCurrentUser()?.id;
-            if (!userId) return;
+        const userId = this.getCurrentUser()?.id;
+        if (!userId) return new Observable<void>();
 
-            const channel = this.supabase
-                .channel(`friendships-${userId}`)
+        return this.watchChannel<void>(`friendships-${userId}`, false, (topic, observer) =>
+            this.supabase
+                .channel(topic)
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, (payload: any) => {
                     const record = payload.new ?? payload.old;
                     if (record?.requester_id === userId || record?.recipient_id === userId) {
                         observer.next();
                     }
                 })
-                .subscribe();
-
-            return () => { this.supabase.removeChannel(channel); };
-        });
+                .subscribe());
     }
 
     // ─── Invitations de jeu ──────────────────────────────────────────────────────
@@ -1182,12 +1201,12 @@ export class SupabaseService implements OnDestroy {
 
     /** S'abonne aux nouvelles invitations de jeu reçues par l'utilisateur courant. */
     subscribeToIncomingGameInvites(): Observable<GameInvite> {
-        return new Observable((observer) => {
-            const userId = this.getCurrentUser()?.id;
-            if (!userId) return;
+        const userId = this.getCurrentUser()?.id;
+        if (!userId) return new Observable<GameInvite>();
 
-            const channel = this.supabase
-                .channel(`incoming-invites-${userId}`)
+        return this.watchChannel<GameInvite>(`incoming-invites-${userId}`, false, (topic, observer) =>
+            this.supabase
+                .channel(topic)
                 .on(
                     'postgres_changes',
                     { event: 'INSERT', schema: 'public', table: 'game_invites', filter: `recipient_id=eq.${userId}` },
@@ -1197,28 +1216,20 @@ export class SupabaseService implements OnDestroy {
                         observer.next({ ...invite, sender_profile: profile ? { username: (profile as any).username } : undefined });
                     },
                 )
-                .subscribe();
-
-            return () => { this.supabase.removeChannel(channel); };
-        });
+                .subscribe());
     }
 
     /** S'abonne aux mises à jour d'une invitation de jeu spécifique (accept/decline). */
     subscribeToGameInviteResponse(inviteId: string): Observable<GameInvite> {
-        return new Observable((observer) => {
-            const channel = this.supabase
-                .channel(`invite-response-${inviteId}`)
+        return this.watchChannel<GameInvite>(`invite-response-${inviteId}`, false, (topic, observer) =>
+            this.supabase
+                .channel(topic)
                 .on(
                     'postgres_changes',
                     { event: 'UPDATE', schema: 'public', table: 'game_invites', filter: `id=eq.${inviteId}` },
                     (payload: any) => { observer.next(payload.new as GameInvite); },
                 )
-                .subscribe();
-
-            return () => {
-                this.supabase.removeChannel(channel);
-            };
-        });
+                .subscribe());
     }
 
     // ─── Dresseurs battus ────────────────────────────────────────────────────────

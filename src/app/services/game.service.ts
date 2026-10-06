@@ -42,6 +42,8 @@ export class GameService implements OnDestroy {
     broadcastEvents$ = this.supabaseService.broadcastEvents$;
 
     private roomSubscription: Subscription | null = null;
+    /** Incrémenté à chaque arrêt du watch : invalide un joinAndWatch encore en cours. */
+    private watchToken = 0;
 
     // ─── Watch de la room ────────────────────────────────────────────────────────
 
@@ -51,6 +53,7 @@ export class GameService implements OnDestroy {
      */
     async joinAndWatch(roomId: string): Promise<void> {
         this.stopWatching();
+        const token = this.watchToken;
         this.roomSubscription = this.supabaseService.subscribeToRoom(roomId).subscribe({
             next: (updatedRoom) => {
                 if (this.applyRoom(updatedRoom)) void this.launchReplayIfReady(roomId, updatedRoom);
@@ -62,6 +65,8 @@ export class GameService implements OnDestroy {
         });
         // 2. Charger l'état initial ensuite
         const room = await this.supabaseService.getRoomById(roomId);
+        // La page a pu être quittée pendant le chargement : ne pas relancer de polling orphelin.
+        if (token !== this.watchToken) return;
         this.applyRoom(room);
         void this.launchReplayIfReady(roomId, room);
 
@@ -73,6 +78,7 @@ export class GameService implements OnDestroy {
 
     /** Arrête l'abonnement Realtime de la room courante et le polling de secours. */
     stopWatching(): void {
+        this.watchToken++;
         if (this.roomSubscription) {
             this.roomSubscription.unsubscribe();
             this.roomSubscription = null;
@@ -413,6 +419,8 @@ export class GameService implements OnDestroy {
 
             const finalRoom = await this.supabaseService.getRoomById(roomId);
             this.applyRoom(finalRoom);
+        } catch {
+            // Le prochain rafraîchissement retentera la revanche.
         } finally {
             this.replayLaunchInProgress = false;
         }

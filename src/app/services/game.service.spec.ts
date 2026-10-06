@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { NEVER } from 'rxjs';
 
 import { GameService } from './game.service';
 import { SupabaseService } from './supabase.service';
@@ -147,6 +148,20 @@ describe('GameService', () => {
 
     expect(service.currentRoom()).toEqual(replay);
     expect(supabaseService.replayGuessPokemonRoom).not.toHaveBeenCalled();
+  });
+
+  it('ne démarre pas de polling si le watch est arrêté pendant le chargement initial', async () => {
+    (supabaseService as any).subscribeToRoom = jasmine.createSpy('subscribeToRoom').and.returnValue(NEVER);
+    let resolveRoom!: (value: Room) => void;
+    supabaseService.getRoomById.and.returnValue(new Promise<Room>((resolve) => { resolveRoom = resolve; }));
+
+    const joining = service.joinAndWatch('room-1');
+    service.stopWatching();
+    resolveRoom(room({}));
+    await joining;
+
+    expect((service as any).pollInterval).toBeUndefined();
+    expect(service.currentRoom()).toBeNull();
   });
 
   it('attend les deux accords avant de relancer', async () => {

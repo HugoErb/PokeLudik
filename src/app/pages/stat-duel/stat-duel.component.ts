@@ -198,6 +198,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     private stopDefeatRain: (() => void) | null = null;
     private replayLaunchInProgress = false;
     private finishingInProgress = false;
+    private destroyed = false;
+    isCreatingRoom = signal(false);
 
 
     /** Lifecycle Angular : initialise le composant. */
@@ -236,6 +238,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
     ngOnDestroy(): void {
+        this.destroyed = true;
         this.stopDefeatRain?.();
         this.stopClock();
         this.roomSub?.unsubscribe();
@@ -258,6 +261,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     async startSolo(): Promise<void> {
         this.isSolo.set(true);
         const allPokemon = this.getConfiguredPokemonPool(await this.loadAll());
+        if (this.destroyed) return;
         if (allPokemon.length < ROUND_COUNT) {
             this.configurationError.set('Ces filtres doivent laisser au moins 6 Pokemon distincts.');
             return;
@@ -281,15 +285,33 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
     /** Cree une room multijoueur. */
     async createMultiRoom(): Promise<void> {
-        const roomId = await this.supabaseService.createStatDuelRoom();
-        void this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'stat_duel' } });
+        if (this.isCreatingRoom()) return;
+        this.isCreatingRoom.set(true);
+        this.configurationError.set('');
+        try {
+            const roomId = await this.supabaseService.createStatDuelRoom();
+            void this.router.navigate(['/lobby', roomId], { queryParams: { mode: 'stat_duel' } });
+        } catch {
+            this.configurationError.set('Impossible de créer la partie. Réessaie.');
+        } finally {
+            this.isCreatingRoom.set(false);
+        }
     }
 
     /** Demarre le mode developpement. */
     async startDevMode(): Promise<void> {
-        const roomId = await this.supabaseService.createStatDuelRoom();
-        await this.supabaseService.updateStatDuelRoom(roomId, { settings: toGuessSettings(this.settings()) });
-        void this.router.navigate(['/stat-duel', roomId], { queryParams: { dev: '1' } });
+        if (this.isCreatingRoom()) return;
+        this.isCreatingRoom.set(true);
+        this.configurationError.set('');
+        try {
+            const roomId = await this.supabaseService.createStatDuelRoom();
+            await this.supabaseService.updateStatDuelRoom(roomId, { settings: toGuessSettings(this.settings()) });
+            void this.router.navigate(['/stat-duel', roomId], { queryParams: { dev: '1' } });
+        } catch {
+            this.configurationError.set('Impossible de créer la partie. Réessaie.');
+        } finally {
+            this.isCreatingRoom.set(false);
+        }
     }
 
     updateGameSettings(settings: ModeSettings): void {
@@ -306,7 +328,14 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
         this.inviteLink = `${window.location.origin}/invite/${roomId}?mode=stat_duel`;
 
-        const room = await this.supabaseService.getStatDuelRoom(roomId);
+        let room: StatDuelRoom;
+        try {
+            room = await this.supabaseService.getStatDuelRoom(roomId);
+        } catch {
+            if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+            return;
+        }
+        if (this.destroyed) return;
         this.room.set(room);
         this.settings.set(normalizeModeSettings('stat_duel', room.settings));
         if (room.status === 'finished' && room.winner === null) {
@@ -317,11 +346,17 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
         // Rejoindre en tant que P2 si la place est libre et qu'on n'est pas P1
         if (!room.player2_id && room.player1_id !== me.id) {
-            await this.supabaseService.joinStatDuelRoom(roomId);
-            const refreshed = await this.supabaseService.getStatDuelRoom(roomId);
-            this.room.set(refreshed);
+            try {
+                await this.supabaseService.joinStatDuelRoom(roomId);
+                const refreshed = await this.supabaseService.getStatDuelRoom(roomId);
+                this.room.set(refreshed);
+            } catch {
+                if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+                return;
+            }
         }
         await this.loadWaitingOpponentProfile(this.room() ?? room);
+        if (this.destroyed) return;
 
         if (room.status === 'playing') {
             await this.loadPokemonAndStartMulti(room);
@@ -331,6 +366,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             this.phase.set('result');
             void this.launchReplayIfReady(room);
         }
+        // La page a pu être quittée pendant le chargement : ne pas ouvrir de canal ni de polling orphelin.
+        if (this.destroyed) return;
 
         this.roomSub = this.supabaseService.subscribeToStatDuelRoom(roomId).subscribe(async (updated) => {
             this.room.set(updated);
@@ -838,7 +875,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         const next = this.currentRound() + 1;
         if (next >= ROUND_COUNT) {
             this.phase.set('result');
-            setTimeout(() => this.launchEndEffect(this.isSoloVictory()), 300);
+            setTimeout(() => { if (!this.destroyed) this.launchEndEffect(this.isSoloVictory()); }, 300);
             void this.submitSoloScore();
         } else {
             this.currentRound.set(next);
@@ -1151,9 +1188,12 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     private startPokemonAnimation(callback?: () => void): void {
         this.pokemonVisible.set(false);
         this.pokemonAnimating.set(true);
+        // Quitter pendant l'animation ne doit pas relancer de chrono (partie fantôme qui posterait un score).
         setTimeout(() => {
+            if (this.destroyed) return;
             this.pokemonVisible.set(true);
             setTimeout(() => {
+                if (this.destroyed) return;
                 this.pokemonAnimating.set(false);
                 callback?.();
             }, this.ANIMATION_DURATION_MS);

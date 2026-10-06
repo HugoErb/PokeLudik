@@ -55,6 +55,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
   private timer?: ReturnType<typeof setInterval>;
   private poll?: ReturnType<typeof setInterval>;
   private resultToastTimeout?: ReturnType<typeof setTimeout>;
+  private destroyed = false;
   private resultSaving = false;
   private finalizeInFlight = false;
   private lastFinalizeAttempt = 0;
@@ -143,6 +144,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     await firstValueFrom(this.supabase.authReady$);
+    if (this.destroyed) return;
     try {
       const [pokemon, initial] = await Promise.all([
         firstValueFrom(this.pokemonService.loadAll()),
@@ -152,16 +154,19 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
       this.serverClockOffset = await this.supabase.getServerClockOffset().catch(() => 0);
       this.now.set(this.serverNow());
       await this.loadOpponent(initial);
+      // La page a pu être quittée pendant le chargement : ne rien démarrer.
+      if (this.destroyed) return;
       this.onRoom(initial);
       this.roomSub = this.supabase.subscribeToPokemonAuctionRoom(this.roomId()).subscribe(room => this.onRoom(room));
       this.timer = setInterval(() => this.tick(), 250);
       this.poll = setInterval(() => void this.refresh(), 2000);
       this.supabase.trackPresence('in_game', 'pokemon_auction');
-    } catch { void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } }); }
+    } catch { if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } }); }
     this.loading.set(false);
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stopDefeatRain?.();
     this.roomSub?.unsubscribe();
     if (this.timer) clearInterval(this.timer);
@@ -336,6 +341,7 @@ export class PokemonAuctionComponent implements OnInit, OnDestroy {
     if (room.winner || this.resultSaving || this.myTeam().length !== 6 || this.opponentTeam().length !== 6) return;
     this.resultSaving = true;
     try { await this.supabase.savePokemonAuctionResult(this.roomId()); await this.refresh(); }
+    catch { /* L'autre joueur a pu enregistrer le résultat en premier ; le prochain état le confirmera. */ }
     finally { this.resultSaving = false; }
   }
 

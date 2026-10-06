@@ -118,41 +118,36 @@ export function getRatingWidth(rating: number): string {
 
 /** Selectionne un starter disponible dans le pool. */
 export function pickOneStarter(pool: Pokemon[], exclude: Set<number>, currentSlots: (Pokemon | null)[] = []): Pokemon {
-  if (pool.length === 0) throw new Error('Aucun Pokemon disponible pour ce draft');
-  const starters = pool.filter(pokemon => pokemon.category === 'starter');
-  if (starters.length === 0) {
-    const fallback = pool.filter(pokemon => !exclude.has(pokemon.id));
-    return (fallback.length > 0 ? fallback : pool)[0];
-  }
-
-  const available = starters.filter(pokemon => !exclude.has(pokemon.id));
-  if (available.length > 0) {
-    return available[Math.floor(Math.random() * available.length)];
-  }
-
-  const currentIds = new Set(currentSlots.filter((pokemon): pokemon is Pokemon => pokemon !== null).map(pokemon => pokemon.id));
-  const secondary = starters.filter(pokemon => !currentIds.has(pokemon.id));
-  const finalSource = secondary.length > 0 ? secondary : starters;
-  return finalSource[Math.floor(Math.random() * finalSource.length)];
+  return pickOneOfCategory(pool, pokemon => pokemon.category === 'starter', exclude, currentSlots);
 }
 
 /** Selectionne un Pokemon legendaire ou fabuleux disponible dans le pool. */
 export function pickOneLegendary(pool: Pokemon[], exclude: Set<number>, currentSlots: (Pokemon | null)[] = []): Pokemon {
+  return pickOneOfCategory(pool, pokemon => pokemon.category === 'légendaire' || pokemon.category === 'fabuleux', exclude, currentSlots);
+}
+
+/**
+ * Tire un Pokemon de la categorie demandee, en evitant d'abord ceux deja vus (`exclude`),
+ * puis, quand le pool est epuise, ceux deja presents dans le draft (`currentSlots`) : un doublon
+ * avec un Pokemon verrouille rendrait l'equipe invalide.
+ */
+function pickOneOfCategory(pool: Pokemon[], inCategory: (pokemon: Pokemon) => boolean, exclude: Set<number>, currentSlots: (Pokemon | null)[]): Pokemon {
   if (pool.length === 0) throw new Error('Aucun Pokemon disponible pour ce draft');
-  const legends = pool.filter(pokemon => pokemon.category === 'l\u00e9gendaire' || pokemon.category === 'fabuleux');
-  if (legends.length === 0) {
-    const fallback = pool.filter(pokemon => !exclude.has(pokemon.id));
-    return (fallback.length > 0 ? fallback : pool)[0];
+  const currentIds = new Set(currentSlots.filter((pokemon): pokemon is Pokemon => pokemon !== null).map(pokemon => pokemon.id));
+  const notPresent = pool.filter(pokemon => !currentIds.has(pokemon.id));
+  const category = pool.filter(inCategory);
+  if (category.length === 0) {
+    const fallback = notPresent.filter(pokemon => !exclude.has(pokemon.id));
+    return (fallback.length > 0 ? fallback : notPresent.length > 0 ? notPresent : pool)[0];
   }
 
-  const available = legends.filter(pokemon => !exclude.has(pokemon.id));
+  const available = category.filter(pokemon => !exclude.has(pokemon.id));
   if (available.length > 0) {
     return available[Math.floor(Math.random() * available.length)];
   }
 
-  const currentIds = new Set(currentSlots.filter((pokemon): pokemon is Pokemon => pokemon !== null).map(pokemon => pokemon.id));
-  const secondary = legends.filter(pokemon => !currentIds.has(pokemon.id));
-  const finalSource = secondary.length > 0 ? secondary : legends;
+  const secondary = category.filter(pokemon => !currentIds.has(pokemon.id));
+  const finalSource = secondary.length > 0 ? secondary : notPresent.length > 0 ? notPresent : category;
   return finalSource[Math.floor(Math.random() * finalSource.length)];
 }
 

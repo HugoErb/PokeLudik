@@ -51,10 +51,13 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 
 	private presenceSub?: Subscription;
 	private friendshipsSub?: Subscription;
+	private destroyed = false;
 
 	/** Lifecycle Angular : initialise le composant. */
 	async ngOnInit(): Promise<void> {
 		await this.reload();
+		// La carte a pu être détruite pendant le chargement : ne pas ouvrir de canal orphelin.
+		if (this.destroyed) return;
 		this.friendshipsSub = this.supabaseService.subscribeToFriendships().subscribe(() => {
 			void this.reload(false, true);
 		});
@@ -62,6 +65,7 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 
 	/** Lifecycle Angular : nettoie les abonnements et timers du composant. */
 	ngOnDestroy(): void {
+		this.destroyed = true;
 		this.presenceSub?.unsubscribe();
 		this.friendshipsSub?.unsubscribe();
 	}
@@ -82,6 +86,7 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 				this.supabaseService.getFriendsWithStatus(forceRefresh),
 				this.supabaseService.getPendingRequests(forceRefresh),
 			]);
+			if (this.destroyed) return;
 		}
 		this.friends.set(friends);
 		this.pendingRequests.set(requests);
@@ -128,7 +133,7 @@ export class FriendsCardComponent implements OnInit, OnDestroy {
 	/** Envoie une demande d'ami. */
 	async sendFriendRequest(): Promise<void> {
 		const username = this.addFriendInput.trim();
-		if (!username) return;
+		if (!username || this.isAddingFriend) return;
 		this.isAddingFriend = true;
 		this.addFriendError = '';
 		this.addFriendSuccess = '';

@@ -151,6 +151,9 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private startTimerAfterIntro = false;
   private isLockingPick = false;
+  /** Incrémenté par Recommencer / la sortie de page : les animations de pick en cours deviennent sans effet. */
+  private pickGeneration = 0;
+  private destroyed = false;
 
   readonly timerColor = computed(() => {
     const v = this.timerValue();
@@ -257,6 +260,8 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
   /** Lifecycle Angular : nettoie les abonnements et timers du composant. */
   ngOnDestroy(): void {
+    this.destroyed = true;
+    this.pickGeneration++;
     this.stopDefeatRain?.();
     this.stopTimer();
   }
@@ -291,7 +296,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     this.phase.set('playing');
     this.startTimerAfterIntro = true;
     const introShown = await this.triggerDuelIntro();
-    if (introShown) {
+    if (introShown || this.destroyed) {
       return;
     }
     this.startTimerAfterIntro = false;
@@ -399,7 +404,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     const excludeForNormal = new Set([...this.usedIds(), ...(newStarter ? [newStarter.id] : [])]);
     const newNormal = this.pickNUnique(this.normalSlotPool(this.trainerPool()), excludeForNormal, unlockedNormal.length);
     const excludeForLegend = new Set([...excludeForNormal, ...newNormal.map(p => p.id)]);
-    const newLegendary = slot5Unlocked ? this.pickOneLegendary(this.trainerPool(), excludeForLegend) : null;
+    const newLegendary = slot5Unlocked ? this.pickOneLegendary(this.trainerPool(), excludeForLegend, [...(newStarter ? [newStarter] : []), ...newNormal]) : null;
 
     const allNew = [
       ...(newStarter ? [newStarter] : []),
@@ -415,10 +420,13 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
     const leavingDone = new Promise<void>(resolve => setTimeout(resolve, 300));
     const spritesDone = this.preloadImages(allNew.map(p => p.sprite));
+    const generation = this.pickGeneration;
 
     void Promise.all([leavingDone, spritesDone]).then(() => {
+      if (generation !== this.pickGeneration) return;
       unlocked.forEach((slotIdx, i) => {
         setTimeout(() => {
+          if (generation !== this.pickGeneration) return;
           const newPokemon = newBySlot.get(slotIdx);
           if (newPokemon) {
             this.slots.update(arr => {
@@ -436,6 +444,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
       });
 
       setTimeout(() => {
+        if (generation !== this.pickGeneration) return;
         this.slotStates.update(states => {
           const next = [...states] as SlotState[];
           unlocked.forEach(i => (next[i] = 'idle'));
@@ -487,8 +496,10 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     void this.submitScore(myTeam);
 
     setTimeout(() => {
-      this.showScores.set(true);
-      if (this.winner() !== 'draw') this.launchEndEffect(this.winner() === 'me');
+      if (!this.destroyed) {
+        this.showScores.set(true);
+        if (this.winner() !== 'draw') this.launchEndEffect(this.winner() === 'me');
+      }
       if (this.winner() === 'me') {
         
         // Enregistrer la victoire
@@ -527,6 +538,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
   /** Relance une partie. */
   async replay(): Promise<void> {
+    this.pickGeneration++;
     this.phase.set('loading');
     this.showScores.set(false);
     this.endEffectFired = false;
@@ -535,7 +547,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     
     // Petit délai pour l'effet visuel
     setTimeout(() => {
-      void this.initDraft();
+      if (!this.destroyed) void this.initDraft();
     }, 500);
   }
 
@@ -617,8 +629,9 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
   }
 
   /** Selectionne un Pokemon legendaire ou fabuleux disponible dans le pool. */
-  private pickOneLegendary(pool: Pokemon[], exclude: Set<number>): Pokemon {
-    return pickOneLegendaryPokemon(pool, exclude, this.slots());
+  private pickOneLegendary(pool: Pokemon[], exclude: Set<number>, newlyPicked: Pokemon[] = []): Pokemon {
+    // Les Pokémon tout juste tirés ne sont pas encore dans les slots : les compter comme présents.
+    return pickOneLegendaryPokemon(pool, exclude, [...this.slots(), ...newlyPicked]);
   }
 
   /** Retourne le pool utilisable pour un slot normal. */

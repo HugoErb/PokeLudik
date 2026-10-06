@@ -9,12 +9,20 @@ export class PokemonService {
   private http = inject(HttpClient);
 
   /** Cache partagé : le fichier JSON n'est chargé qu'une seule fois. */
-  private all$: Observable<Pokemon[]> = this.http
-    .get<Pokemon[]>('/assets/pokemon.json')
-    .pipe(
-      catchError(() => of([])),
-      shareReplay(1)
-    );
+  private all$: Observable<Pokemon[]> = this.createLoad();
+
+  /** Charge le JSON ; un échec n'est pas mis en cache, l'appel suivant retente le chargement. */
+  private createLoad(): Observable<Pokemon[]> {
+    return this.http
+      .get<Pokemon[]>('/assets/pokemon.json')
+      .pipe(
+        catchError(() => {
+          this.all$ = this.createLoad();
+          return of([]);
+        }),
+        shareReplay(1)
+      );
+  }
 
   // ─── API publique ────────────────────────────────────────────────────────────
 

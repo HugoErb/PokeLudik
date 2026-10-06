@@ -38,7 +38,11 @@ export class GameComponent implements OnInit, OnDestroy {
 	private readonly supabaseService = inject(SupabaseService);
 	private readonly router = inject(Router);
 
-	room = computed(() => this.gameService.currentRoom());
+	// La room du service peut encore être celle d'une partie précédente.
+	room = computed(() => {
+		const r = this.gameService.currentRoom();
+		return r?.id === this.roomId() ? r : null;
+	});
 	isMyTurn = this.gameService.isMyTurn;
 	isPlayer1 = this.gameService.isPlayer1;
 	readonly settings = this.gameService.settings;
@@ -126,6 +130,17 @@ export class GameComponent implements OnInit, OnDestroy {
 	private loadedDevOpponentPokemonId: number | null = null;
 
 	private lastTurnId: string | null = null;
+	private destroyed = false;
+	private readonly pendingTimeouts = new Set<ReturnType<typeof setTimeout>>();
+
+	/** setTimeout annulé automatiquement à la destruction de la page. */
+	private schedule(callback: () => void, delayMs: number): void {
+		const handle = setTimeout(() => {
+			this.pendingTimeouts.delete(handle);
+			callback();
+		}, delayMs);
+		this.pendingTimeouts.add(handle);
+	}
 
 	constructor() {
 		// Watch room signal for 'finished' status
@@ -162,7 +177,7 @@ export class GameComponent implements OnInit, OnDestroy {
 				// Déclencher la pop-up "À toi de jouer" depuis le signal DB (fiable même si broadcast manqué)
 				if (this.isMyTurn() && !this.showEndModal) {
 					// Ne pas reset opponentLastGuess ici : le broadcast l'a déjà rempli avant que l'effect se déclenche
-					setTimeout(() => {
+					this.schedule(() => {
 						if (!this.showMyTurnModal() && !this.showEndModal) {
 							if (this.showIncorrectModal()) {
 								this.pendingMyTurnModal.set(true);
@@ -205,7 +220,7 @@ export class GameComponent implements OnInit, OnDestroy {
 			if (this.isDev && r?.status === 'finished' && this.iWantReplay() && !this.opponentWantsReplay()) {
 				untracked(() => {
 					// Petit délai avant que le bot accepte la revanche
-					setTimeout(() => {
+					this.schedule(() => {
 						void this.gameService.simulateOpponentReplay(this.roomId());
 					}, 2000);
 				});
@@ -273,12 +288,14 @@ export class GameComponent implements OnInit, OnDestroy {
 	 */
 	private async init(): Promise<void> {
 		await firstValueFrom(this.supabaseService.authReady$);
+		if (this.destroyed) return;
 		try {
 			await this.gameService.joinAndWatch(this.roomId());
 		} catch {
-			void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+			if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
 			return;
 		}
+		if (this.destroyed) return;
 
 		const r = this.room();
 		if (!r) {
@@ -498,6 +515,9 @@ export class GameComponent implements OnInit, OnDestroy {
 
 	/** Lifecycle Angular — nettoie les confettis et les abonnements. */
 	ngOnDestroy(): void {
+		this.destroyed = true;
+		this.pendingTimeouts.forEach(clearTimeout);
+		this.pendingTimeouts.clear();
 		this.stopDefeatRain?.();
 		this.gameService.stopWatching();
 		this.pokemonSub?.unsubscribe();

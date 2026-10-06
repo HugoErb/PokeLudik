@@ -344,7 +344,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const invite = this.incomingInvite();
     if (!invite) return;
     this.clearInviteToast();
-    await this.supabaseService.declineGameInvite(invite.id);
+    try {
+      await this.supabaseService.declineGameInvite(invite.id);
+    } catch {
+      // L'invitation a pu être annulée ou acceptée ailleurs : passer à la suivante.
+    }
     await this.loadPendingGameInvite();
   }
 
@@ -505,6 +509,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Change le pseudo de l'utilisateur courant. */
   async changeUsername(): Promise<void> {
+    if (this.isUpdatingUsername) return;
     const trimmed = this.newUsernameInput.trim();
     if (!trimmed || trimmed.length < 3) { this.usernameError = 'Le pseudo doit faire au moins 3 caractères.'; return; }
     if (trimmed === this.username) { this.closeUsernameModal(); return; }
@@ -533,10 +538,12 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     const file = input.files[0];
     if (file.size > 2 * 1024 * 1024) { alert('L\'image est trop lourde (max 2Mo)'); return; }
 
+    if (this.isUpdatingAvatar) return;
     this.isUpdatingAvatar = true;
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
+    // L'indicateur de chargement couvre la lecture du fichier ET l'envoi du profil.
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
         const base64 = reader.result as string;
         const user = this.supabaseService.getCurrentUser();
         if (user) {
@@ -544,13 +551,16 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
           this.avatarUrl.set(base64);
           localStorage.setItem(`gmp_avatar_${user.id}`, base64);
         }
-      };
-      reader.onerror = () => { alert('Impossible de lire le fichier image.'); };
-      reader.readAsDataURL(file);
-    } catch {
-      alert('Impossible de mettre à jour la photo.');
-    } finally {
+      } catch {
+        alert('Impossible de mettre à jour la photo.');
+      } finally {
+        this.isUpdatingAvatar = false;
+      }
+    };
+    reader.onerror = () => {
       this.isUpdatingAvatar = false;
-    }
+      alert('Impossible de lire le fichier image.');
+    };
+    reader.readAsDataURL(file);
   }
 }

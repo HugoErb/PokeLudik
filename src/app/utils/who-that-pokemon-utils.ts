@@ -33,7 +33,12 @@ export function buildWhoPokemonPool(pokemons: Pokemon[], settings: Pick<WhoGameS
 }
 
 export function pickWhoPokemonSequence(pool: Pokemon[], count: number): Pokemon[] {
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  // Fisher-Yates : un tri avec un comparateur aléatoire favorise les premiers Pokémon du pool.
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   if (shuffled.length >= count) return shuffled.slice(0, count);
 
   const result: Pokemon[] = [];

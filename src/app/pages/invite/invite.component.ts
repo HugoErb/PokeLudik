@@ -73,15 +73,16 @@ export class InviteComponent implements OnInit, OnDestroy {
 				return;
 			}
 
-			if (room.player2_id) {
-				this.state = 'full';
-				this.errorMessage = 'Cette partie est déjà complète.';
+			// Un joueur déjà dans la partie (lien rouvert) retourne au lobby au lieu de voir « complète ».
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			if (currentUser && (currentUser.id === room.player1_id || currentUser.id === room.player2_id)) {
+				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'stat_duel' } });
 				return;
 			}
 
-			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
-			if (currentUser?.id === room.player1_id) {
-				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'stat_duel' } });
+			if (room.player2_id) {
+				this.state = 'full';
+				this.errorMessage = 'Cette partie est déjà complète.';
 				return;
 			}
 
@@ -109,15 +110,16 @@ export class InviteComponent implements OnInit, OnDestroy {
 				return;
 			}
 
-			if (room.player2_id) {
-				this.state = 'full';
-				this.errorMessage = 'Cette partie est déjà complète.';
+			// Un joueur déjà dans la partie (lien rouvert) retourne au lobby au lieu de voir « complète ».
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			if (currentUser && (currentUser.id === room.player1_id || currentUser.id === room.player2_id)) {
+				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'draft_duo' } });
 				return;
 			}
 
-			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
-			if (currentUser?.id === room.player1_id) {
-				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'draft_duo' } });
+			if (room.player2_id) {
+				this.state = 'full';
+				this.errorMessage = 'Cette partie est déjà complète.';
 				return;
 			}
 
@@ -144,15 +146,16 @@ export class InviteComponent implements OnInit, OnDestroy {
 				return;
 			}
 
-			if (room.player2_id) {
-				this.state = 'full';
-				this.errorMessage = 'Cette partie est déjà complète.';
+			// Un joueur déjà dans la partie (lien rouvert) retourne au lobby au lieu de voir « complète ».
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			if (currentUser && (currentUser.id === room.player1_id || currentUser.id === room.player2_id)) {
+				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'who_that_pokemon' } });
 				return;
 			}
 
-			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
-			if (currentUser?.id === room.player1_id) {
-				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'who_that_pokemon' } });
+			if (room.player2_id) {
+				this.state = 'full';
+				this.errorMessage = 'Cette partie est déjà complète.';
 				return;
 			}
 
@@ -179,15 +182,16 @@ export class InviteComponent implements OnInit, OnDestroy {
 				return;
 			}
 
-			if (room.player2_id) {
-				this.state = 'full';
-				this.errorMessage = 'Cette partie est déjà complète.';
+			// Un joueur déjà dans la partie (lien rouvert) retourne au lobby au lieu de voir « complète ».
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			if (currentUser && (currentUser.id === room.player1_id || currentUser.id === room.player2_id)) {
+				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'size_up' } });
 				return;
 			}
 
-			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
-			if (currentUser?.id === room.player1_id) {
-				this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'size_up' } });
+			if (room.player2_id) {
+				this.state = 'full';
+				this.errorMessage = 'Cette partie est déjà complète.';
 				return;
 			}
 
@@ -216,8 +220,9 @@ export class InviteComponent implements OnInit, OnDestroy {
 				return;
 			}
 			if (room.status !== 'waiting') { this.state = 'error'; this.errorMessage = "Cette invitation n'est plus valide."; return; }
-			if (room.player2_id) { this.state = 'full'; this.errorMessage = 'Cette partie est déjà complète.'; return; }
-			if (currentUser?.id !== room.player1_id) await this.supabaseService.joinPokemonAuctionRoom(this.roomId());
+			const isPlayer = !!currentUser && (currentUser.id === room.player1_id || currentUser.id === room.player2_id);
+			if (room.player2_id && !isPlayer) { this.state = 'full'; this.errorMessage = 'Cette partie est déjà complète.'; return; }
+			if (!isPlayer) await this.supabaseService.joinPokemonAuctionRoom(this.roomId());
 			await this.router.navigate(['/lobby', this.roomId()], { queryParams: { mode: 'pokemon_auction' } });
 		} catch {
 			this.state = 'error'; this.errorMessage = "Cette invitation n'est plus valide.";
@@ -235,15 +240,16 @@ export class InviteComponent implements OnInit, OnDestroy {
 				return;
 			}
 
-			if (room.player2_id) {
-				this.state = 'full';
-				this.errorMessage = 'Cette partie est déjà complète.';
+			// Un joueur déjà dans la partie (lien rouvert) retourne au lobby au lieu de voir « complète ».
+			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
+			if (currentUser && (currentUser.id === room.player1_id || currentUser.id === room.player2_id)) {
+				this.router.navigate(['/lobby', this.roomId()]);
 				return;
 			}
 
-			const currentUser = await firstValueFrom(this.supabaseService.authReady$);
-			if (currentUser?.id === room.player1_id) {
-				this.router.navigate(['/lobby', this.roomId()]);
+			if (room.player2_id) {
+				this.state = 'full';
+				this.errorMessage = 'Cette partie est déjà complète.';
 				return;
 			}
 

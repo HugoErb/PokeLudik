@@ -38,6 +38,7 @@ import { SoloScoreSummaryComponent } from '../../components/solo-score-summary/s
 import { LeaderboardModalComponent } from '../../components/leaderboard-modal/leaderboard-modal.component';
 import {
   computeRating as computePokemonRating,
+  computeStatsScore as computePokemonStatsScore,
   computeTotal as computePokemonTotal,
   getRatingWidth as getPokemonRatingWidth,
   getScoreBarColor as getPokemonScoreBarColor,
@@ -104,16 +105,12 @@ export class DraftComponent implements OnInit, OnDestroy {
   private stopDefeatRain: (() => void) | null = null;
   protected readonly DRAFT_SOLO_WIN_RATING = DRAFT_SOLO_WIN_RATING;
   private isLockingPick = false;
+  /** Incrémenté par Recommencer / Quitter : les animations de pick encore en cours deviennent sans effet. */
+  private pickGeneration = 0;
 
-  readonly statsScore = computed((): number => {
-    const locked = this.lockedPokemon();
-    const range = this.statsRange();
-    const ratings = locked
-      .filter((p): p is Pokemon => p !== null)
-      .map(p => this.computeRating(p, range));
-    if (ratings.length === 0) return 0;
-    return Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10;
-  });
+  /** Même calcul que le serveur (moyenne des notes au dixième) : l'issue affichée doit être celle enregistrée. */
+  readonly statsScore = computed((): number =>
+    computePokemonStatsScore(this.lockedPokemon().filter((p): p is Pokemon => p !== null), this.statsRange()));
 
   readonly isSoloVictory = computed(() => isDraftSoloVictory(this.statsScore()));
 
@@ -284,11 +281,13 @@ export class DraftComponent implements OnInit, OnDestroy {
 
     const unlocked = [0, 1, 2, 3, 4, 5].filter(i => !this.lockedIndices().has(i));
 
+    const generation = this.pickGeneration;
     if (unlocked.length === 0) {
       this.phase.set('complete');
       this.saveState();
       void this.submitScore();
       setTimeout(() => {
+        if (generation !== this.pickGeneration) return;
         this.showScore.set(true);
         this.saveState();
       }, 700);
@@ -315,7 +314,7 @@ export class DraftComponent implements OnInit, OnDestroy {
     const excludeForNormal = new Set([...this.usedIds(), ...(newStarter ? [newStarter.id] : [])]);
     const newNormal = this.pickNUnique(pool, excludeForNormal, unlockedNormal.length);
     const excludeForLegend = new Set([...excludeForNormal, ...newNormal.map(p => p.id)]);
-    const newLegendary = slot5Unlocked ? this.pickOneLegendary(pool, excludeForLegend) : null;
+    const newLegendary = slot5Unlocked ? this.pickOneLegendary(pool, excludeForLegend, [...(newStarter ? [newStarter] : []), ...newNormal]) : null;
 
     const allNew = [
       ...(newStarter ? [newStarter] : []),
@@ -334,8 +333,10 @@ export class DraftComponent implements OnInit, OnDestroy {
     const spritesDone = this.preloadImages(allNew.map(p => p.sprite));
 
     void Promise.all([leavingDone, spritesDone]).then(() => {
+      if (generation !== this.pickGeneration) return;
       unlocked.forEach((slotIdx, i) => {
         setTimeout(() => {
+          if (generation !== this.pickGeneration) return;
           const newPokemon = newBySlot.get(slotIdx);
           if (newPokemon) {
             this.slots.update(arr => {
@@ -353,6 +354,7 @@ export class DraftComponent implements OnInit, OnDestroy {
       });
 
       setTimeout(() => {
+        if (generation !== this.pickGeneration) return;
         this.slotStates.update(states => {
           const next = [...states] as SlotState[];
           unlocked.forEach(i => (next[i] = 'idle'));
@@ -371,6 +373,7 @@ export class DraftComponent implements OnInit, OnDestroy {
 
   /** Relance une partie. */
   replay(): void {
+    this.pickGeneration++;
     this.clearSavedState();
     this.endEffectFired = false;
     this.isLockingPick = false;
@@ -380,6 +383,7 @@ export class DraftComponent implements OnInit, OnDestroy {
   /** Reinitialise l'equipe draftee. */
   resetTeam(): void {
     if (this.phase() !== 'draft') return;
+    this.pickGeneration++;
     this.clearSavedState();
     this.isLockingPick = false;
     this.isResetting.set(true);
@@ -413,6 +417,7 @@ export class DraftComponent implements OnInit, OnDestroy {
 
   /** Navigue vers la page d'accueil. */
   goHome(): void {
+    this.pickGeneration++;
     this.clearSavedState();
     void this.router.navigate(['/home']);
   }
@@ -477,8 +482,9 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   /** Selectionne un Pokemon legendaire ou fabuleux disponible dans le pool. */
-  private pickOneLegendary(pool: Pokemon[], exclude: Set<number>): Pokemon {
-    return pickOneLegendaryPokemon(pool, exclude, this.slots());
+  private pickOneLegendary(pool: Pokemon[], exclude: Set<number>, newlyPicked: Pokemon[] = []): Pokemon {
+    // Les Pokémon tout juste tirés ne sont pas encore dans les slots : les compter comme présents.
+    return pickOneLegendaryPokemon(pool, exclude, [...this.slots(), ...newlyPicked]);
   }
 
   /** Selectionne plusieurs Pokemon uniques dans le pool. */

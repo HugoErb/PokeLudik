@@ -72,7 +72,7 @@
             <p class="text-[12px] text-slate-400 italic truncate" [class.grayscale]="isLocked($index)">{{ trainer.version }}</p>
             
             <div class="mt-auto pt-2 border-t border-slate-700 flex justify-between gap-1" [class.grayscale]="isLocked($index)">
-              @for (pid of trainer.pokemons; track pid) {
+              @for (pid of trainer.pokemons; track $index) {
                 <div class="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700 group-hover:border-slate-600 p-0.5" [title]="getPokemonName(pid)">
                   @if (getPokemonSprite(pid)) {
                     <img [src]="getPokemonSprite(pid)" [alt]="getPokemonName(pid)" class="w-full h-full object-contain" />

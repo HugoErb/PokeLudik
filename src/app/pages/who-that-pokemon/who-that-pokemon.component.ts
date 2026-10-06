@@ -136,6 +136,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   private inviteResponseSub?: Subscription;
   private pollInterval?: ReturnType<typeof setInterval>;
   private toastTimeout?: ReturnType<typeof setTimeout>;
+  private destroyed = false;
   private currentSilhouetteTargetId = 0;
   private endEffectFired = false;
   private stopDefeatRain: (() => void) | null = null;
@@ -270,10 +271,12 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     this.supabaseService.trackPresence(this.roomId() ? 'in_game' : 'online', 'who_that_pokemon');
     this.allPokemons.set(await firstValueFrom(this.pokemonService.loadAll()));
+    if (this.destroyed) return;
     if (this.roomId()) await this.loadDuoRoom();
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.stopDefeatRain?.();
     this.roomSub?.unsubscribe();
     this.broadcastSub?.unsubscribe();
@@ -385,7 +388,7 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         this.endEffectFired = false;
         return;
       }
-      if (this.isVictory() || this.isDefeat()) setTimeout(() => this.launchEndEffect(), 300);
+      if (this.isVictory() || this.isDefeat()) setTimeout(() => { if (!this.destroyed) this.launchEndEffect(); }, 300);
     });
   }
 
@@ -672,7 +675,14 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
   }
 
   private async loadDuoRoom(): Promise<void> {
-    const room = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
+    let room: WhoPokemonRoom;
+    try {
+      room = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
+    } catch {
+      if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
+      return;
+    }
+    if (this.destroyed) return;
     const user = this.supabaseService.getCurrentUser();
     if (!user) {
       void this.router.navigate(['/login']);
@@ -681,36 +691,15 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
     this.room.set(room);
     this.isPlayer1.set(room.player1_id === user.id);
     await this.loadWaitingOpponentProfile(room);
+    if (this.destroyed) return;
     this.settings.set(normalizeModeSettings('who_that_pokemon', room.settings));
     this.phase.set(room.status === 'waiting' ? 'waiting' : room.status === 'playing' ? 'duo' : 'complete');
 
-    this.roomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()!).subscribe(updated => {
-      this.room.set(updated);
-      this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
-      if (updated.status === 'waiting') void this.loadWaitingOpponentProfile(updated);
-      if (updated.status === 'finished' && updated.winner === null && this.phase() === 'complete') {
-        this.opponentLeft.set(true);
-      }
-      if (updated.status === 'playing') {
-        this.opponentLeft.set(false);
-      }
-      this.phase.set(updated.status === 'waiting' ? 'waiting' : updated.status === 'playing' ? 'duo' : 'complete');
-      void this.launchReplayIfReady(updated);
-    });
+    this.roomSub = this.supabaseService.subscribeToWhoPokemonRoom(this.roomId()!).subscribe(updated => this.handleRoomUpdate(updated));
     this.pollInterval = setInterval(async () => {
       try {
         const updated = await this.supabaseService.getWhoPokemonRoom(this.roomId()!);
-        this.room.set(updated);
-        this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
-        if (updated.status === 'waiting') void this.loadWaitingOpponentProfile(updated);
-        if (updated.status === 'finished' && updated.winner === null) {
-          if (this.phase() === 'complete') this.opponentLeft.set(true);
-          else void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
-          return;
-        }
-        if (updated.status === 'playing') this.opponentLeft.set(false);
-        this.phase.set(updated.status === 'waiting' ? 'waiting' : updated.status === 'playing' ? 'duo' : 'complete');
-        void this.launchReplayIfReady(updated);
+        if (!this.destroyed) this.handleRoomUpdate(updated);
       } catch {
         // Le prochain tick retentera la synchronisation.
       }
@@ -732,6 +721,21 @@ export class WhoThatPokemonComponent implements OnInit, OnDestroy {
         if (invite.status === 'declined') void this.router.navigate(['/home'], { queryParams: { declined: friendName } });
       });
     }
+  }
+
+  /** Applique un état de room reçu en Realtime ou par polling (même traitement pour les deux sources). */
+  private handleRoomUpdate(updated: WhoPokemonRoom): void {
+    this.room.set(updated);
+    this.settings.set(normalizeModeSettings('who_that_pokemon', updated.settings));
+    if (updated.status === 'waiting') void this.loadWaitingOpponentProfile(updated);
+    if (updated.status === 'finished' && updated.winner === null) {
+      if (this.phase() === 'complete') this.opponentLeft.set(true);
+      else void this.router.navigate(['/home'], { queryParams: { gameEnded: true } });
+      return;
+    }
+    if (updated.status === 'playing') this.opponentLeft.set(false);
+    this.phase.set(updated.status === 'waiting' ? 'waiting' : updated.status === 'playing' ? 'duo' : 'complete');
+    void this.launchReplayIfReady(updated);
   }
 
   private async persistWaitingSettings(): Promise<void> {

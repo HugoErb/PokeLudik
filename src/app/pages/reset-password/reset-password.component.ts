@@ -25,6 +25,7 @@ export class ResetPasswordComponent implements OnInit, OnDestroy {
   infoMessage = '';
   isLoading = false;
   isReady = false; // true quand Supabase a établi la session PASSWORD_RECOVERY
+  isDone = false; // true une fois le mot de passe changé : la session est fermée, plus d'envoi possible
   showPassword = signal(false);
   showConfirmPassword = signal(false);
 
@@ -79,7 +80,7 @@ export class ResetPasswordComponent implements OnInit, OnDestroy {
 
   /** Soumet le formulaire de réinitialisation et redirige vers la connexion en cas de succès. */
   async onSubmit(): Promise<void> {
-    if (this.resetForm.invalid || !this.isReady) return;
+    if (this.resetForm.invalid || !this.isReady || this.isLoading || this.isDone) return;
     this.isLoading = true;
     this.errorMessage = '';
 
@@ -87,8 +88,9 @@ export class ResetPasswordComponent implements OnInit, OnDestroy {
     try {
       await this.supabaseService.updatePassword(password);
       this.infoMessage = 'Mot de passe mis à jour avec succès !';
+      this.isDone = true;
       await this.supabaseService.signOut();
-      setTimeout(() => this.router.navigateByUrl('/login'), 2000);
+      this.timeoutId = setTimeout(() => this.router.navigateByUrl('/login'), 2000);
     } catch (err: unknown) {
       this.errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue.';
     } finally {

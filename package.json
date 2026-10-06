@@ -13,6 +13,7 @@
     "verify:functional-sql": "node scripts/verify-functional-sql.mjs",
     "verify:solo-leaderboard": "node scripts/verify-solo-leaderboard.mjs",
     "verify:size-up": "node scripts/verify-size-up.mjs",
+    "verify:security-rpc": "node scripts/verify-security-rpc.mjs",
     "add:ratings": "node scripts/add-ratings.js"
   },
   "overrides": {
