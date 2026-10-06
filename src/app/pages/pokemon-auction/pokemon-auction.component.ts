@@ -13,6 +13,7 @@ import { CancelModalComponent } from '../../components/cancel-modal/cancel-modal
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { PokemonStatsGridComponent } from '../../components/pokemon-stats-grid/pokemon-stats-grid.component';
 import { PokemonTypeIconComponent } from '../../components/pokemon-type-icon/pokemon-type-icon.component';
+import { CoverageInfoComponent } from '../../components/coverage-info/coverage-info.component';
 import { ICONS } from '../../constants/icons';
 import { TYPE_COLORS } from '../../constants/type-chart';
 import { computeDuoCoverageScore, computeFinalScore, computeStatsScore } from '../../utils/draft-utils';
@@ -39,7 +40,7 @@ const FINALIZE_RETRY_MS = 1500;
 @Component({
   selector: 'app-pokemon-auction',
   standalone: true,
-  imports: [FormsModule, NgClass, AppHeaderComponent, CancelModalComponent, EndGameActionsComponent, PokemonStatsGridComponent, PokemonTypeIconComponent],
+  imports: [FormsModule, NgClass, AppHeaderComponent, CancelModalComponent, EndGameActionsComponent, PokemonStatsGridComponent, PokemonTypeIconComponent, CoverageInfoComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './pokemon-auction.component.html',
 })

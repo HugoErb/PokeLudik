@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -12,7 +12,11 @@ const normalize = sql => sql.replaceAll('\r\n', '\n');
 const schema = normalize(read('sql-schema/ddb-schema.sql'))
   .replace(/^\\.*$/gm, '')
   .replace('CREATE SCHEMA public;', 'CREATE SCHEMA IF NOT EXISTS public;');
-const auctionMigration = normalize(read('sql-schema/migrations/2026-09-27-pokemon-auction.sql'));
+// Migration de couverture v2 : supprimée du dépôt une fois appliquée et reportée dans le dump.
+const coverageMigrationPath = 'sql-schema/migrations/2026-10-06-couverture-v2.sql';
+const coverageMigration = existsSync(path.join(root, coverageMigrationPath)) ? normalize(read(coverageMigrationPath)) : '';
+const arceusMigrationPath = 'sql-schema/migrations/2026-10-06-arceus-dresseur.sql';
+const arceusMigration = existsSync(path.join(root, arceusMigrationPath)) ? normalize(read(arceusMigrationPath)) : '';
 const pokemon = JSON.parse(read('src/assets/pokemon.json'));
 
 // Exécuter les vraies fonctions TypeScript, sans recopier leur calcul dans le test.
@@ -59,7 +63,11 @@ try {
     $$;
     GRANT USAGE ON SCHEMA auth TO authenticated;`);
   await db.exec(schema);
-  await db.exec(auctionMigration);
+  const quote = value => `'${String(value).replaceAll("'", "''")}'`;
+  await db.exec(`INSERT INTO public.pokemon_catalog VALUES ${pokemon.map(p => `(${p.id},${p.generation},${quote(p.category)},
+    ARRAY[${p.types.map(quote).join(',')}]::text[],${Number(p.rating)},${p.stats.pv},${p.stats.attaque},${p.stats.defense},
+    ${p.stats.atq_spe},${p.stats.def_spe},${p.stats.vitesse},${p.height ?? 'NULL'})`).join(',')};`);
+  if (coverageMigration) await db.exec(coverageMigration);
   await db.exec('SET check_function_bodies = true; SET search_path = public; SET row_security = on;');
 
   const exposedRpcs = [
@@ -96,7 +104,8 @@ try {
     }
   }
   const examples = [[[25], [195]], [[25], [130]], [[25], [230]], [[68], [493]], [[493], [68]],
-    [[1, 2, 3, 4, 5, 6], [31, 32, 33, 34, 35, 36]], [[], [25]], [[25], []]];
+    [[1, 2, 3, 4, 5, 6], [31, 32, 33, 34, 35, 36]], [[], [25]], [[25], []],
+    [[1, 4, 7, 25, 94, 143], [149, 149, 149, 493, 6, 9]], [[131, 87, 91, 124, 144, 215], [145, 145, 6, 38, 59, 257]]];
   // Échantillonnage déterministe de véritables équipes du catalogue.
   for (let offset = 0; offset < 120; offset++) {
     examples.push([Array.from({ length: 6 }, (_, i) => 1 + (offset * 17 + i * 61) % 1025),
@@ -178,6 +187,26 @@ try {
   const bid = (await db.query(`SELECT extract(epoch FROM auction_end_at-clock_timestamp()) AS remaining
     FROM public.pokemon_auction_rooms WHERE id=$1`, [roomId])).rows[0];
   check(Number(bid.remaining) > 9 && Number(bid.remaining) <= 10, true, 'Une offre tardive remet dix secondes');
+
+  // Arceus interdit dans l'équipe du joueur contre un dresseur, scores déjà obtenus avec lui retirés.
+  await db.query("INSERT INTO public.profiles(id,username) VALUES ($1,'Sacha') ON CONFLICT DO NOTHING", [p1]);
+  const trainerScore = (key, team, opponent) => db.query(`INSERT INTO public.solo_scores(run_id,user_id,mode,settings,settings_key,score,won,details)
+    VALUES (gen_random_uuid(),$1,'draft_trainer','{}'::jsonb,$2,9,true,jsonb_build_object('team',$3::int[],'opponent',$4::int[]))`,
+    [p1, key, team, opponent]);
+  await trainerScore('trainer:12', [493, 1, 2, 3, 4, 5], [442, 445, 448, 350, 407, 468]);
+  await trainerScore('trainer:39', [1, 2, 3, 4, 5, 6], [493, 25, 6, 9, 3, 150]);
+  await trainerScore('trainer:12', [1, 2, 3, 4, 5, 6], [442, 445, 448, 350, 407, 468]);
+  if (arceusMigration) {
+    await db.exec(arceusMigration);
+    const kept = await db.query("SELECT settings_key FROM public.solo_scores WHERE mode='draft_trainer' ORDER BY id");
+    check(kept.rows.map(row => row.settings_key), ['trainer:39', 'trainer:12'], "Seuls les scores avec Arceus dans l'équipe du joueur sont retirés");
+    check(Number((await db.query('SELECT count(*) AS n FROM public.solo_scores_arceus_removed')).rows[0].n), 1, 'Score retiré sauvegardé');
+    await assert.rejects(asUser(p1, () => db.query('SELECT public.submit_draft_trainer_score(gen_random_uuid(),12,$1,$2)',
+      [[493, 1, 2, 3, 4, 5], [442, 445, 448, 350, 407, 468]])), /invalid_team/); checks++;
+    await asUser(p1, () => db.query('SELECT public.submit_draft_trainer_score(gen_random_uuid(),39,$1,$2)',
+      [[1, 2, 3, 4, 5, 6], [493, 25, 6, 9, 3, 150]]));
+    checks++;
+  }
   console.log(`SQL fonctionnel vérifié : ${checks} contrôles PostgreSQL réussis.`);
 } catch (error) {
   console.error(error.message);

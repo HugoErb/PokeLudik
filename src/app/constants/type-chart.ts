@@ -40,28 +40,6 @@ export const TYPE_COLORS: Record<string, string> = {
   'Fée': 'bg-[#ef70ef]',
 };
 
-/** Attaquant → liste des types défensifs touchés en super-efficace */
-export const TYPE_OFFENSIVE: Record<string, string[]> = {
-  'Normal':   [],
-  'Feu':      ['Plante', 'Glace', 'Insecte', 'Acier'],
-  'Eau':      ['Feu', 'Sol', 'Roche'],
-  'Plante':   ['Eau', 'Sol', 'Roche'],
-  'Électrik': ['Eau', 'Vol'],
-  'Glace':    ['Plante', 'Sol', 'Vol', 'Dragon'],
-  'Combat':   ['Normal', 'Glace', 'Roche', 'Ténèbres', 'Acier'],
-  'Poison':   ['Plante', 'Fée'],
-  'Sol':      ['Feu', 'Électrik', 'Poison', 'Roche', 'Acier'],
-  'Vol':      ['Plante', 'Combat', 'Insecte'],
-  'Psy':      ['Combat', 'Poison'],
-  'Insecte':  ['Plante', 'Psy', 'Ténèbres'],
-  'Roche':    ['Feu', 'Glace', 'Vol', 'Insecte'],
-  'Spectre':  ['Psy', 'Spectre'],
-  'Dragon':   ['Dragon'],
-  'Ténèbres': ['Psy', 'Spectre'],
-  'Acier':    ['Glace', 'Roche', 'Fée'],
-  'Fée':      ['Combat', 'Dragon', 'Ténèbres'],
-};
-
 /** Attaquant → multiplicateur par type défensif (uniquement les valeurs ≠ 1) */
 export const TYPE_CHART: Record<string, Record<string, number>> = {
   'Normal':   { 'Roche': 0.5, 'Acier': 0.5, 'Spectre': 0 },

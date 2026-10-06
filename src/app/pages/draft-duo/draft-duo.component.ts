@@ -28,6 +28,7 @@ import {
 import { launchDefeatRain, launchVictoryConfetti } from '../../utils/end-game-effects';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { PokemonTypeIconComponent } from '../../components/pokemon-type-icon/pokemon-type-icon.component';
+import { CoverageInfoComponent } from '../../components/coverage-info/coverage-info.component';
 import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft-help-modal.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
 import { AppHeaderComponent } from '../../components/app-header/app-header.component';
@@ -52,7 +53,7 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 
 @Component({
   selector: 'app-draft-duo',
-  imports: [NgClass, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent],
+  imports: [NgClass, CoverageInfoComponent, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, EndGameActionsComponent, AppHeaderComponent, CancelModalComponent, GameSettingsPanelComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft-duo.component.html',

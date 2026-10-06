@@ -381,7 +381,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  FOR v_opponent_pokemon IN SELECT * FROM public.pokemon_catalog WHERE id=ANY(p_opponent) AND id<>493 LOOP
+  FOR v_opponent_pokemon IN SELECT pc.* FROM unnest(p_opponent) o(id) JOIN public.pokemon_catalog pc ON pc.id=o.id WHERE pc.id<>493 LOOP
     v_hit:=false;
     FOREACH v_my_type IN ARRAY v_my_types LOOP
       IF public.auction_effective_multiplier(v_opponent_pokemon.types,v_my_type)>1 THEN v_hit:=true; EXIT; END IF;
@@ -600,7 +600,7 @@ DECLARE v_stats numeric;
 BEGIN
   IF EXISTS (SELECT 1 FROM public.pokemon_catalog WHERE id=ANY(p_team||p_opponent)
     AND (rating<=0 OR cardinality(types)=0)) THEN RAISE EXCEPTION 'pokemon_catalog_incomplete'; END IF;
-  SELECT round(avg(rating),1) INTO v_stats FROM public.pokemon_catalog WHERE id=ANY(p_team);
+  SELECT round(avg(pc.rating),1) INTO v_stats FROM unnest(p_team) t(id) JOIN public.pokemon_catalog pc ON pc.id=t.id;
   RETURN round((coalesce(v_stats,0)+public.auction_coverage_score(p_team,p_opponent))/2,1);
 END; $$;
 

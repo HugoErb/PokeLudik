@@ -24,6 +24,7 @@ import {
 import { launchDefeatRain, launchVictoryConfetti } from '../../utils/end-game-effects';
 import { PokemonCardComponent } from '../../components/pokemon-card/pokemon-card.component';
 import { PokemonTypeIconComponent } from '../../components/pokemon-type-icon/pokemon-type-icon.component';
+import { CoverageInfoComponent } from '../../components/coverage-info/coverage-info.component';
 import { DraftHelpModalComponent } from '../../components/draft-help-modal/draft-help-modal.component';
 import { DuelIntroComponent } from '../../components/duel-intro/duel-intro.component';
 import { EndGameActionsComponent } from '../../components/end-game-actions/end-game-actions.component';
@@ -34,6 +35,7 @@ import { LeaderboardModalComponent } from '../../components/leaderboard-modal/le
 import { SoloScoreResult } from '../../models/leaderboard.model';
 import { buildSettingsKey } from '../../utils/leaderboard-utils';
 import {
+  ARCEUS_ID,
   computeDuoCoverageScore as computePokemonDuoCoverageScore,
   computeFinalScore,
   computeRating as computePokemonRating,
@@ -63,7 +65,7 @@ type SlotState = 'idle' | 'leaving' | 'entering';
 
 @Component({
   selector: 'app-draft-trainer',
-  imports: [NgClass, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent, SoloScoreSummaryComponent, LeaderboardModalComponent, NewRecordBadgeComponent],
+  imports: [NgClass, CoverageInfoComponent, PokemonCardComponent, PokemonTypeIconComponent, DraftHelpModalComponent, DuelIntroComponent, EndGameActionsComponent, AppHeaderComponent, SoloScoreSummaryComponent, LeaderboardModalComponent, NewRecordBadgeComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   animations: [slotsGridAnimation, slotStateAnimation, lockAnimation, scoreRevealAnimation],
   templateUrl: './draft-trainer.component.html',
@@ -123,6 +125,9 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
 
     return all;
   });
+
+  /** Pool des tirages du joueur : Arceus (joker de couverture) n'est pas tirable contre un dresseur. */
+  private readonly playerPool = computed(() => this.trainerPool().filter(p => p.id !== ARCEUS_ID));
 
   private readonly statsRange = computed(() => {
     const all = this.trainerPool();
@@ -277,7 +282,7 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     this.runId = crypto.randomUUID();
     this.scoreResult.set(null);
     this.scoreError.set('');
-    const pool = this.trainerPool();
+    const pool = this.playerPool();
     const starter = this.pickOneStarter(pool, new Set());
     const legendary = this.pickOneLegendary(pool, new Set(starter ? [starter.id] : []));
     const excludeForNormal = new Set([
@@ -400,11 +405,11 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
     const slot5Unlocked = unlocked.includes(5);
     const unlockedNormal = unlocked.filter(i => i !== 0 && i !== 5);
 
-    const newStarter = slot0Unlocked ? this.pickOneStarter(this.trainerPool(), this.usedIds()) : null;
+    const newStarter = slot0Unlocked ? this.pickOneStarter(this.playerPool(), this.usedIds()) : null;
     const excludeForNormal = new Set([...this.usedIds(), ...(newStarter ? [newStarter.id] : [])]);
-    const newNormal = this.pickNUnique(this.normalSlotPool(this.trainerPool()), excludeForNormal, unlockedNormal.length);
+    const newNormal = this.pickNUnique(this.normalSlotPool(this.playerPool()), excludeForNormal, unlockedNormal.length);
     const excludeForLegend = new Set([...excludeForNormal, ...newNormal.map(p => p.id)]);
-    const newLegendary = slot5Unlocked ? this.pickOneLegendary(this.trainerPool(), excludeForLegend, [...(newStarter ? [newStarter] : []), ...newNormal]) : null;
+    const newLegendary = slot5Unlocked ? this.pickOneLegendary(this.playerPool(), excludeForLegend, [...(newStarter ? [newStarter] : []), ...newNormal]) : null;
 
     const allNew = [
       ...(newStarter ? [newStarter] : []),

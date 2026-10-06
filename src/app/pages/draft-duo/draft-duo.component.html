@@ -321,10 +321,12 @@
 						<div class="text-center">
 							<span class="font-black font-mono text-lg" [ngClass]="getScoreColor(myCoverageScore())">{{ myCoverageScore() }}</span>
 							<span class="text-xs text-slate-600">/10</span>
+							<app-coverage-info class="align-middle" [team]="myTeamPokemons()" [opponent]="opponentTeamPokemons()" label="Moi" />
 						</div>
 						<div class="text-center">
 							<span class="font-black font-mono text-lg text-slate-500">{{ opponentCoverageScore() }}</span>
 							<span class="text-xs text-slate-600">/10</span>
+							<app-coverage-info class="align-middle" [team]="opponentTeamPokemons()" [opponent]="myTeamPokemons()" label="Adversaire" />
 						</div>
 					</div>
 

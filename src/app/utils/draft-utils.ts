@@ -1,7 +1,7 @@
 import { Pokemon } from '../models/pokemon.model';
-import { TYPE_OFFENSIVE, effectiveMultiplier } from '../constants/type-chart';
+import { effectiveMultiplier } from '../constants/type-chart';
 
-const ARCEUS_ID = 493;
+export const ARCEUS_ID = 493;
 
 export interface RatingRange {
   min: number;
@@ -50,49 +50,106 @@ export function computeFinalScore(stats: number, coverage: number): number {
   return Math.round((Math.round(stats * 10) + Math.round(coverage * 10)) / 2) / 10;
 }
 
-/** Calcule le score de couverture offensive et defensive d'une equipe contre une autre. */
-export function computeDuoCoverageScore(myTeam: Pokemon[], opponentTeam: Pokemon[]): number {
-  if (myTeam.length === 0 || opponentTeam.length === 0) return 0;
+/** Détail de la couverture face à un Pokémon adverse. */
+export interface CoverageEntry {
+  opponent: Pokemon;
+  isArceus: boolean;
+  /** 2 si super efficace, 1 si neutre, 0 si résisté. */
+  attackPoints: number;
+  /** Meilleur multiplicateur obtenu par un type de l'équipe. */
+  multiplier: number;
+  /** Premier Pokémon de l'équipe qui atteint ce multiplicateur, avec le type utilisé. */
+  attacker: Pokemon | null;
+  attackType: string | null;
+  /** Premier Pokémon de l'équipe qui résiste à tous les types de l'adversaire. */
+  resistor: Pokemon | null;
+  /** Pokémon de l'équipe faibles à au moins un type de l'adversaire. */
+  weakMembers: Pokemon[];
+  /** Nombre de Pokémon de l'équipe qui ne sont faibles à aucun type de l'adversaire. */
+  safeCount: number;
+}
 
-  const hasArceus = myTeam.some(pokemon => pokemon.id === ARCEUS_ID);
-  if (hasArceus) return 10;
+/** Détail complet du calcul de couverture, affiché dans l'info-bulle des résultats. */
+export interface CoverageBreakdown {
+  /** Arceus dans l'équipe : couverture maximale d'office. */
+  joker: Pokemon | null;
+  teamSize: number;
+  opponentCount: number;
+  entries: CoverageEntry[];
+  attackPoints: number;
+  resistPoints: number;
+  safePoints: number;
+  /** Sous-notes sur 10, pour l'affichage uniquement. */
+  attackScore: number;
+  resistScore: number;
+  safeScore: number;
+  score: number;
+}
 
-  const myTypes = new Set(myTeam.flatMap(pokemon => pokemon.types));
-  const opponentHasArceus = opponentTeam.some(pokemon => pokemon.id === ARCEUS_ID);
-  const standardOpponentTeam = opponentTeam.filter(pokemon => pokemon.id !== ARCEUS_ID);
-  const opponentTypes = new Set(standardOpponentTeam.flatMap(pokemon => pokemon.types));
-  const myTypeList = [...myTypes];
+const roundTenth = (value: number): number => Math.round(value * 10) / 10;
 
-  let coveredOpponentTypes = 0;
-  for (const opponentType of opponentTypes) {
-    if (myTypeList.some(myType => (TYPE_OFFENSIVE[myType] ?? []).includes(opponentType))) {
-      coveredOpponentTypes++;
+/**
+ * Évalue la couverture d'une équipe contre une autre, Pokémon adverse par Pokémon adverse
+ * (doublons compris) : attaque 50 %, résistance 25 %, faiblesses partagées 25 %.
+ */
+export function explainDuoCoverage(myTeam: Pokemon[], opponentTeam: Pokemon[]): CoverageBreakdown {
+  const teamSize = myTeam.length;
+  const opponentCount = opponentTeam.length;
+  const joker = myTeam.find(pokemon => pokemon.id === ARCEUS_ID) ?? null;
+  const empty: CoverageBreakdown = {
+    joker, teamSize, opponentCount, entries: [], attackPoints: 0, resistPoints: 0, safePoints: 0,
+    attackScore: 0, resistScore: 0, safeScore: 0, score: 0,
+  };
+  if (teamSize === 0 || opponentCount === 0) return empty;
+  if (joker) return { ...empty, attackScore: 10, resistScore: 10, safeScore: 10, score: 10 };
+
+  const entries = opponentTeam.map((opponent): CoverageEntry => {
+    if (opponent.id === ARCEUS_ID) {
+      // Arceus adverse change de type : impossible à exploiter, personne ne lui résiste.
+      return { opponent, isArceus: true, attackPoints: 0, multiplier: 0, attacker: null, attackType: null,
+        resistor: null, weakMembers: [...myTeam], safeCount: 0 };
     }
-  }
 
-  let exploitedPokemon = 0;
-  for (const opponentPokemon of opponentTeam) {
-    if (opponentPokemon.id === ARCEUS_ID) continue;
-
-    const canHit = myTypeList.some(myType =>
-      effectiveMultiplier(opponentPokemon.types, myType) > 1
-    );
-    if (canHit) exploitedPokemon++;
-  }
-
-  let resistedTypes = 0;
-  if (!opponentHasArceus) {
-    for (const opponentType of opponentTypes) {
-      if (myTeam.some(pokemon => effectiveMultiplier(pokemon.types, opponentType) < 1)) {
-        resistedTypes++;
+    let multiplier = -1;
+    let attacker: Pokemon | null = null;
+    let attackType: string | null = null;
+    for (const member of myTeam) {
+      for (const type of member.types) {
+        const value = effectiveMultiplier(opponent.types, type);
+        if (value > multiplier) {
+          multiplier = value;
+          attacker = member;
+          attackType = type;
+        }
       }
     }
-  }
-  // Mettre les fractions au même dénominateur avant l'arrondi, comme le SQL numeric.
-  const typeCount = Math.max(1, opponentTypes.size);
-  const numerator = (50 * coveredOpponentTypes + 20 * resistedTypes) * opponentTeam.length
-    + 30 * exploitedPokemon * typeCount;
-  return Math.round(numerator / (typeCount * opponentTeam.length)) / 10;
+    const attackPoints = multiplier > 1 ? 2 : multiplier === 1 ? 1 : 0;
+    const resistor = myTeam.find(member =>
+      opponent.types.every(type => effectiveMultiplier(member.types, type) < 1)) ?? null;
+    const weakMembers = myTeam.filter(member =>
+      opponent.types.some(type => effectiveMultiplier(member.types, type) > 1));
+
+    return { opponent, isArceus: false, attackPoints, multiplier: Math.max(0, multiplier), attacker, attackType,
+      resistor, weakMembers, safeCount: teamSize - weakMembers.length };
+  });
+
+  const attackPoints = entries.reduce((sum, entry) => sum + entry.attackPoints, 0);
+  const resistPoints = entries.filter(entry => entry.resistor).length;
+  const safePoints = entries.reduce((sum, entry) => sum + entry.safeCount, 0);
+  // Tout ramener à un seul dénominateur entier avant l'arrondi, comme le SQL numeric.
+  const numerator = 25 * (attackPoints * teamSize + resistPoints * teamSize + safePoints);
+  return {
+    joker, teamSize, opponentCount, entries, attackPoints, resistPoints, safePoints,
+    attackScore: roundTenth(attackPoints * 5 / opponentCount),
+    resistScore: roundTenth(resistPoints * 10 / opponentCount),
+    safeScore: roundTenth(safePoints * 10 / (opponentCount * teamSize)),
+    score: Math.round(numerator / (opponentCount * teamSize)) / 10,
+  };
+}
+
+/** Calcule le score de couverture offensive et defensive d'une equipe contre une autre. */
+export function computeDuoCoverageScore(myTeam: Pokemon[], opponentTeam: Pokemon[]): number {
+  return explainDuoCoverage(myTeam, opponentTeam).score;
 }
 
 /** Retourne la classe CSS de couleur associee a un score. */

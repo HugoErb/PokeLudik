@@ -1,5 +1,5 @@
 import { Pokemon } from '../models/pokemon.model';
-import { buildDraftSlots, canUseRoomForDuoComplete, computeDuoCoverageScore, computeFinalScore, computeStatsScore, hasEnoughPokemonForDraft, pickOneLegendary, pickOneStarter } from './draft-utils';
+import { buildDraftSlots, canUseRoomForDuoComplete, computeDuoCoverageScore, computeFinalScore, explainDuoCoverage, computeStatsScore, hasEnoughPokemonForDraft, pickOneLegendary, pickOneStarter } from './draft-utils';
 
 function pokemon(id: number, name: string, types: string[]): Pokemon {
   return {
@@ -18,24 +18,68 @@ function pokemon(id: number, name: string, types: string[]): Pokemon {
 }
 
 describe('computeDuoCoverageScore', () => {
-  it('ne compte pas un Pokémon immunisé comme exploitable', () => {
-    const pikachu = pokemon(25, 'Pikachu', ['Électrik']);
-    const maraiste = pokemon(195, 'Maraiste', ['Eau', 'Sol']);
-    // La couverture du type Eau reste comptée (50% de deux types), pas le Pokémon (30%).
-    expect(computeDuoCoverageScore([pikachu], [maraiste])).toBe(2.5);
+  const pikachu = pokemon(25, 'Pikachu', ['Électrik']);
+  const salameche = pokemon(4, 'Salamèche', ['Feu']);
+  const leviator = pokemon(130, 'Léviator', ['Eau', 'Vol']);
+  const maraiste = pokemon(195, 'Maraiste', ['Eau', 'Sol']);
+  const arceus = pokemon(493, 'Arceus', ['Normal']);
+
+  it('ne compte pas un type couvert quand le double type annule la faiblesse', () => {
+    // Électrik touche Eau, mais pas Maraiste (Eau/Sol) ; Pikachu est en plus faible au Sol.
+    expect(computeDuoCoverageScore([pikachu], [maraiste])).toBe(0);
   });
 
   it('tient compte des résistances qui annulent une faiblesse de double type', () => {
-    expect(computeDuoCoverageScore([pokemon(4, 'Salamèche', ['Feu'])], [pokemon(230, 'Hyporoi', ['Eau', 'Dragon'])])).toBe(0);
-    expect(computeDuoCoverageScore([pokemon(25, 'Pikachu', ['Électrik'])], [pokemon(230, 'Hyporoi', ['Eau', 'Dragon'])])).toBe(2.5);
-    expect(computeDuoCoverageScore([pokemon(25, 'Pikachu', ['Électrik'])], [pokemon(130, 'Léviator', ['Eau', 'Vol'])])).toBe(9);
+    expect(computeDuoCoverageScore([salameche], [pokemon(230, 'Hyporoi', ['Eau', 'Dragon'])])).toBe(0);
+    // ×1 en attaque (1 pt sur 2) et Pikachu n'est faible à aucun type d'Hyporoi.
+    expect(computeDuoCoverageScore([pikachu], [pokemon(230, 'Hyporoi', ['Eau', 'Dragon'])])).toBe(5);
+    // ×4 en attaque, pas de résistance aux deux types, pas de faiblesse.
+    expect(computeDuoCoverageScore([pikachu], [leviator])).toBe(7.5);
   });
-  it('considere Arceus comme impossible a toucher en super efficace et super efficace contre tous les types', () => {
-    const fightingPokemon = pokemon(68, 'Mackogneur', ['Combat']);
-    const arceus = pokemon(493, 'Arceus', ['Normal']);
 
-    expect(computeDuoCoverageScore([fightingPokemon], [arceus])).toBe(0);
-    expect(computeDuoCoverageScore([arceus], [fightingPokemon])).toBe(10);
+  it('pénalise les faiblesses partagées par plusieurs Pokémon', () => {
+    const sorbebe = pokemon(582, 'Sorbébé', ['Glace']);
+    const plantes = Array.from({ length: 5 }, (_, i) => pokemon(i + 1, `Plante${i}`, ['Plante']));
+    const feux = Array.from({ length: 6 }, (_, i) => pokemon(i + 10, `Feu${i}`, ['Feu']));
+    expect(computeDuoCoverageScore([...plantes, salameche], [sorbebe])).toBe(7.9);
+    expect(computeDuoCoverageScore(feux, [sorbebe])).toBe(10);
+  });
+
+  it('compte chaque doublon adverse', () => {
+    expect(computeDuoCoverageScore([pikachu], [leviator, maraiste])).toBe(3.8);
+    expect(computeDuoCoverageScore([pikachu], [leviator, leviator, maraiste])).toBe(5);
+  });
+
+  it('garde Arceus comme joker : 10 dans son équipe, 0 sur son seul slot en face', () => {
+    expect(computeDuoCoverageScore([pokemon(68, 'Mackogneur', ['Combat'])], [arceus])).toBe(0);
+    expect(computeDuoCoverageScore([arceus], [pokemon(68, 'Mackogneur', ['Combat'])])).toBe(10);
+    expect(computeDuoCoverageScore([pikachu], [leviator, arceus])).toBe(3.8);
+  });
+});
+
+describe('explainDuoCoverage', () => {
+  it('détaille l\'attaquant, la résistance et les Pokémon menacés', () => {
+    const pikachu = pokemon(25, 'Pikachu', ['Électrik']);
+    const tortank = pokemon(9, 'Tortank', ['Eau']);
+    const arcanin = pokemon(59, 'Arcanin', ['Feu']);
+    const detail = explainDuoCoverage([pikachu, tortank], [arcanin]);
+    const [entry] = detail.entries;
+    expect(entry.attacker).toBe(tortank);
+    expect(entry.attackType).toBe('Eau');
+    expect(entry.multiplier).toBe(2);
+    expect(entry.attackPoints).toBe(2);
+    expect(entry.resistor).toBe(tortank);
+    expect(entry.weakMembers).toEqual([]);
+    expect(entry.safeCount).toBe(2);
+    expect([detail.attackScore, detail.resistScore, detail.safeScore, detail.score]).toEqual([10, 10, 10, 10]);
+  });
+
+  it('signale le joker Arceus sans détail par Pokémon', () => {
+    const arceus = pokemon(493, 'Arceus', ['Normal']);
+    const detail = explainDuoCoverage([arceus], [pokemon(25, 'Pikachu', ['Électrik'])]);
+    expect(detail.joker).toBe(arceus);
+    expect(detail.entries).toEqual([]);
+    expect(detail.score).toBe(10);
   });
 });
 
