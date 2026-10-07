@@ -50,7 +50,7 @@
         <div class="shrink-0">
           <div class="flex items-center gap-2 mb-2">
             <p class="text-xs text-slate-400 uppercase tracking-wider">Génération</p>
-            <span class="text-xs text-slate-500">
+            <span class="text-xs text-slate-500 -my-1.5">
               <button (click)="selectAllGenerations()" class="px-1.5 py-1.5 hover:text-slate-300 transition-colors">Tout</button>
               -
               <button (click)="deselectAllGenerations()" class="px-1.5 py-1.5 hover:text-slate-300 transition-colors">Aucun</button>
@@ -381,7 +381,7 @@
                 @if (!pokemonGuessed) {
                   <button
                     (click)="toggleManualDim(pokemon.id, $event)"
-                    class="absolute top-1 right-1 z-10 w-8 h-8 md:w-6 md:h-6 flex items-center justify-center rounded-full transition-colors border border-slate-600 shadow-sm bg-slate-800/90 text-slate-300 hover:bg-red-600 hover:text-white"
+                    class="absolute top-1 right-1 z-10 w-7 h-7 md:w-6 md:h-6 flex items-center justify-center rounded-full transition-colors border border-slate-600 shadow-sm bg-slate-800/90 text-slate-300 hover:bg-red-600 hover:text-white"
                   >
                     <iconify-icon [icon]="pokemonDimmed ? ICONS.eye : ICONS.eyeOff" class="text-xs"></iconify-icon>
                   </button>
