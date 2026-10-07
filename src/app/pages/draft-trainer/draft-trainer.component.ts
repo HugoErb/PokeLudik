@@ -227,7 +227,8 @@ export class DraftTrainerComponent implements OnInit, OnDestroy {
   /** Lifecycle Angular : initialise le composant. */
   async ngOnInit(): Promise<void> {
     try {
-      const res = await fetch('/assets/trainers.json');
+      // no-cache : revalide le fichier (nom sans hash) pour voir les équipes modifiées dès le déploiement.
+      const res = await fetch('/assets/trainers.json', { cache: 'no-cache' });
       const trainers = await res.json() as Trainer[];
       const idParam = this.route.snapshot.paramMap.get('id');
       const id = idParam ? parseInt(idParam, 10) : 0;

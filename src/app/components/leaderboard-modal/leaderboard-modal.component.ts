@@ -208,7 +208,7 @@ export class LeaderboardModalComponent implements OnInit {
 
   private async loadTrainerNames(): Promise<void> {
     try {
-      const res = await fetch('/assets/trainers.json');
+      const res = await fetch('/assets/trainers.json', { cache: 'no-cache' });
       const trainers = await res.json() as { nom: string }[];
       this.trainerNames.set(trainers.map(trainer => trainer.nom));
     } catch {

@@ -12,6 +12,8 @@ let nextId = 0;
   standalone: true,
   imports: [PokemonTypeIconComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  // Décollé de la note qu'il accompagne.
+  styles: `:host { display: inline-flex; margin-left: 0.5rem; vertical-align: middle; }`,
   template: `
     <button
       type="button"

@@ -38,7 +38,7 @@ export class TrainerSelectComponent implements OnInit {
   /** Lifecycle Angular : initialise le composant. */
   async ngOnInit() {
     try {
-      const res = await fetch('/assets/trainers.json');
+      const res = await fetch('/assets/trainers.json', { cache: 'no-cache' });
       const data = await res.json() as Trainer[];
       this.trainers.set(data);
 
