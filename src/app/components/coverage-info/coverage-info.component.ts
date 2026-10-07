@@ -1,5 +1,7 @@
 import { Component, CUSTOM_ELEMENTS_SCHEMA, computed, input, signal } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { ICONS } from '../../constants/icons';
+import { TYPE_COLORS } from '../../constants/type-chart';
 import { Pokemon } from '../../models/pokemon.model';
 import { CoverageEntry, explainDuoCoverage } from '../../utils/draft-utils';
 import { PokemonTypeIconComponent } from '../pokemon-type-icon/pokemon-type-icon.component';
@@ -10,10 +12,9 @@ let nextId = 0;
 @Component({
   selector: 'app-coverage-info',
   standalone: true,
-  imports: [PokemonTypeIconComponent],
+  imports: [NgClass, PokemonTypeIconComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  // Décollé de la note qu'il accompagne.
-  styles: `:host { display: inline-flex; margin-left: 0.5rem; vertical-align: middle; }`,
+  styles: `:host { display: inline-flex; }`,
   template: `
     <button
       type="button"
@@ -52,7 +53,7 @@ let nextId = 0;
                 <div class="mb-1 flex items-center gap-1.5 font-bold text-white">
                   <span class="truncate">{{ entry.opponent.name }}</span>
                   @for (type of entry.opponent.types; track type) {
-                    <app-pokemon-type-icon [type]="type" size="compact" />
+                    <span class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold text-white" [ngClass]="typeColor(type)"><app-pokemon-type-icon [type]="type" size="compact" />{{ type }}</span>
                   }
                   <span class="ml-auto shrink-0 font-mono text-slate-400">{{ entryPoints(entry) }}</span>
                 </div>
@@ -62,7 +63,10 @@ let nextId = 0;
                   <p>
                     <span class="text-slate-500">Attaque :</span>
                     @if (entry.attackPoints === 2) {
-                      <b class="text-green-300">{{ entry.attacker?.name }} ({{ entry.attackType }})</b>
+                      <b class="text-green-300">{{ entry.attacker?.name }}</b>
+                      @if (entry.attackType; as attackType) {
+                        <span class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-bold text-white" [ngClass]="typeColor(attackType)"><app-pokemon-type-icon [type]="attackType" size="compact" />{{ attackType }}</span>
+                      }
                       est fort contre lui : ×{{ formatMultiplier(entry.multiplier) }} → 2 pts
                     } @else if (entry.attackPoints === 1) {
                       aucun type super efficace, au mieux ×1 → 1 pt
@@ -117,6 +121,10 @@ export class CoverageInfoComponent {
 
   protected entryPoints(entry: CoverageEntry): string {
     return `${entry.attackPoints} + ${entry.resistor ? 1 : 0} + ${entry.safeCount}/${this.detail().teamSize}`;
+  }
+
+  protected typeColor(type: string): string {
+    return TYPE_COLORS[type] ?? 'bg-slate-500';
   }
 
   protected formatMultiplier(value: number): string {

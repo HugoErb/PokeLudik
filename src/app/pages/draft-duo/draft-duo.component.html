@@ -319,14 +319,18 @@
 					<div class="grid grid-cols-3 gap-2 md:gap-3 items-center bg-slate-800/60 border border-slate-700/50 rounded-xl px-3 py-2 mb-2">
 						<span class="text-xs text-slate-400">Couverture de types</span>
 						<div class="text-center">
-							<span class="font-black font-mono text-lg" [ngClass]="getScoreColor(myCoverageScore())">{{ myCoverageScore() }}</span>
-							<span class="text-xs text-slate-600">/10</span>
-							<app-coverage-info class="align-middle" [team]="myTeamPokemons()" [opponent]="opponentTeamPokemons()" label="Moi" />
+							<span class="relative inline-block">
+								<span class="font-black font-mono text-lg" [ngClass]="getScoreColor(myCoverageScore())">{{ myCoverageScore() }}</span>
+								<span class="text-xs text-slate-600">/10</span>
+								<app-coverage-info class="absolute left-full top-1/2 ml-2 -translate-y-1/2" [team]="myTeamPokemons()" [opponent]="opponentTeamPokemons()" label="Moi" />
+							</span>
 						</div>
 						<div class="text-center">
-							<span class="font-black font-mono text-lg text-slate-500">{{ opponentCoverageScore() }}</span>
-							<span class="text-xs text-slate-600">/10</span>
-							<app-coverage-info class="align-middle" [team]="opponentTeamPokemons()" [opponent]="myTeamPokemons()" label="Adversaire" />
+							<span class="relative inline-block">
+								<span class="font-black font-mono text-lg text-slate-500">{{ opponentCoverageScore() }}</span>
+								<span class="text-xs text-slate-600">/10</span>
+								<app-coverage-info class="absolute left-full top-1/2 ml-2 -translate-y-1/2" [team]="opponentTeamPokemons()" [opponent]="myTeamPokemons()" label="Adversaire" />
+							</span>
 						</div>
 					</div>
 
