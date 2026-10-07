@@ -128,6 +128,8 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     // --- Timer -------------------------------------------------------------------
     private clockInterval: ReturnType<typeof setInterval> | null = null;
     private roundStartTime = 0;
+    /** Écart horloge serveur - horloge locale : les deux joueurs doivent lire round_start_at sur la même horloge. */
+    private serverClockOffset = 0;
     private catchUpPromise: Promise<void> | null = null;
     private finalSyncInProgress = false;
     private lastFinalSyncAt = 0;
@@ -330,7 +332,10 @@ export class StatDuelComponent implements OnInit, OnDestroy {
 
         let room: StatDuelRoom;
         try {
-            room = await this.supabaseService.getStatDuelRoom(roomId);
+            [room, this.serverClockOffset] = await Promise.all([
+                this.supabaseService.getStatDuelRoom(roomId),
+                this.supabaseService.getServerClockOffset().catch(() => 0),
+            ]);
         } catch {
             if (!this.destroyed) void this.router.navigate(['/home'], { queryParams: { roomNotFound: true } });
             return;
@@ -465,9 +470,14 @@ export class StatDuelComponent implements OnInit, OnDestroy {
     /** Charge les Pokemon puis demarre la partie multijoueur. */
     private async loadPokemonAndStartMulti(room: StatDuelRoom): Promise<void> {
         if (this.phase() === 'playing') return;
-        const allPokemon = await this.loadAll();
-        const pokemonMap = new Map(allPokemon.map(p => [p.id, p]));
-        const list = room.pokemon_ids.map(id => pokemonMap.get(id)).filter((p): p is Pokemon => !!p);
+        let list = this.resolveRoomPokemon(room, await this.loadAll());
+        // Un échec de chargement n'est pas mis en cache : un second essai peut réussir.
+        if (list.length !== room.pokemon_ids.length) list = this.resolveRoomPokemon(room, await this.loadAll());
+        if (list.length !== room.pokemon_ids.length) {
+            this.configurationError.set('Impossible de charger les Pokémon, recharge la page.');
+            return;
+        }
+        this.configurationError.set('');
         this.pokemonList.set(list);
         this.preloadImages(list);
 
@@ -490,7 +500,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             }
             this.botPickedRounds = new Set(room.p2_picks.map((_, index) => index));
             this.currentRound.set(Math.min(room.p1_picks.length, room.p2_picks.length, ROUND_COUNT - 1));
-            const delayFromNow = Math.max(0, new Date(room.round_start_at!).getTime() - Date.now());
+            const delayFromNow = Math.max(0, new Date(room.round_start_at!).getTime() - this.serverNow());
             setTimeout(() => {
                 if (this.phase() !== 'playing') return;
                 this.startPokemonAnimation(() => this.startMultiPickClock());
@@ -499,6 +509,17 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         }
 
         this.startMultiClock(room.round_start_at!);
+    }
+
+    /** Retrouve les Pokémon de la room dans l'ordre de ses manches. */
+    private resolveRoomPokemon(room: StatDuelRoom, allPokemon: Pokemon[]): Pokemon[] {
+        const pokemonMap = new Map(allPokemon.map(p => [p.id, p]));
+        return room.pokemon_ids.map(id => pokemonMap.get(id)).filter((p): p is Pokemon => !!p);
+    }
+
+    /** Heure courante alignée sur l'horloge serveur. */
+    private serverNow(): number {
+        return Date.now() + this.serverClockOffset;
     }
 
     // --- Lancer la partie multi (P1) ---------------------------------------------
@@ -521,7 +542,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             }
             const pokemonIds = this.shuffle(allPokemon).slice(0, ROUND_COUNT).map(p => p.id);
             // Delay round start until the VS animation has finished
-            const roundStartAt = new Date(Date.now() + 3000).toISOString();
+            const roundStartAt = new Date(this.serverNow() + 3000).toISOString();
 
             await this.supabaseService.updateStatDuelRoom(this.roomId, {
                 status: 'playing',
@@ -638,7 +659,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
         const startMs = new Date(roundStartAt).getTime();
 
         // Initialize prevRound from current state to avoid startup flicker
-        const initialElapsed = Date.now() - startMs;
+        const initialElapsed = this.serverNow() - startMs;
         let prevRound = initialElapsed < 0 ? -1 : Math.floor(initialElapsed / ROUND_DURATION_MS);
 
         // S'assurer que currentRound est correct avant de commencer l'intervalle
@@ -654,7 +675,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
                 this.stopClock();
                 return;
             }
-            const now = Date.now();
+            const now = this.serverNow();
             const elapsed = now - startMs;
 
             if (elapsed < 0) {
@@ -1098,7 +1119,7 @@ export class StatDuelComponent implements OnInit, OnDestroy {
             return;
         }
         const pokemonIds = this.shuffle(allPokemon).slice(0, ROUND_COUNT).map(p => p.id);
-        const roundStartAt = new Date(Date.now() + 3000).toISOString();
+        const roundStartAt = new Date(this.serverNow() + 3000).toISOString();
         await this.supabaseService.updateStatDuelRoom(this.roomId, {
             status: 'playing',
             pokemon_ids: pokemonIds,

@@ -463,7 +463,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 					throw new Error('Le pool doit contenir au moins 6 Pokemon distincts');
 				}
 				const pokemonIds = this.shuffle(allPokemon).slice(0, 6).map(p => p.id);
-				const roundStartAt = new Date(Date.now() + 3000).toISOString();
+				// Horloge serveur : l'invité lit round_start_at avec son propre décalage serveur.
+				const serverClockOffset = await this.supabaseService.getServerClockOffset().catch(() => 0);
+				const roundStartAt = new Date(Date.now() + serverClockOffset + 3000).toISOString();
 				await this.supabaseService.updateStatDuelRoom(this.roomId(), {
 					status: 'playing',
 					settings: toGuessSettings(this.gameSettings),
